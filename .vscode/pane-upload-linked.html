@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crystal Analysis Pro - Upload</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',system-ui,sans-serif}
+html,body{width:100%;height:100%;overflow:hidden}
+.app{display:flex;flex-direction:column;width:100%;height:100%;background:#EEF0E8;overflow:hidden}
+.topbar{flex-shrink:0;height:56px;background:#fff;border-bottom:1.5px solid #D8DAD0;display:flex;align-items:center;padding:0 20px;gap:0}
+.logo-mark{width:36px;height:36px;border-radius:9px;background:#1F5330;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-mark svg{stroke:#fff}
+.app-title{font-size:15px;font-weight:700;color:#141514;letter-spacing:-.02em;margin-left:10px}
+.app-sub{font-size:11px;color:#A4AAA4;margin-left:8px;margin-top:1px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.status-chip{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:#306A33}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#1FB505;animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.btn-logout{padding:7px 18px;border-radius:8px;border:none;background:#E24B4A;font-size:12px;font-weight:600;color:#fff;cursor:pointer;transition:background .12s}
+.btn-logout:hover{background:#A32D2D}
+.body{flex:1;display:grid;grid-template-columns:210px 1fr;min-height:0;overflow:hidden}
+.sidebar{background:#E8EAE0;border-right:1.5px solid #D8DAD0;padding:14px 10px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.s-label{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#A4AAA4;padding:10px 10px 4px;flex-shrink:0}
+.sitem{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:#4A5240;transition:all .12s;white-space:nowrap;flex-shrink:0}
+.sitem:hover{background:#D8DACD;color:#1F5330}
+.sitem:hover svg{stroke:#1F5330!important}
+.sitem.on{background:#1F5330;color:#fff;font-weight:600}
+.sitem.on svg{stroke:#fff!important}
+.sitem svg{stroke:#7A8870;flex-shrink:0}
+.badge{margin-left:auto;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;background:#1FB505;color:#fff}
+.badge.amber{background:#C07320}
+.main{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:#EEF0E8}
+.pane{flex:1;display:flex;flex-direction:column;padding:20px 28px;gap:14px;min-height:0;overflow-y:auto}
+.patient-card{background:#fff;border:1px solid #D8DAD0;border-radius:14px;padding:16px 20px;flex-shrink:0}
+.patient-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 20px;margin-top:12px}
+.pfield{display:flex;flex-direction:column;gap:4px}
+.pfield label{font-size:10px;font-weight:700;color:#A4AAA4;text-transform:uppercase;letter-spacing:.05em}
+.pfield input,.pfield select{padding:7px 10px;border:1px solid #D8DAD0;border-radius:8px;font-size:12px;color:#141514;background:#F5F6F0;outline:none;transition:border-color .12s}
+.pfield input:focus,.pfield select:focus{border-color:#1FB505;background:#fff}
+.pfield input::placeholder{color:#C9CAC0}
+.bbar{flex-shrink:0;padding:12px 28px;background:#fff;border-top:1px solid #D8DAD0;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.bbar-info{margin-right:auto;font-size:11px;color:#A4AAA4}
+.btn-ghost{display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1px solid #D8DAD0;background:#fff;font-size:12px;font-weight:600;color:#306A33;cursor:pointer;transition:all .12s}
+.btn-ghost:hover{border-color:#1FB505;background:#F2FBF0}
+.btn-solid{display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:none;background:#1F5330;font-size:12px;font-weight:600;color:#fff;cursor:pointer;transition:background .12s}
+.btn-solid:hover{background:#306A33}
+.dropzone{flex:1;min-height:0;background:#fff;border:2px dashed #C4C9B8;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;transition:all .15s}
+.dropzone:hover{border-color:#1FB505;background:#F5F8F0}
+.dz-ring{width:66px;height:66px;border-radius:50%;background:#EEF3E8;border:1.5px solid #B8C9A8;display:flex;align-items:center;justify-content:center;color:#1F5330}
+.dz-title{font-size:16px;font-weight:700;color:#141514}
+.dz-hint{font-size:13px;color:#A4AAA4}
+.dz-tags{display:flex;gap:6px}
+.dz-tag{font-size:11px;font-weight:500;padding:3px 10px;border-radius:100px;background:#EEF3E8;color:#306A33;border:1px solid #B8C9A8}
+.recent-list{flex-shrink:0;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rcard{background:#fff;border:1px solid #D8DAD0;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .12s}
+.rcard:hover{border-color:#1FB505}
+.rdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.rinfo{flex:1;min-width:0}
+.rname{font-size:12px;font-weight:600;color:#141514;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rdate{font-size:10px;color:#A4AAA4;margin-top:2px}
+.risk-tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:100px;white-space:nowrap}
+.card-title{font-size:13px;font-weight:700;color:#141514;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.ctag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;background:#EEF3E8;color:#306A33;border:1px solid #B8C9A8}
+.feature-tag{position:fixed;top:20px;right:20px;background:#1F5330;color:white;padding:12px 18px;border-radius:8px;font-size:11px;font-weight:600;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+</style>
+</head>
+<body style="margin:0;padding:0">
+
+
+
+<div class="app">
+  <div class="topbar">
+    <div class="logo-mark">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><circle cx="8.5" cy="9.5" r="1.2" fill="#fff" stroke="none"/><circle cx="15" cy="14.5" r=".9" fill="#fff" stroke="none" opacity=".8"/></svg>
+    </div>
+    <div class="app-title">Crystal Analysis Pro</div>
+    <div class="app-sub">Automated Urinary Crystal Identification</div>
+    <div class="topbar-right">
+      <div class="status-chip"><div class="status-dot"></div>System Ready</div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="sidebar">
+      <div class="s-label">Workspace</div>
+      <div class="sitem on">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        New analysis
+      </div>
+      <div class="sitem" onclick="goToResults()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        Results
+        <span class="badge">1</span>
+      </div>
+      <div class="sitem" onclick="goToAnalysis()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Analysis
+      </div>
+      <div class="sitem" onclick="goToExport()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Reports
+        <span class="badge amber">3</span>
+      </div>
+      <div class="s-label">Reference</div>
+      <div class="sitem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Crystal library
+      </div>
+      <div class="sitem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Patients
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="pane">
+        <div class="patient-card">
+          <div class="card-title" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              Patient details
+              <span class="ctag">Required before analysis</span>
+            </div>
+            <button class="btn-solid" onclick="addPatient()" style="font-size:11px;padding:6px 14px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add patient
+            </button>
+          </div>
+          <div id="pid-banner" style="display:none;margin:8px 0 2px;background:#F2FBF0;border:1.5px solid #B8E0AF;border-radius:9px;padding:9px 14px;display:none;align-items:center;gap:10px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1FB505" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span style="font-size:11px;font-weight:600;color:#306A33">Patient registered —</span>
+            <span style="font-size:11px;font-weight:800;color:#1F5330;letter-spacing:.04em" id="pid-val"></span>
+            <button onclick="resetPatient()" style="margin-left:auto;font-size:10px;font-weight:600;color:#A4AAA4;background:none;border:none;cursor:pointer;padding:0">Edit ×</button>
+          </div>
+          <div class="patient-grid" id="patient-form">
+            <div class="pfield">
+              <label>Full name</label>
+              <input type="text" placeholder="Juan dela Cruz" id="pname">
+            </div>
+            <div class="pfield">
+              <label>Age</label>
+              <input type="number" placeholder="e.g. 42" min="0" max="150" id="page">
+            </div>
+            <div class="pfield">
+              <label>Sex</label>
+              <select id="psex">
+                <option value="">Select sex</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="pfield">
+              <label>Date of birth</label>
+              <input type="date" id="pdob">
+            </div>
+            <div class="pfield" style="grid-column:span 2">
+              <label>Address</label>
+              <input type="text" placeholder="Street, City, Province" id="paddress">
+            </div>
+          </div>
+        </div>
+        <div class="dropzone" onclick="analyzeImage()">
+          <div class="dz-ring"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+          <div class="dz-title">Drop image here or click to upload</div>
+          <div class="dz-hint">JPEG, PNG · Max 100 MB</div>
+          <div class="dz-tags"><span class="dz-tag">JPEG</span><span class="dz-tag">PNG</span></div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:#C9CAC0;text-transform:uppercase;letter-spacing:.07em">Recent samples</div>
+        <div class="recent-list">
+          <div class="rcard"><div class="rdot" style="background:#E24B4A"></div><div class="rinfo"><div class="rname">Sample #2025-047</div><div class="rdate">Today · 09:14</div></div><span class="risk-tag" style="background:#FFF0ED;color:#A32D2D">Moderate</span></div>
+          <div class="rcard"><div class="rdot" style="background:#1FB505"></div><div class="rinfo"><div class="rname">Sample #2025-046</div><div class="rdate">Yesterday · 14:52</div></div><span class="risk-tag" style="background:#F2FBF0;color:#1F5330">Low</span></div>
+          <div class="rcard"><div class="rdot" style="background:#6D7758"></div><div class="rinfo"><div class="rname">Sample #2025-045</div><div class="rdate">Mar 11 · 11:30</div></div><span class="risk-tag" style="background:#FFF0ED;color:#A32D2D">High</span></div>
+        </div>
+        <div class="bbar">
+          <div class="bbar-info">Supported formats: JPEG · PNG </div>
+          <button class="btn-solid" onclick="analyzeImage()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Analyze image</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function addPatient(){
+  var name=document.getElementById('pname').value.trim();
+  if(!name){
+    document.getElementById('pname').style.borderColor='#E24B4A';
+    document.getElementById('pname').focus();
+    return;
+  }
+  document.getElementById('pname').style.borderColor='';
+  var now=new Date();
+  var yr=now.getFullYear();
+  var seq=String(Math.floor(Math.random()*900)+100);
+  var pid='PT-'+yr+'-'+seq;
+  document.getElementById('pid-val').textContent=pid;
+  var banner=document.getElementById('pid-banner');
+  banner.style.display='flex';
+  document.getElementById('patient-form').style.display='none';
+}
+
+function resetPatient(){
+  document.getElementById('pid-banner').style.display='none';
+  document.getElementById('patient-form').style.display='grid';
+  document.getElementById('pname').value='';
+  document.getElementById('page').value='';
+  document.getElementById('psex').value='';
+  document.getElementById('pdob').value='';
+  document.getElementById('paddress').value='';
+}
+
+function analyzeImage(){
+  alert('✅ Analyzing image... This would open Results page in production');
+  window.location.href = 'pane-results-linked.html';
+}
+
+function goToResults(){
+  window.location.href = 'pane-results-linked.html';
+}
+
+function goToAnalysis(){
+  window.location.href = 'pane-analysis-linked.html';
+}
+
+function goToExport(){
+  window.location.href = 'pane-export-linked.html';
+}
+
+function logout(){
+  if(confirm('Are you sure you want to logout?')){
+    window.location.href = 'pane-login-linked.html';
+  }
+}
+</script>
+
+</body>
+</html>

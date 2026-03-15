@@ -121,14 +121,14 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
       />
       <SidebarItem 
         label="Results" 
-        icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />}
+        icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />}
         onClick={goToResults} 
         isActive={currentPage === 'results'} 
         badge="1" 
       />
       <SidebarItem 
         label="Analysis" 
-        icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />}
+        icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />}
         onClick={goToAnalysis} 
         isActive={currentPage === 'analysis'} 
       />

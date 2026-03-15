@@ -1,28 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Sidebar from './Sidebar';
 
 export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogin }) {
   const [patientName, setPatientName] = useState('');
-  const [patientId, setPatientId] = useState(null);
-  const [showForm, setShowForm] = useState(true);
+  const [patientId, setPatientId]     = useState(null);
+  const [showForm, setShowForm]       = useState(true);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const fileInputRef = useRef(null);
 
   const handleAddPatient = () => {
-    if (!patientName.trim()) {
-      alert('Please enter patient name');
-      return;
-    }
-    const yr = new Date().getFullYear();
+    if (!patientName.trim()) { alert('Please enter patient name'); return; }
+    const yr  = new Date().getFullYear();
     const seq = String(Math.floor(Math.random() * 900) + 100);
-    const pid = `PT-${yr}-${seq}`;
-    setPatientId(pid);
+    setPatientId(`PT-${yr}-${seq}`);
     setShowForm(false);
   };
 
-  const handleReset = () => {
-    setPatientName('');
-    setPatientId(null);
-    setShowForm(true);
-  };
+  const handleReset = () => { setPatientName(''); setPatientId(null); setShowForm(true); };
+
+  const handleFileChange = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
+  const handleDropzoneClick = () => fileInputRef.current.click();
+  const handleDrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setUploadedImage(f); };
+  const handleDragOver = (e) => e.preventDefault();
+  const handleRemoveImage = () => { setUploadedImage(null); fileInputRef.current.value = ''; };
 
   return (
     <div style={styles.app}>
@@ -35,18 +35,12 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
             <div style={styles.statusDot}></div>
             System Ready
           </div>
-          <button onClick={goToLogin} style={styles.btnLogout}>Logout</button>
+          <button onClick={goToLogin} className="btn-logout">Logout</button>
         </div>
       </div>
 
       <div style={styles.body}>
-        <Sidebar 
-          currentPage="upload" 
-          goToUpload={() => {}} 
-          goToResults={goToResults} 
-          goToAnalysis={goToAnalysis} 
-          goToExport={goToExport} 
-        />
+        <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} />
 
         <div style={styles.main}>
           <div style={styles.pane}>
@@ -54,20 +48,13 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
             <div style={styles.patientCard}>
               <div style={styles.cardTitle}>
                 <span>Patient details</span>
-                <button onClick={handleAddPatient} style={styles.btnSmall}>+ Add patient</button>
+                <button onClick={handleAddPatient} className="btn-small">+ Add patient</button>
               </div>
-              
               {showForm ? (
                 <div style={styles.patientGrid}>
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Full name</label>
-                    <input 
-                      type="text" 
-                      value={patientName}
-                      onChange={(e) => setPatientName(e.target.value)}
-                      placeholder="Juan dela Cruz" 
-                      style={styles.pInput}
-                    />
+                    <input type="text" value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={styles.pInput} />
                   </div>
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Age</label>
@@ -93,42 +80,57 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
               )}
             </div>
 
+            {/* Hidden file input */}
+            <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
+
             {/* Dropzone */}
-            <div style={styles.dropzone}>
-              <div style={styles.dzRing}>📤</div>
-              <div style={styles.dzTitle}>Drop image here or click to upload</div>
-              <div style={styles.dzHint}>JPEG, PNG, TIFF, BMP · Max 100 MB</div>
-              <div style={styles.dzTags}>
-                <span style={styles.dzTag}>JPEG</span>
-                <span style={styles.dzTag}>PNG</span>
-                <span style={styles.dzTag}>TIFF</span>
+            {!uploadedImage ? (
+              <div className="dropzone" onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}>
+                <div style={styles.dzRing}>📤</div>
+                <div style={styles.dzTitle}>Drop image here or click to upload</div>
+                <div style={styles.dzHint}>JPEG, PNG, TIFF, BMP · Max 100 MB</div>
+                <div style={styles.dzTags}>
+                  <span style={styles.dzTag}>JPEG</span>
+                  <span style={styles.dzTag}>PNG</span>
+                  <span style={styles.dzTag}>TIFF</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={styles.uploadedBox}>
+                <div style={styles.uploadedIcon}>🖼️</div>
+                <div style={styles.uploadedInfo}>
+                  <div style={styles.uploadedName}>{uploadedImage.name}</div>
+                  <div style={styles.uploadedSize}>{(uploadedImage.size / 1024).toFixed(1)} KB · Ready to analyze</div>
+                </div>
+                <button onClick={handleRemoveImage} className="btn-remove">✕ Remove</button>
+              </div>
+            )}
 
             {/* Recent Samples */}
             <div style={styles.recentLabel}>Recent samples</div>
             <div style={styles.recentList}>
               <div style={styles.rcard}>
                 <div style={{ ...styles.rdot, background: '#E24B4A' }}></div>
-                <div style={styles.rinfo}>
-                  <div style={styles.rname}>Sample #2025-047</div>
-                  <div style={styles.rdate}>Today · 09:14</div>
-                </div>
+                <div style={styles.rinfo}><div style={styles.rname}>Sample #2025-047</div><div style={styles.rdate}>Today · 09:14</div></div>
                 <span style={styles.riskTag}>Moderate</span>
               </div>
               <div style={styles.rcard}>
                 <div style={{ ...styles.rdot, background: '#1FB505' }}></div>
-                <div style={styles.rinfo}>
-                  <div style={styles.rname}>Sample #2025-046</div>
-                  <div style={styles.rdate}>Yesterday · 14:52</div>
-                </div>
+                <div style={styles.rinfo}><div style={styles.rname}>Sample #2025-046</div><div style={styles.rdate}>Yesterday · 14:52</div></div>
                 <span style={styles.riskTag}>Low</span>
               </div>
             </div>
 
             {/* Button Bar */}
             <div style={styles.bbar}>
-              <button onClick={goToResults} style={styles.btnSolid}>🔍 Analyze image</button>
+              {!uploadedImage && <span style={styles.uploadHint}>⚠ Please upload an image first</span>}
+              <button
+                onClick={uploadedImage ? goToResults : undefined}
+                className="btn-solid"
+                disabled={!uploadedImage}
+              >
+                🔍 Analyze image
+              </button>
             </div>
           </div>
         </div>
@@ -146,13 +148,11 @@ const styles = {
   topbarRight: { marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' },
   statusChip: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 500, color: '#306A33' },
   statusDot: { width: '8px', height: '8px', borderRadius: '50%', background: '#1FB505' },
-  btnLogout: { padding: '7px 18px', borderRadius: '8px', border: 'none', background: '#E24B4A', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: 'pointer' },
   body: { flex: 1, display: 'grid', gridTemplateColumns: '210px 1fr', minHeight: 0, overflow: 'hidden' },
   main: { display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', background: '#EEF0E8' },
   pane: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 28px', gap: '14px', minHeight: 0, overflowY: 'auto' },
   patientCard: { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 20px', flexShrink: 0 },
   cardTitle: { fontSize: '13px', fontWeight: 700, color: '#141514', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  btnSmall: { background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' },
   patientGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginTop: '12px' },
   pfield: { display: 'flex', flexDirection: 'column', gap: '4px' },
   pLabel: { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase' },
@@ -161,12 +161,16 @@ const styles = {
   pidCheck: { fontSize: '14px', color: '#1FB505' },
   pidVal: { fontSize: '11px', fontWeight: 800, color: '#1F5330' },
   pidEdit: { marginLeft: 'auto', background: 'none', border: 'none', color: '#A4AAA4', cursor: 'pointer', fontSize: '10px' },
-  dropzone: { flex: 1, minHeight: 0, background: '#fff', border: '2px dashed #C4C9B8', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', cursor: 'pointer' },
   dzRing: { fontSize: '32px' },
   dzTitle: { fontSize: '16px', fontWeight: 700, color: '#141514' },
   dzHint: { fontSize: '13px', color: '#A4AAA4' },
   dzTags: { display: 'flex', gap: '6px' },
   dzTag: { fontSize: '11px', fontWeight: 500, padding: '3px 10px', borderRadius: '100px', background: '#EEF3E8', color: '#306A33', border: '1px solid #B8C9A8' },
+  uploadedBox: { flex: 1, minHeight: '80px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '16px', display: 'flex', alignItems: 'center', padding: '16px 20px', gap: '14px' },
+  uploadedIcon: { fontSize: '28px' },
+  uploadedInfo: { flex: 1 },
+  uploadedName: { fontSize: '13px', fontWeight: 700, color: '#141514' },
+  uploadedSize: { fontSize: '11px', color: '#1FB505', marginTop: '3px', fontWeight: 500 },
   recentLabel: { fontSize: '10px', fontWeight: 700, color: '#C9CAC0', textTransform: 'uppercase' },
   recentList: { flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' },
   rcard: { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '12px', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: '10px' },
@@ -175,6 +179,6 @@ const styles = {
   rname: { fontSize: '12px', fontWeight: 600, color: '#141514' },
   rdate: { fontSize: '10px', color: '#A4AAA4', marginTop: '2px' },
   riskTag: { fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '100px', background: '#FFF0ED', color: '#A32D2D' },
-  bbar: { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', justifyContent: 'flex-end', gap: '8px' },
-  btnSolid: { padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: 'pointer' },
+  bbar: { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' },
+  uploadHint: { fontSize: '11px', color: '#C07320', fontWeight: 500 },
 };

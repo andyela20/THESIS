@@ -11,3 +11,247 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* ── Page transition ── */
+@keyframes pageSlideIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageSlideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Login box entrance ── */
+@keyframes loginEntrance {
+  from { opacity: 0; transform: scale(0.94) translateY(24px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.login-enter {
+  animation: loginEntrance 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Solid button (dark green) ── */
+.btn-solid {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #1F5330;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.13s, box-shadow 0.18s;
+}
+.btn-solid:hover {
+  background: #27683e;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(31,83,48,0.28);
+}
+.btn-solid:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: none;
+}
+.btn-solid:disabled {
+  background: #C4C9B8;
+  color: #8A8E80;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Ghost button (outlined) ── */
+.btn-ghost {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid #D8DAD0;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #306A33;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.13s, box-shadow 0.18s;
+}
+.btn-ghost:hover {
+  border-color: #1F5330;
+  background: #f2f7f2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(31,83,48,0.12);
+}
+.btn-ghost:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: none;
+}
+
+/* ── Logout button ── */
+.btn-logout {
+  padding: 7px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #E24B4A;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.13s, box-shadow 0.18s;
+}
+.btn-logout:hover {
+  background: #c73b3a;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(226,75,74,0.3);
+}
+.btn-logout:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: none;
+}
+
+/* ── Small button (+ Add patient) ── */
+.btn-small {
+  background: #1F5330;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.13s, box-shadow 0.18s;
+}
+.btn-small:hover {
+  background: #27683e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(31,83,48,0.25);
+}
+.btn-small:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+/* ── Login submit button ── */
+.btn-login-submit {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+}
+.btn-login-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255,215,0,0.45);
+  filter: brightness(1.06);
+}
+.btn-login-submit:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
+}
+
+/* ── Sidebar item ── */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.16s, color 0.16s, transform 0.14s, box-shadow 0.16s;
+}
+.sidebar-item:hover:not(.sidebar-item--active) {
+  background: #d8dbd0;
+  transform: translateX(3px);
+}
+.sidebar-item:active {
+  transform: scale(0.97) translateX(2px);
+}
+.sidebar-item--active {
+  background: #1F5330;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(31,83,48,0.22);
+}
+
+/* ── Crystal type card hover ── */
+.ctype-card {
+  background: #fff;
+  border: 1px solid #D8DAD0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+}
+.ctype-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.09);
+  border-color: #b0b8a8;
+}
+
+/* ── Dropzone hover ── */
+.dropzone {
+  flex: 1;
+  min-height: 140px;
+  background: #fff;
+  border: 2px dashed #C4C9B8;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.18s;
+}
+.dropzone:hover {
+  border-color: #1F5330;
+  background: #f4f8f2;
+  transform: scale(1.01);
+}
+
+/* ── Remove image button ── */
+.btn-remove {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #E24B4A;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #E24B4A;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s, transform 0.13s;
+}
+.btn-remove:hover {
+  background: #E24B4A;
+  color: #fff;
+  transform: scale(1.04);
+}
+.btn-remove:active {
+  transform: scale(0.97);
+}
+
+/* ── Export PDF ghost button ── */
+.btn-export {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid #D8DAD0;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #306A33;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.13s, box-shadow 0.18s;
+}
+.btn-export:hover {
+  border-color: #1F5330;
+  background: #f2f7f2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(31,83,48,0.12);
+}
+.btn-export:active {
+  transform: scale(0.97);
+}

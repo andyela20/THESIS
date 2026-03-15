@@ -19,7 +19,7 @@ export default function Login({ onLogin }) {
 
       <div style={styles.loginBox}>
         <div style={styles.lgLeft}>
-          <div style={styles.lgTitle}>WELCOME</div>
+          <div style={styles.lgTitle}>WELCOME TO CRYSTALSCOPE</div>
 
           <div style={styles.lgGroup}>
             <label style={styles.label}>Username</label>
@@ -87,7 +87,7 @@ const styles = {
   bgBr:  { position: 'absolute', bottom: '-50px',  right: '-50px',  width: '350px', height: '350px', background: '#2d5a27', borderRadius: '50%', opacity: 0.2, pointerEvents: 'none' },
   loginBox: { background: '#fff', borderRadius: '20px', padding: '60px 80px', width: '90%', maxWidth: '1100px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)', position: 'relative', zIndex: 10 },
   lgLeft:   { display: 'flex', flexDirection: 'column', justifyContent: 'center' },
-  lgTitle:  { fontSize: '36px', fontWeight: 700, color: '#2d5a27', marginBottom: '40px', letterSpacing: '1px' },
+  lgTitle:  { fontSize: '33px', fontWeight: 700, color: '#2d5a27', marginBottom: '40px', letterSpacing: '1px' },
   lgGroup:  { marginBottom: '26px' },
   label:    { display: 'block', fontSize: '13px', color: '#4a6645', marginBottom: '8px', fontWeight: 600, letterSpacing: '0.4px' },
   input:    { width: '100%', padding: '14px 0', border: 'none', borderBottom: '2px solid #d4dccf', fontSize: '14px', color: '#1a3a1a', background: 'transparent', outline: 'none', transition: 'border-color 0.25s', boxSizing: 'border-box' },

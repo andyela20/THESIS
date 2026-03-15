@@ -1,15 +1,79 @@
 import React from 'react';
 
+// SVG ICON COMPONENTS
+const UploadIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+    <polyline points="17 8 12 3 7 8"></polyline>
+    <line x1="12" y1="3" x2="12" y2="15"></line>
+  </svg>
+);
+
+const ResultsIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+    <polyline points="17 6 23 6 23 12"></polyline>
+  </svg>
+);
+
+const UrineCrystalIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {/* Main crystal shape - like calcium oxalate dihydrate (monoclinic) */}
+    <path d="M12 2 L18 6 L18 12 L12 16 L6 12 L6 6 Z" fill="none" stroke={color} strokeWidth="1.5"/>
+    {/* Internal crystal structure lines */}
+    <line x1="12" y1="2" x2="12" y2="16" stroke={color} strokeWidth="1.5"/>
+    <line x1="6" y1="9" x2="18" y2="9" stroke={color} strokeWidth="1.5"/>
+    {/* Additional crystal facets */}
+    <line x1="6" y1="6" x2="18" y2="12" stroke={color} strokeWidth="1"/>
+    <line x1="18" y1="6" x2="6" y2="12" stroke={color} strokeWidth="1"/>
+  </svg>
+);
+
+const ReportsIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+    <polyline points="13 2 13 9 20 9"></polyline>
+  </svg>
+);
+
+const LibraryIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8"></circle>
+    <path d="m21 21-4.35-4.35"></path>
+  </svg>
+);
+
+const PatientsIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+    <circle cx="9" cy="7" r="4"></circle>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+  </svg>
+);
+
 export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnalysis, goToExport }) {
   const SidebarItem = ({ label, icon, onClick, isActive, badge }) => (
     <div
       onClick={onClick}
-      className={`sidebar-item${isActive ? ' sidebar-item--active' : ''}`}
       style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '9px 12px',
+        borderRadius: '9px',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: 500,
         color: isActive ? '#fff' : '#4A5240',
+        background: isActive ? '#1F5330' : 'transparent',
+        transition: 'all 0.12s',
+        fontFamily: "'Poppins', sans-serif",
       }}
     >
-      <span style={{ fontSize: '14px' }}>{icon}</span>
+      <span style={{ fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px' }}>
+        {icon}
+      </span>
       {label}
       {badge && (
         <span style={{
@@ -44,14 +108,37 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
         textTransform: 'uppercase',
         color: '#A4AAA4',
         padding: '10px 10px 4px',
+        fontFamily: "'Poppins', sans-serif",
       }}>
         Workspace
       </div>
 
-      <SidebarItem label="New analysis"   icon="📤" onClick={goToUpload}   isActive={currentPage === 'upload'} />
-      <SidebarItem label="Results"        icon="📊" onClick={goToResults}  isActive={currentPage === 'results'}  badge="1" />
-      <SidebarItem label="Analysis"       icon="📈" onClick={goToAnalysis} isActive={currentPage === 'analysis'} />
-      <SidebarItem label="Reports"        icon="📁" onClick={goToExport}   isActive={currentPage === 'export'}   badge="3" />
+      <SidebarItem 
+        label="New analysis" 
+        icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}
+        onClick={goToUpload} 
+        isActive={currentPage === 'upload'} 
+      />
+      <SidebarItem 
+        label="Results" 
+        icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />}
+        onClick={goToResults} 
+        isActive={currentPage === 'results'} 
+        badge="1" 
+      />
+      <SidebarItem 
+        label="Analysis" 
+        icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />}
+        onClick={goToAnalysis} 
+        isActive={currentPage === 'analysis'} 
+      />
+      <SidebarItem 
+        label="Reports" 
+        icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}
+        onClick={goToExport} 
+        isActive={currentPage === 'export'} 
+        badge="3" 
+      />
 
       <div style={{
         fontSize: '9px',
@@ -61,11 +148,21 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
         color: '#A4AAA4',
         padding: '10px 10px 4px',
         marginTop: '10px',
+        fontFamily: "'Poppins', sans-serif",
       }}>
         Reference
       </div>
-      <SidebarItem label="Crystal library" icon="🔍" onClick={() => {}} />
-      <SidebarItem label="Patients"         icon="👥" onClick={() => {}} />
+      
+      <SidebarItem 
+        label="Crystal library" 
+        icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}
+        onClick={() => {}} 
+      />
+      <SidebarItem 
+        label="Patients" 
+        icon={<PatientsIcon color={currentPage === 'patients' ? '#fff' : '#4A5240'} />}
+        onClick={() => {}} 
+      />
     </div>
   );
 }

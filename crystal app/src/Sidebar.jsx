@@ -70,7 +70,7 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
 
   return (
     <div style={{ background: '#E8EAE0', borderRight: '1.5px solid #D8DAD0', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
-      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', fontFamily: "'Poppins', sans-serif" }}>
+      <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', fontFamily: "'Poppins', sans-serif" }}>
         Workspace
       </div>
       <SidebarItem label="New analysis"   icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}   onClick={goToUpload}   isActive={currentPage === 'upload'} />
@@ -78,7 +78,7 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
       <SidebarItem label="Analysis"       icon={<ResultsIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />} onClick={goToAnalysis} isActive={currentPage === 'analysis'} />
       <SidebarItem label="Reports"        icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}   onClick={goToExport}   isActive={currentPage === 'export'}   badge="3" />
 
-      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', marginTop: '10px', fontFamily: "'Poppins', sans-serif" }}>
+      <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', marginTop: '10px', fontFamily: "'Poppins', sans-serif" }}>
         Reference
       </div>
       <SidebarItem label="Crystal library" icon={<LibraryIcon color="#4A5240" />}  onClick={() => {}} />

@@ -123,7 +123,7 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
 
             {/* Button Bar */}
             <div style={styles.bbar}>
-              {!uploadedImage && <span style={styles.uploadHint}>⚠ Please upload an image first</span>}
+              {!uploadedImage && <span style={styles.uploadHint}>Please upload an image first</span>}
               <button
                 onClick={uploadedImage ? goToResults : undefined}
                 className="btn-solid"

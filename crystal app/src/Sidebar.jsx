@@ -1,6 +1,6 @@
 import React from 'react';
+import './index.css';
 
-// SVG ICON COMPONENTS
 const UploadIcon = ({ color }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -18,12 +18,9 @@ const ResultsIcon = ({ color }) => (
 
 const UrineCrystalIcon = ({ color }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    {/* Main crystal shape - like calcium oxalate dihydrate (monoclinic) */}
     <path d="M12 2 L18 6 L18 12 L12 16 L6 12 L6 6 Z" fill="none" stroke={color} strokeWidth="1.5"/>
-    {/* Internal crystal structure lines */}
     <line x1="12" y1="2" x2="12" y2="16" stroke={color} strokeWidth="1.5"/>
     <line x1="6" y1="9" x2="18" y2="9" stroke={color} strokeWidth="1.5"/>
-    {/* Additional crystal facets */}
     <line x1="6" y1="6" x2="18" y2="12" stroke={color} strokeWidth="1"/>
     <line x1="18" y1="6" x2="6" y2="12" stroke={color} strokeWidth="1"/>
   </svg>
@@ -56,35 +53,15 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
   const SidebarItem = ({ label, icon, onClick, isActive, badge }) => (
     <div
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '9px 12px',
-        borderRadius: '9px',
-        cursor: 'pointer',
-        fontSize: '13px',
-        fontWeight: 500,
-        color: isActive ? '#fff' : '#4A5240',
-        background: isActive ? '#1F5330' : 'transparent',
-        transition: 'all 0.12s',
-        fontFamily: "'Poppins', sans-serif",
-      }}
+      className={`sidebar-item${isActive ? ' sidebar-item--active' : ''}`}
+      style={{ color: isActive ? '#fff' : '#4A5240' }}
     >
-      <span style={{ fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px' }}>
+      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', flexShrink: 0 }}>
         {icon}
       </span>
       {label}
       {badge && (
-        <span style={{
-          marginLeft: 'auto',
-          fontSize: '9px',
-          fontWeight: 700,
-          padding: '2px 6px',
-          borderRadius: '10px',
-          background: isActive ? 'rgba(255,255,255,0.25)' : '#1FB505',
-          color: '#fff',
-        }}>
+        <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '10px', background: isActive ? 'rgba(255,255,255,0.25)' : '#1FB505', color: '#fff' }}>
           {badge}
         </span>
       )}
@@ -92,77 +69,20 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
   );
 
   return (
-    <div style={{
-      background: '#E8EAE0',
-      borderRight: '1.5px solid #D8DAD0',
-      padding: '14px 10px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '2px',
-      overflow: 'hidden',
-    }}>
-      <div style={{
-        fontSize: '9px',
-        fontWeight: 700,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: '#A4AAA4',
-        padding: '10px 10px 4px',
-        fontFamily: "'Poppins', sans-serif",
-      }}>
+    <div style={{ background: '#E8EAE0', borderRight: '1.5px solid #D8DAD0', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', fontFamily: "'Poppins', sans-serif" }}>
         Workspace
       </div>
+      <SidebarItem label="New analysis"   icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}   onClick={goToUpload}   isActive={currentPage === 'upload'} />
+      <SidebarItem label="Results"        icon={<UrineCrystalIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />} onClick={goToResults}  isActive={currentPage === 'results'}  badge="1" />
+      <SidebarItem label="Analysis"       icon={<ResultsIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />} onClick={goToAnalysis} isActive={currentPage === 'analysis'} />
+      <SidebarItem label="Reports"        icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}   onClick={goToExport}   isActive={currentPage === 'export'}   badge="3" />
 
-      <SidebarItem 
-        label="New analysis" 
-        icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}
-        onClick={goToUpload} 
-        isActive={currentPage === 'upload'} 
-      />
-      <SidebarItem 
-        label="Results" 
-        icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />}
-        onClick={goToResults} 
-        isActive={currentPage === 'results'} 
-        badge="1" 
-      />
-      <SidebarItem 
-        label="Analysis" 
-        icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />}
-        onClick={goToAnalysis} 
-        isActive={currentPage === 'analysis'} 
-      />
-      <SidebarItem 
-        label="Reports" 
-        icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}
-        onClick={goToExport} 
-        isActive={currentPage === 'export'} 
-        badge="3" 
-      />
-
-      <div style={{
-        fontSize: '9px',
-        fontWeight: 700,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: '#A4AAA4',
-        padding: '10px 10px 4px',
-        marginTop: '10px',
-        fontFamily: "'Poppins', sans-serif",
-      }}>
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', marginTop: '10px', fontFamily: "'Poppins', sans-serif" }}>
         Reference
       </div>
-      
-      <SidebarItem 
-        label="Crystal library" 
-        icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}
-        onClick={() => {}} 
-      />
-      <SidebarItem 
-        label="Patients" 
-        icon={<PatientsIcon color={currentPage === 'patients' ? '#fff' : '#4A5240'} />}
-        onClick={() => {}} 
-      />
+      <SidebarItem label="Crystal library" icon={<LibraryIcon color="#4A5240" />}  onClick={() => {}} />
+      <SidebarItem label="Patients"         icon={<PatientsIcon color="#4A5240" />} onClick={() => {}} />
     </div>
   );
 }

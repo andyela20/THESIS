@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './index.css'; 
+import './index.css';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
@@ -16,15 +16,12 @@ export default function Analysis({ goToUpload, goToResults, goToExport, goToLogi
   return (
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
-
       <div style={styles.body}>
         <Sidebar currentPage="analysis" goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={() => {}} goToExport={goToExport} />
-
         <div style={styles.main}>
           <div style={styles.pane}>
             <div style={styles.anGrid}>
               <div style={styles.anLeft}>
-                {/* Analysis Results Card */}
                 <div style={styles.card}>
                   <div style={styles.cardTitle}>Analysis results</div>
                   <div style={styles.stats}>
@@ -42,8 +39,6 @@ export default function Analysis({ goToUpload, goToResults, goToExport, goToLogi
                     </div>
                   </div>
                 </div>
-
-                {/* Distribution Card */}
                 <div style={styles.distCard}>
                   <div style={styles.cardTitle}>Crystal distribution</div>
                   {distributions.map((dist, i) => (
@@ -59,8 +54,6 @@ export default function Analysis({ goToUpload, goToResults, goToExport, goToLogi
                   ))}
                 </div>
               </div>
-
-              {/* Filter Card */}
               <div style={styles.filterCard}>
                 <div style={styles.cardTitle}>Filters</div>
                 <div>
@@ -73,23 +66,14 @@ export default function Analysis({ goToUpload, goToResults, goToExport, goToLogi
                 </div>
                 <div>
                   <div style={styles.flbl}>Min. confidence</div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={confidence}
-                    onChange={(e) => setConfidence(e.target.value)}
-                    style={styles.fRange}
-                  />
+                  <input type="range" min="0" max="100" value={confidence} onChange={(e) => setConfidence(e.target.value)} style={styles.fRange} />
                   <div style={styles.fval}>{confidence}%</div>
                 </div>
               </div>
             </div>
-
-            {/* Button Bar */}
             <div style={styles.bbar}>
-              <button onClick={goToResults} style={styles.btnGhost}>← Back</button>
-              <button onClick={goToExport}  style={styles.btnSolid}>Next →</button>
+              <button onClick={goToResults} className="btn-ghost">← Back</button>
+              <button onClick={goToExport}  className="btn-solid">Next →</button>
             </div>
           </div>
         </div>
@@ -124,6 +108,4 @@ const styles = {
   fRange: { width: '100%', accentColor: '#1FB505' },
   fval: { fontSize: '14px', fontWeight: 800, color: '#1FB505', marginTop: '5px', fontFamily: "'Poppins', sans-serif" },
   bbar: { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', justifyContent: 'flex-end', gap: '8px' },
-  btnGhost: { padding: '7px 16px', borderRadius: '8px', border: '1px solid #D8DAD0', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#306A33', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-  btnSolid: { padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
 };

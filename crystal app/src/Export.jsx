@@ -5,19 +5,17 @@ import './index.css';
 
 export default function Export({ goToUpload, goToResults, goToAnalysis, goToLogin }) {
   const crystals = [
-    { name: 'Calcium Oxalate', count: 23, pct: 48, color: '#E24B4A' },
-    { name: 'Uric Acid',       count: 12, pct: 25, color: '#1FB505' },
-    { name: 'Struvite',        count: 5,  pct: 10, color: '#6D9922' },
-    { name: 'Calcium Phosphate', count: 8, pct: 17, color: '#6D7758' },
+    { name: 'Calcium Oxalate',  count: 23, pct: 48, color: '#E24B4A' },
+    { name: 'Uric Acid',        count: 12, pct: 25, color: '#1FB505' },
+    { name: 'Struvite',         count: 5,  pct: 10, color: '#6D9922' },
+    { name: 'Calcium Phosphate',count: 8,  pct: 17, color: '#6D7758' },
   ];
 
   return (
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
-
       <div style={styles.body}>
         <Sidebar currentPage="export" goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={() => {}} />
-
         <div style={styles.main}>
           <div style={styles.pane}>
             <div style={styles.expTitle}>Detected crystals (48)</div>
@@ -45,10 +43,9 @@ export default function Export({ goToUpload, goToResults, goToAnalysis, goToLogi
                 ))}
               </div>
             </div>
-
             <div style={styles.bbar}>
-              <button onClick={() => alert('Exporting PDF...')} style={styles.btnExport}>📥 Export PDF</button>
-              <button onClick={goToUpload} style={styles.btnSolid}>Analyze another</button>
+              <button onClick={() => alert('Exporting PDF...')} className="btn-export">📥 Export PDF</button>
+              <button onClick={goToUpload} className="btn-solid">Analyze another</button>
             </div>
           </div>
         </div>
@@ -73,6 +70,4 @@ const styles = {
   ebar: { flex: 1, height: '6px', background: '#D8DAD0', borderRadius: '3px', margin: '0 6px' },
   efill: { height: '100%', borderRadius: '3px' },
   bbar: { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', justifyContent: 'flex-end', gap: '8px' },
-  btnExport: { padding: '7px 16px', borderRadius: '8px', border: '1px solid #D8DAD0', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#306A33', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-  btnSolid: { padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
 };

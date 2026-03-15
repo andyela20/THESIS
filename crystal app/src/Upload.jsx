@@ -10,7 +10,6 @@ const styles = {
   pane: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 28px', gap: '14px', minHeight: 0, overflowY: 'auto' },
   patientCard: { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 20px', flexShrink: 0 },
   cardTitle: { fontSize: '15px', fontWeight: 700, color: '#141514', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Poppins', sans-serif" },
-  btnSmall: { background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
   patientGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginTop: '12px' },
   pfield: { display: 'flex', flexDirection: 'column', gap: '4px' },
   pLabel: { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" },
@@ -19,7 +18,6 @@ const styles = {
   pidCheck: { fontSize: '14px', color: '#1FB505' },
   pidVal: { fontSize: '11px', fontWeight: 800, color: '#1F5330', fontFamily: "'Poppins', sans-serif" },
   pidEdit: { marginLeft: 'auto', background: 'none', border: 'none', color: '#A4AAA4', cursor: 'pointer', fontSize: '10px', fontFamily: "'Poppins', sans-serif" },
-  dropzone: { flex: 1, minHeight: 0, background: '#fff', border: '2px dashed #C4C9B8', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', cursor: 'pointer' },
   dzRing: { fontSize: '32px' },
   dzTitle: { fontSize: '16px', fontWeight: 700, color: '#141514', fontFamily: "'Poppins', sans-serif" },
   dzHint: { fontSize: '13px', color: '#A4AAA4', fontFamily: "'Poppins', sans-serif" },
@@ -30,7 +28,6 @@ const styles = {
   uploadedInfo: { flex: 1 },
   uploadedName: { fontSize: '13px', fontWeight: 700, color: '#141514', fontFamily: "'Poppins', sans-serif" },
   uploadedSize: { fontSize: '11px', color: '#1FB505', marginTop: '3px', fontWeight: 500, fontFamily: "'Poppins', sans-serif" },
-  btnRemove: { padding: '7px 14px', borderRadius: '8px', border: '1px solid #D8DAD0', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#E24B4A', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
   recentLabel: { fontSize: '10px', fontWeight: 700, color: '#C9CAC0', textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" },
   recentList: { flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' },
   rcard: { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '12px', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: '10px' },
@@ -39,24 +36,8 @@ const styles = {
   rname: { fontSize: '12px', fontWeight: 600, color: '#141514', fontFamily: "'Poppins', sans-serif" },
   rdate: { fontSize: '10px', color: '#A4AAA4', marginTop: '2px', fontFamily: "'Poppins', sans-serif" },
   riskTag: { fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '10px', background: '#FFF0ED', color: '#A32D2D', fontFamily: "'Poppins', sans-serif" },
-  bbar: {
-    flexShrink: 0,
-    position: 'sticky',
-    bottom: 0,
-    width: '100%',
-    marginLeft: '-30px',
-    marginRight: '-30px',
-    marginBottom: '1px',
-    padding: '16px 30px',
-    background: '#fff',
-    borderTop: '1px solid #D8DAD0',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: '10px'
-  },
+  bbar: { flexShrink: 0, position: 'sticky', bottom: 0, width: '100%', marginLeft: '-30px', marginRight: '-30px', marginBottom: '1px', padding: '16px 30px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' },
   uploadHint: { fontSize: '11px', color: '#C07320', fontWeight: 500, fontFamily: "'Poppins', sans-serif" },
-  btnSolid: { padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
 };
 
 export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogin }) {
@@ -69,25 +50,14 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
   const fileInputRef = useRef(null);
 
   const handleAddPatient = () => {
-    if (!patientName.trim()) {
-      alert('Please enter patient name');
-      return;
-    }
+    if (!patientName.trim()) { alert('Please enter patient name'); return; }
     const yr = new Date().getFullYear();
     const seq = String(Math.floor(Math.random() * 900) + 100);
-    const pid = `PT-${yr}-${seq}`;
-    setPatientId(pid);
+    setPatientId(`PT-${yr}-${seq}`);
     setShowForm(false);
   };
 
-  const handleReset = () => {
-    setPatientName('');
-    setPatientId(null);
-    setShowForm(true);
-    setPatientDOB('');
-    setPatientAddress('');
-  };
-
+  const handleReset = () => { setPatientName(''); setPatientId(null); setShowForm(true); setPatientDOB(''); setPatientAddress(''); };
   const handleFileChange = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
   const handleDropzoneClick = () => fileInputRef.current.click();
   const handleDrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setUploadedImage(f); };
@@ -97,36 +67,21 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
   return (
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
-
       <div style={styles.body}>
-        <Sidebar 
-          currentPage="upload" 
-          goToUpload={() => {}} 
-          goToResults={goToResults} 
-          goToAnalysis={goToAnalysis} 
-          goToExport={goToExport} 
-        />
-
+        <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} />
         <div style={styles.main}>
           <div style={styles.pane}>
             {/* Patient Card */}
             <div style={styles.patientCard}>
               <div style={styles.cardTitle}>
                 <span>Patient Details</span>
-                <button onClick={handleAddPatient} style={styles.btnSmall}>+ Add patient</button>
+                <button onClick={handleAddPatient} className="btn-small">+ Add patient</button>
               </div>
-              
               {showForm ? (
                 <div style={styles.patientGrid}>
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Full name</label>
-                    <input 
-                      type="text" 
-                      value={patientName}
-                      onChange={(e) => setPatientName(e.target.value)}
-                      placeholder="Juan dela Cruz" 
-                      style={styles.pInput}
-                    />
+                    <input type="text" value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={styles.pInput} />
                   </div>
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Age</label>
@@ -143,23 +98,11 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
                   </div>
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Date of Birth</label>
-                    <input 
-                      type="date"
-                      value={patientDOB}
-                      onChange={(e) => setPatientDOB(e.target.value)}
-                      style={styles.pInput}
-                    />
+                    <input type="date" value={patientDOB} onChange={(e) => setPatientDOB(e.target.value)} style={styles.pInput} />
                   </div>
-
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Address</label>
-                    <input 
-                      type="text"
-                      value={patientAddress}
-                      onChange={(e) => setPatientAddress(e.target.value)}
-                      placeholder="Street address"
-                      style={styles.pInput}
-                    />
+                    <input type="text" value={patientAddress} onChange={(e) => setPatientAddress(e.target.value)} placeholder="Street address" style={styles.pInput} />
                   </div>
                 </div>
               ) : (
@@ -177,7 +120,7 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
 
             {/* Dropzone */}
             {!uploadedImage ? (
-              <div style={styles.dropzone} onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}>
+              <div className="dropzone" onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}>
                 <div style={styles.dzRing}>📤</div>
                 <div style={styles.dzTitle}>Drop image here or click to upload</div>
                 <div style={styles.dzHint}>JPEG, PNG · Max 100 MB</div>
@@ -193,7 +136,7 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
                   <div style={styles.uploadedName}>{uploadedImage.name}</div>
                   <div style={styles.uploadedSize}>{(uploadedImage.size / 1024).toFixed(1)} KB · Ready to analyze</div>
                 </div>
-                <button onClick={handleRemoveImage} style={styles.btnRemove}>✕ Remove</button>
+                <button onClick={handleRemoveImage} className="btn-remove">✕ Remove</button>
               </div>
             )}
 
@@ -202,18 +145,12 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
             <div style={styles.recentList}>
               <div style={styles.rcard}>
                 <div style={{ ...styles.rdot, background: '#E24B4A' }}></div>
-                <div style={styles.rinfo}>
-                  <div style={styles.rname}>Sample #2025-047</div>
-                  <div style={styles.rdate}>Today · 09:14</div>
-                </div>
+                <div style={styles.rinfo}><div style={styles.rname}>Sample #2025-047</div><div style={styles.rdate}>Today · 09:14</div></div>
                 <span style={styles.riskTag}>Moderate</span>
               </div>
               <div style={styles.rcard}>
                 <div style={{ ...styles.rdot, background: '#1FB505' }}></div>
-                <div style={styles.rinfo}>
-                  <div style={styles.rname}>Sample #2025-046</div>
-                  <div style={styles.rdate}>Yesterday · 14:52</div>
-                </div>
+                <div style={styles.rinfo}><div style={styles.rname}>Sample #2025-046</div><div style={styles.rdate}>Yesterday · 14:52</div></div>
                 <span style={styles.riskTag}>Low</span>
               </div>
             </div>
@@ -221,10 +158,7 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToLogi
             {/* Button Bar */}
             <div style={styles.bbar}>
               {!uploadedImage && <span style={styles.uploadHint}>Please upload an image first</span>}
-              <button 
-                onClick={uploadedImage ? goToResults : undefined} 
-                style={{...styles.btnSolid, opacity: uploadedImage ? 1 : 0.5, cursor: uploadedImage ? 'pointer' : 'not-allowed'}}
-              >
+              <button onClick={uploadedImage ? goToResults : undefined} className="btn-solid" disabled={!uploadedImage}>
                 🔍 Analyze Image
               </button>
             </div>

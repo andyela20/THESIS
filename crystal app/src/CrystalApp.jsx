@@ -4,32 +4,69 @@ import Upload from './Upload';
 import Results from './Results';
 import Analysis from './Analysis';
 import Export from './Export';
+import Patients from './Patients';
 
-export default function CrystalApp() {
-  const [currentPage, setCurrentPage] = useState('login');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [animKey, setAnimKey] = useState(0);
 
-  const navigate = (page) => {
-    setAnimKey(k => k + 1); // triggers re-mount → re-runs animation
-    setCurrentPage(page);
-  };
+export default function App() {
+  const [currentPage, setCurrentPage] = useState('upload');
 
-  const goToLogin  = () => { navigate('login');    setIsLoggedIn(false); };
-  const goToUpload = () => { navigate('upload');   setIsLoggedIn(true);  };
-  const goToResults  = () => navigate('results');
-  const goToAnalysis = () => navigate('analysis');
-  const goToExport   = () => navigate('export');
+  // Navigation functions
+  const goToLogin = () => setCurrentPage('login');
+  const goToUpload = () => setCurrentPage('upload');
+  const goToResults = () => setCurrentPage('results');
+  const goToAnalysis = () => setCurrentPage('analysis');
+  const goToExport = () => setCurrentPage('export');
+  const goToPatients = () => setCurrentPage('patients');  
+ 
 
-  const pageClass = currentPage === 'login' ? 'login-enter' : 'page-enter';
-
+  // Conditional rendering
   return (
-    <div key={animKey} className={pageClass}>
-      {currentPage === 'login'    && <Login onLogin={goToUpload} />}
-      {currentPage === 'upload'   && <Upload   goToResults={goToResults}   goToAnalysis={goToAnalysis} goToExport={goToExport}   goToLogin={goToLogin} />}
-      {currentPage === 'results'  && <Results  goToUpload={goToUpload}     goToAnalysis={goToAnalysis} goToExport={goToExport}   goToLogin={goToLogin} />}
-      {currentPage === 'analysis' && <Analysis goToUpload={goToUpload}     goToResults={goToResults}   goToExport={goToExport}   goToLogin={goToLogin} />}
-      {currentPage === 'export'   && <Export   goToUpload={goToUpload}     goToResults={goToResults}   goToAnalysis={goToAnalysis} goToLogin={goToLogin} />}
+    <div>
+      {currentPage === 'upload' && (
+        <Upload 
+          goToResults={goToResults}
+          goToAnalysis={goToAnalysis}
+          goToExport={goToExport}
+          goToPatients={goToPatients}  
+          goToLogin={goToLogin}
+        />
+      )}
+      {currentPage === 'results' && (
+        <Results 
+          goToUpload={goToUpload}
+          goToAnalysis={goToAnalysis}
+          goToExport={goToExport}
+          goToPatients={goToPatients}  
+          goToLogin={goToLogin}
+        />
+      )}
+      {currentPage === 'analysis' && (
+        <Analysis 
+          goToUpload={goToUpload}
+          goToResults={goToResults}
+          goToExport={goToExport}
+          goToPatients={goToPatients}  
+          goToLogin={goToLogin}
+        />
+      )}
+      {currentPage === 'export' && (
+        <Export 
+          goToUpload={goToUpload}
+          goToResults={goToResults}
+          goToAnalysis={goToAnalysis}
+          goToPatients={goToPatients}  
+          goToLogin={goToLogin}
+        />
+      )}
+      {currentPage === 'patients' && (  
+        <Patients 
+          goToLogin={goToLogin}
+          goToUpload={goToUpload}
+          goToResults={goToResults}
+          goToAnalysis={goToAnalysis}
+          goToExport={goToExport}  
+        />
+      )}
     </div>
   );
 }

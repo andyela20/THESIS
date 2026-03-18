@@ -3,7 +3,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import './index.css';
 
-export default function Results({ goToUpload, goToAnalysis, goToExport, goToLogin }) {
+export default function Results({ goToUpload, goToAnalysis, goToExport, goToPatients, goToLogin }) {
   const crystals = [
     { name: 'Calcium Oxalate', count: 23, color: '#E24B4A' },
     { name: 'Uric Acid',       count: 12, color: '#1FB505' },
@@ -15,7 +15,7 @@ export default function Results({ goToUpload, goToAnalysis, goToExport, goToLogi
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="results" goToUpload={goToUpload} goToResults={() => {}} goToAnalysis={goToAnalysis} goToExport={goToExport} />
+        <Sidebar currentPage="results" goToUpload={goToUpload} goToResults={() => {}} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} />
         <div style={styles.main}>
           <div style={styles.pane}>
             <div style={styles.card}>

@@ -49,7 +49,7 @@ const PatientsIcon = ({ color }) => (
   </svg>
 );
 
-export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnalysis, goToExport }) {
+export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients }) {
   const SidebarItem = ({ label, icon, onClick, isActive, badge }) => (
     <div
       onClick={onClick}
@@ -74,15 +74,15 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
         Workspace
       </div>
       <SidebarItem label="New analysis"   icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}   onClick={goToUpload}   isActive={currentPage === 'upload'} />
-      <SidebarItem label="Results"        icon={<UrineCrystalIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />} onClick={goToResults}  isActive={currentPage === 'results'}  badge="1" />
-      <SidebarItem label="Analysis"       icon={<ResultsIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />} onClick={goToAnalysis} isActive={currentPage === 'analysis'} />
+      <SidebarItem label="Results"        icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />} onClick={goToResults}  isActive={currentPage === 'results'}  badge="1" />
+      <SidebarItem label="Analysis"       icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />} onClick={goToAnalysis} isActive={currentPage === 'analysis'} />
       <SidebarItem label="Reports"        icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}   onClick={goToExport}   isActive={currentPage === 'export'}   badge="3" />
 
       <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', marginTop: '10px', fontFamily: "'Poppins', sans-serif" }}>
         Reference
       </div>
-      <SidebarItem label="Crystal library" icon={<LibraryIcon color="#4A5240" />}  onClick={() => {}} />
-      <SidebarItem label="Patients"         icon={<PatientsIcon color="#4A5240" />} onClick={() => {}} />
+      <SidebarItem label="Crystal library" icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}  onClick={() => {}} isActive={currentPage === 'library'} />
+      <SidebarItem label="Patients"         icon={<PatientsIcon color={currentPage === 'patients' ? '#fff' : '#4A5240'} />} onClick={goToPatients} isActive={currentPage === 'patients'} />
     </div>
   );
 }

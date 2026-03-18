@@ -93,7 +93,7 @@ const styles = {
   input:    { width: '100%', padding: '14px 0', border: 'none', borderBottom: '2px solid #d4dccf', fontSize: '14px', color: '#1a3a1a', background: 'transparent', outline: 'none', transition: 'border-color 0.25s', boxSizing: 'border-box' },
   lgOpts:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '34px', fontSize: '13px' },
   lgCheck:  { display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', color: '#4a6645' },
-  lgForgot: { color: '#E24B4A', textDecoration: 'none', fontWeight: 600 },
+  lgForgot: { color: '#E24B4A', textDecoration: 'none', fontWeight: 400 },
   lgErr:    { fontSize: '12px', color: '#E24B4A', marginTop: '-16px', marginBottom: '10px' },
   lgRight:  { display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: '420px' },
   lgMonitor: { width: '280px', flexShrink: 0 },

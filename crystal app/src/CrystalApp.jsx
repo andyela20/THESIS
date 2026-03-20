@@ -8,7 +8,7 @@ import Patients from './Patients';
 import CrystalLibrary from './CrystalLibrary';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('upload');
+  const [currentPage, setCurrentPage] = useState('login');
   const [crystalRecords, setCrystalRecords] = useState([]);
 
   // Navigation functions

@@ -4,28 +4,37 @@ import Upload from './Upload';
 import Results from './Results';
 import Analysis from './Analysis';
 import Export from './Export';
-import Patients from './Patients';  // ← added
+import Patients from './Patients';
+import CrystalLibrary from './CrystalLibrary';
 
 export default function CrystalApp() {
   const [currentPage, setCurrentPage] = useState('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [crystalRecords, setCrystalRecords] = useState([]);
 
-  // Navigation functions
-  const goToLogin = () => { setCurrentPage('login'); setIsLoggedIn(false); };
-  const goToUpload = () => { setCurrentPage('upload'); setIsLoggedIn(true); };
-  const goToResults = () => setCurrentPage('results');
+  // Navigation
+  const goToLogin    = () => { setCurrentPage('login'); setIsLoggedIn(false); };
+  const goToUpload   = () => { setCurrentPage('upload'); setIsLoggedIn(true); };
+  const goToResults  = () => setCurrentPage('results');
   const goToAnalysis = () => setCurrentPage('analysis');
-  const goToExport = () => setCurrentPage('export');
+  const goToExport   = () => setCurrentPage('export');
   const goToPatients = () => setCurrentPage('patients');
+  const goToLibrary  = () => setCurrentPage('library');
+
+  // Add new crystal records after analysis
+  const addCrystalRecords = (newRecords) => {
+    setCrystalRecords(prev => [...prev, ...newRecords]);
+  };
 
   return (
     <div>
-      {currentPage === 'login' && <Login onLogin={goToUpload} />}
-      {currentPage === 'upload' && <Upload goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToLogin={goToLogin} />}
-      {currentPage === 'results' && <Results goToUpload={goToUpload} goToAnalysis={goToAnalysis} goToExport={goToExport} goToLogin={goToLogin} />}
-      {currentPage === 'analysis' && <Analysis goToUpload={goToUpload} goToResults={goToResults} goToExport={goToExport} goToLogin={goToLogin} />}
-      {currentPage === 'export' && <Export goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToLogin={goToLogin} />}
-      {currentPage === 'patients' && <Patients goToLogin={goToLogin} goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} />}
+      {currentPage === 'login'   && <Login onLogin={goToUpload} />}
+      {currentPage === 'upload'  && <Upload goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} goToLogin={goToLogin} />}
+      {currentPage === 'results' && <Results goToUpload={goToUpload} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} goToLogin={goToLogin} addCrystalRecords={addCrystalRecords} />}
+      {currentPage === 'analysis'&& <Analysis goToUpload={goToUpload} goToResults={goToResults} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} goToLogin={goToLogin} />}
+      {currentPage === 'export'  && <Export goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToPatients={goToPatients} goToLibrary={goToLibrary} goToLogin={goToLogin} />}
+      {currentPage === 'patients'&& <Patients goToLogin={goToLogin} goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} crystalRecords={crystalRecords} />}
+      {currentPage === 'library' && <CrystalLibrary goToLogin={goToLogin} goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} crystalRecords={crystalRecords} />}
     </div>
   );
 }

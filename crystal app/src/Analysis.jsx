@@ -3,7 +3,7 @@ import './index.css';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
-export default function Analysis({ goToUpload, goToResults, goToExport, goToPatients, goToLogin }) {
+export default function Analysis({ goToUpload, goToResults, goToExport, goToPatients, goToLibrary, goToLogin }) {
   const [confidence, setConfidence] = useState(70);
 
   const distributions = [
@@ -17,7 +17,7 @@ export default function Analysis({ goToUpload, goToResults, goToExport, goToPati
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="analysis" goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={() => {}} goToExport={goToExport} goToPatients={goToPatients} />
+        <Sidebar currentPage="analysis" goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={() => {}} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary}/>
         <div style={styles.main}>
           <div style={styles.pane}>
             <div style={styles.anGrid}>

@@ -49,7 +49,7 @@ const PatientsIcon = ({ color }) => (
   </svg>
 );
 
-export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients }) {
+export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary}) {
   const SidebarItem = ({ label, icon, onClick, isActive, badge }) => (
     <div
       onClick={onClick}
@@ -81,7 +81,7 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
       <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', marginTop: '10px', fontFamily: "'Poppins', sans-serif" }}>
         Reference
       </div>
-      <SidebarItem label="Crystal library" icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}  onClick={() => {}} isActive={currentPage === 'library'} />
+      <SidebarItem label="Crystal library" icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}  onClick={goToLibrary} isActive={currentPage === 'library'} />
       <SidebarItem label="Patients"         icon={<PatientsIcon color={currentPage === 'patients' ? '#fff' : '#4A5240'} />} onClick={goToPatients} isActive={currentPage === 'patients'} />
     </div>
   );

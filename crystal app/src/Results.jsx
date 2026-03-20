@@ -1,21 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import './index.css';
 
-export default function Results({ goToUpload, goToAnalysis, goToExport, goToPatients, goToLogin }) {
+export default function Results({ goToUpload, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin, addCrystalRecords }) {
+  const [saved, setSaved] = useState(false);
+
   const crystals = [
-    { name: 'Calcium Oxalate', count: 23, color: '#E24B4A' },
-    { name: 'Uric Acid',       count: 12, color: '#1FB505' },
-    { name: 'Struvite',        count: 5,  color: '#6D9922' },
-    { name: 'Ca Phosphate',    count: 8,  color: '#6D7758' },
+    { name: 'Calcium Oxalate', count: 23, color: '#E24B4A', risk: 'High' },
+    { name: 'Uric Acid',       count: 12, color: '#1FB505', risk: 'Moderate' },
+    { name: 'Struvite',        count: 5,  color: '#6D9922', risk: 'Low' },
+    { name: 'Ca Phosphate',    count: 8,  color: '#6D7758', risk: 'Moderate' },
   ];
+
+  const handleSaveToLibrary = () => {
+    if (saved) return;
+    const records = crystals.map(crystal => ({
+      patientId:   'PT-2025-042',
+      patientName: 'Juan dela Cruz',
+      sampleId:    'SMPL-042',
+      crystalType: crystal.name,
+      count:       crystal.count,
+      risk:        crystal.risk,
+      date:        new Date().toISOString().split('T')[0],
+    }));
+    addCrystalRecords(records);
+    setSaved(true);
+  };
 
   return (
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="results" goToUpload={goToUpload} goToResults={() => {}} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} />
+        <Sidebar currentPage="results" goToUpload={goToUpload} goToResults={() => {}} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} />
         <div style={styles.main}>
           <div style={styles.pane}>
             <div style={styles.card}>
@@ -38,6 +55,14 @@ export default function Results({ goToUpload, goToAnalysis, goToExport, goToPati
             </div>
             <div style={styles.bbar}>
               <button onClick={goToUpload} className="btn-ghost">← Back to upload</button>
+              <button
+                onClick={handleSaveToLibrary}
+                className="btn-ghost"
+                disabled={saved}
+                style={{ color: saved ? '#1FB505' : '#306A33', borderColor: saved ? '#1FB505' : '#D8DAD0' }}
+              >
+                {saved ? '✓ Saved to Library' : '+ Save to Library'}
+              </button>
               <button onClick={goToAnalysis} className="btn-solid">Next →</button>
             </div>
           </div>

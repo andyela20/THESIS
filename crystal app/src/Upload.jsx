@@ -40,7 +40,7 @@ const styles = {
   uploadHint: { fontSize: '11px', color: '#C07320', fontWeight: 500, fontFamily: "'Poppins', sans-serif" },
 };
 
-export default function Upload({ goToResults, goToAnalysis, goToExport, goToPatients, goToLogin }) {
+export default function Upload({ goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin }) {
   const [patientName, setPatientName] = useState('');
   const [patientId, setPatientId] = useState(null);
   const [showForm, setShowForm] = useState(true);
@@ -68,7 +68,7 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToPati
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} />
+        <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary}/>
         <div style={styles.main}>
           <div style={styles.pane}>
             {/* Patient Card */}

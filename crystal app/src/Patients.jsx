@@ -205,7 +205,7 @@ const styles = {
   }
 };
 
-export default function Patients({ goToLogin }) {
+export default function Patients({ goToLogin, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients }) {
   // Sample patient data - in production, this would come from a backend
   const [patients, setPatients] = useState([
     {
@@ -288,11 +288,11 @@ export default function Patients({ goToLogin }) {
       <div style={styles.body}>
         <Sidebar 
           currentPage="patients" 
-          goToUpload={() => {}} 
-          goToResults={() => {}} 
-          goToAnalysis={() => {}} 
-          goToExport={() => {}} 
-          goToPatients={() => {}} 
+          goToUpload={goToUpload} 
+          goToResults={goToResults} 
+          goToAnalysis={goToAnalysis} 
+          goToExport={goToExport} 
+          goToPatients={goToPatients} 
         />
 
         <div style={styles.main}>

@@ -4,6 +4,7 @@ import Upload from './Upload';
 import Results from './Results';
 import Analysis from './Analysis';
 import Export from './Export';
+import Patients from './Patients';  // ← added
 
 export default function CrystalApp() {
   const [currentPage, setCurrentPage] = useState('login');
@@ -15,6 +16,7 @@ export default function CrystalApp() {
   const goToResults = () => setCurrentPage('results');
   const goToAnalysis = () => setCurrentPage('analysis');
   const goToExport = () => setCurrentPage('export');
+  const goToPatients = () => setCurrentPage('patients');
 
   return (
     <div>
@@ -23,6 +25,7 @@ export default function CrystalApp() {
       {currentPage === 'results' && <Results goToUpload={goToUpload} goToAnalysis={goToAnalysis} goToExport={goToExport} goToLogin={goToLogin} />}
       {currentPage === 'analysis' && <Analysis goToUpload={goToUpload} goToResults={goToResults} goToExport={goToExport} goToLogin={goToLogin} />}
       {currentPage === 'export' && <Export goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToLogin={goToLogin} />}
+      {currentPage === 'patients' && <Patients goToLogin={goToLogin} goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} />}
     </div>
   );
 }

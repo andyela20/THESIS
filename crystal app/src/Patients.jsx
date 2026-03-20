@@ -205,7 +205,7 @@ const styles = {
   }
 };
 
-export default function Patients({ goToLogin, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients }) {
+export default function Patients({ goToLogin, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary,crystalRecords}) {
   // Sample patient data - in production, this would come from a backend
   const [patients, setPatients] = useState([
     {
@@ -293,6 +293,8 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
           goToAnalysis={goToAnalysis} 
           goToExport={goToExport} 
           goToPatients={goToPatients} 
+          goToLibrary={goToLibrary}
+          crystalRecords={crystalRecords}
         />
 
         <div style={styles.main}>

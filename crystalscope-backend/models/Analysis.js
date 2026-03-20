@@ -9,6 +9,7 @@ const analysisSchema = new mongoose.Schema({
   risk:        { type: String, enum: ['High', 'Moderate', 'Low'] },
   date:        { type: Date, default: Date.now },
   imageRef:    { type: String },
+  createdBy:   { type: String, required: true }, // ← idagdag ito
 }, { timestamps: true });
 
 module.exports = mongoose.model('Analysis', analysisSchema);

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import { addPatient, uploadImage } from './api';
 import './index.css';
 
 const styles = {
@@ -41,41 +42,102 @@ const styles = {
 };
 
 export default function Upload({ goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin }) {
-  const [patientName, setPatientName] = useState('');
-  const [patientId, setPatientId] = useState(null);
-  const [showForm, setShowForm] = useState(true);
-  const [patientDOB, setPatientDOB] = useState('');
+  const [patientName, setPatientName]       = useState('');
+  const [patientId, setPatientId]           = useState(null);
+  const [showForm, setShowForm]             = useState(true);
+  const [patientDOB, setPatientDOB]         = useState('');
   const [patientAddress, setPatientAddress] = useState('');
-  const [uploadedImage, setUploadedImage] = useState(null);
+  const [patientAge, setPatientAge]         = useState('');
+  const [patientSex, setPatientSex]         = useState('');
+  const [uploadedImage, setUploadedImage]   = useState(null);
+  const [loading, setLoading]               = useState(false);
+  const [analyzing, setAnalyzing]           = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleAddPatient = () => {
+  const handleAddPatient = async () => {
     if (!patientName.trim()) { alert('Please enter patient name'); return; }
     const yr = new Date().getFullYear();
     const seq = String(Math.floor(Math.random() * 900) + 100);
-    setPatientId(`PT-${yr}-${seq}`);
-    setShowForm(false);
+    const newPatientId = `PT-${yr}-${seq}`;
+    setLoading(true);
+    try {
+      await addPatient({
+        patientId: newPatientId,
+        name:      patientName,
+        age:       patientAge,
+        sex:       patientSex,
+        dob:       patientDOB,
+        address:   patientAddress,
+        status:    'Active',
+      });
+      setPatientId(newPatientId);
+      setShowForm(false);
+    } catch (err) {
+      alert('Error saving patient. Make sure backend is running.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReset = () => { setPatientName(''); setPatientId(null); setShowForm(true); setPatientDOB(''); setPatientAddress(''); };
+  const handleReset = () => {
+    setPatientName('');
+    setPatientId(null);
+    setShowForm(true);
+    setPatientDOB('');
+    setPatientAddress('');
+    setPatientAge('');
+    setPatientSex('');
+    setUploadedImage(null);
+  };
+
   const handleFileChange = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
-  const handleDropzoneClick = () => fileInputRef.current.click();
-  const handleDrop = (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setUploadedImage(f); };
+  const handleDropzoneClick = () => {
+    if (!patientId) return;
+    fileInputRef.current.click();
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (!patientId) return;
+    const f = e.dataTransfer.files[0];
+    if (f) setUploadedImage(f);
+  };
   const handleDragOver = (e) => e.preventDefault();
   const handleRemoveImage = () => { setUploadedImage(null); fileInputRef.current.value = ''; };
+
+  const handleAnalyze = async () => {
+    if (!uploadedImage) return;
+    if (!patientId) { alert('Please add a patient first before analyzing.'); return; }
+    setAnalyzing(true);
+    try {
+      const sampleId = `SMPL-${Date.now()}`;
+      const formData = new FormData();
+      formData.append('image', uploadedImage);
+      formData.append('patientId', patientId);
+      formData.append('sampleId', sampleId);
+      await uploadImage(formData);
+      goToResults();
+    } catch (err) {
+      alert('Error uploading image. Make sure backend is running.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   return (
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary}/>
+        <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} />
         <div style={styles.main}>
           <div style={styles.pane}>
+
             {/* Patient Card */}
             <div style={styles.patientCard}>
               <div style={styles.cardTitle}>
                 <span>Patient Details</span>
-                <button onClick={handleAddPatient} className="btn-small">+ Add patient</button>
+                <button onClick={handleAddPatient} className="btn-small" disabled={loading}>
+                  {loading ? 'Saving...' : '+ Add patient'}
+                </button>
               </div>
               {showForm ? (
                 <div style={styles.patientGrid}>
@@ -85,12 +147,12 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToPati
                   </div>
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Age</label>
-                    <input type="number" placeholder="e.g. 67" style={styles.pInput} />
+                    <input type="number" value={patientAge} onChange={(e) => setPatientAge(e.target.value)} placeholder="e.g. 67" style={styles.pInput} />
                   </div>
                   <div style={styles.pfield}>
                     <label style={styles.pLabel}>Sex</label>
-                    <select style={styles.pInput}>
-                      <option>Select sex</option>
+                    <select value={patientSex} onChange={(e) => setPatientSex(e.target.value)} style={styles.pInput}>
+                      <option value="">Select sex</option>
                       <option>Male</option>
                       <option>Female</option>
                       <option>Other</option>
@@ -120,9 +182,17 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToPati
 
             {/* Dropzone */}
             {!uploadedImage ? (
-              <div className="dropzone" onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}>
+              <div
+                className="dropzone"
+                onClick={handleDropzoneClick}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                style={{ opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed' }}
+              >
                 <div style={styles.dzRing}>📤</div>
-                <div style={styles.dzTitle}>Drop image here or click to upload</div>
+                <div style={styles.dzTitle}>
+                  {patientId ? 'Drop image here or click to upload' : 'Add patient details first'}
+                </div>
                 <div style={styles.dzHint}>JPEG, PNG · Max 100 MB</div>
                 <div style={styles.dzTags}>
                   <span style={styles.dzTag}>JPEG</span>
@@ -157,11 +227,17 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToPati
 
             {/* Button Bar */}
             <div style={styles.bbar}>
-              {!uploadedImage && <span style={styles.uploadHint}>Please upload an image first</span>}
-              <button onClick={uploadedImage ? goToResults : undefined} className="btn-solid" disabled={!uploadedImage}>
-                🔍 Analyze Image
+              {!patientId && <span style={styles.uploadHint}>Please add a patient first</span>}
+              {patientId && !uploadedImage && <span style={styles.uploadHint}>Please upload an image first</span>}
+              <button
+                onClick={handleAnalyze}
+                className="btn-solid"
+                disabled={!uploadedImage || !patientId || analyzing}
+              >
+                {analyzing ? '⏳ Uploading...' : '🔍 Analyze Image'}
               </button>
             </div>
+
           </div>
         </div>
       </div>

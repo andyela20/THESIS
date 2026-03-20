@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import { saveAnalyses } from './api';
 import './index.css';
 
 export default function Results({ goToUpload, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin, addCrystalRecords }) {
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved]   = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const crystals = [
     { name: 'Calcium Oxalate', count: 23, color: '#E24B4A', risk: 'High' },
@@ -13,19 +15,32 @@ export default function Results({ goToUpload, goToAnalysis, goToExport, goToPati
     { name: 'Ca Phosphate',    count: 8,  color: '#6D7758', risk: 'Moderate' },
   ];
 
-  const handleSaveToLibrary = () => {
+  const handleSaveToLibrary = async () => {
     if (saved) return;
-    const records = crystals.map(crystal => ({
-      patientId:   'PT-2025-042',
-      patientName: 'Juan dela Cruz',
-      sampleId:    'SMPL-042',
-      crystalType: crystal.name,
-      count:       crystal.count,
-      risk:        crystal.risk,
-      date:        new Date().toISOString().split('T')[0],
-    }));
-    addCrystalRecords(records);
-    setSaved(true);
+    setLoading(true);
+    try {
+      const records = crystals.map(crystal => ({
+        patientId:   'PT-2025-042',
+        patientName: 'Juan dela Cruz',
+        sampleId:    'SMPL-042',
+        crystalType: crystal.name,
+        count:       crystal.count,
+        risk:        crystal.risk,
+        date:        new Date().toISOString().split('T')[0],
+      }));
+
+      // Save to MongoDB
+      await saveAnalyses(records);
+
+      // Update React state din para ma-reflect agad sa Crystal Library
+      addCrystalRecords(records);
+
+      setSaved(true);
+    } catch (err) {
+      alert('Error saving to library. Make sure backend is running.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -58,10 +73,10 @@ export default function Results({ goToUpload, goToAnalysis, goToExport, goToPati
               <button
                 onClick={handleSaveToLibrary}
                 className="btn-ghost"
-                disabled={saved}
+                disabled={saved || loading}
                 style={{ color: saved ? '#1FB505' : '#306A33', borderColor: saved ? '#1FB505' : '#D8DAD0' }}
               >
-                {saved ? '✓ Saved to Library' : '+ Save to Library'}
+                {loading ? 'Saving...' : saved ? '✓ Saved to Library' : '+ Save to Library'}
               </button>
               <button onClick={goToAnalysis} className="btn-solid">Next →</button>
             </div>

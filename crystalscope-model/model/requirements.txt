@@ -1,0 +1,9 @@
+```
+
+Tapos gumawa ng `requirements.txt`:
+```
+flask
+flask-cors
+ultralytics
+opencv-python
+pillow

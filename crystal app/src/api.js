@@ -68,3 +68,15 @@ export const uploadImage = async (formData) => {
   });
   return res.json();
 };
+
+// ── Model API ──
+export const analyzeImage = async (imageFile) => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  
+  const res = await fetch('http://localhost:5001/analyze', {
+    method: 'POST',
+    body: formData
+  });
+  return res.json();
+};

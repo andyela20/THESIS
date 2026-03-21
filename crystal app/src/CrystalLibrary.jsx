@@ -4,14 +4,12 @@ import Topbar from './Topbar';
 import { getAnalyses } from './api';
 import './index.css';
 
-const CRYSTAL_TYPES = ['All', 'Calcium Oxalate', 'Uric Acid', 'Struvite', 'Ca Phosphate', 'Cystine'];
+const CRYSTAL_TYPES = ['All', 'CaOx Dihydrate', 'CaOx Monohydrate Ovoid', 'Phosphate'];
 
 const CRYSTAL_COLORS = {
-  'Calcium Oxalate': '#E24B4A',
-  'Uric Acid':       '#F5A623',
-  'Struvite':        '#1FB505',
-  'Ca Phosphate':    '#6D9922',
-  'Cystine':         '#9B59B6',
+  'CaOx Dihydrate':         '#E24B4A',
+  'CaOx Monohydrate Ovoid': '#F5A623',
+  'Phosphate':              '#6D9922',
 };
 
 const RISK_STYLE = {

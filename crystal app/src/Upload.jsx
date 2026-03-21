@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-import { addPatient, uploadImage } from './api';
+import { addPatient, uploadImage, analyzeImage } from './api';
 import './index.css';
 
 const styles = {
@@ -90,19 +90,11 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToPati
     setUploadedImage(null);
   };
 
-  const handleFileChange = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
-  const handleDropzoneClick = () => {
-    if (!patientId) return;
-    fileInputRef.current.click();
-  };
-  const handleDrop = (e) => {
-    e.preventDefault();
-    if (!patientId) return;
-    const f = e.dataTransfer.files[0];
-    if (f) setUploadedImage(f);
-  };
-  const handleDragOver = (e) => e.preventDefault();
-  const handleRemoveImage = () => { setUploadedImage(null); fileInputRef.current.value = ''; };
+  const handleFileChange    = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
+  const handleDropzoneClick = () => { if (!patientId) return; fileInputRef.current.click(); };
+  const handleDrop          = (e) => { e.preventDefault(); if (!patientId) return; const f = e.dataTransfer.files[0]; if (f) setUploadedImage(f); };
+  const handleDragOver      = (e) => e.preventDefault();
+  const handleRemoveImage   = () => { setUploadedImage(null); fileInputRef.current.value = ''; };
 
   const handleAnalyze = async () => {
     if (!uploadedImage) return;
@@ -110,14 +102,39 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToPati
     setAnalyzing(true);
     try {
       const sampleId = `SMPL-${Date.now()}`;
+
+      // 1. Upload image sa Node backend
       const formData = new FormData();
       formData.append('image', uploadedImage);
       formData.append('patientId', patientId);
       formData.append('sampleId', sampleId);
       await uploadImage(formData);
-      goToResults();
+
+      // 2. Send sa Python model para mag-analyze
+      console.log('Sending image to model...', uploadedImage.name);
+      const analysisResult = await analyzeImage(uploadedImage);
+      console.log('Analysis result:', JSON.stringify(analysisResult));
+
+      if (!analysisResult.success) {
+        console.error('Model error:', analysisResult.error);
+        alert('Error analyzing image: ' + analysisResult.error);
+        return;
+      }
+
+      console.log('Summary:', analysisResult.summary);
+
+      // 3. Pumunta sa Results page — i-pass ang results
+      goToResults({
+        patientId,
+        patientName,
+        sampleId,
+        results: analysisResult.summary,
+        annotatedImage: analysisResult.annotatedImage, 
+      });
+
     } catch (err) {
-      alert('Error uploading image. Make sure backend is running.');
+      console.error('handleAnalyze error:', err);
+      alert('Error. Make sure the model server is running on port 5001.');
     } finally {
       setAnalyzing(false);
     }
@@ -234,7 +251,7 @@ export default function Upload({ goToResults, goToAnalysis, goToExport, goToPati
                 className="btn-solid"
                 disabled={!uploadedImage || !patientId || analyzing}
               >
-                {analyzing ? '⏳ Uploading...' : '🔍 Analyze Image'}
+                {analyzing ? '⏳ Analyzing...' : '🔍 Analyze Image'}
               </button>
             </div>
 

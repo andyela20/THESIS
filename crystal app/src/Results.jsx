@@ -77,11 +77,11 @@ export default function Results({
               </div>
               <div style={styles.scope}>
                 {analysisData?.annotatedImage ? (
-                  <img
-                    src={analysisData.annotatedImage}
-                    alt="Annotated crystals"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '14px' }}
-                  />
+                <img
+                  src={analysisData.annotatedImage}
+                  alt="Annotated crystals"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '14px' }}
+                />
                 ) : (
                   <div style={{ color: '#A4AAA4', textAlign: 'center', fontSize: '14px', fontFamily: "'Poppins', sans-serif" }}>
                     🔬 Crystal Detection Scope
@@ -152,8 +152,7 @@ const styles = {
   pane:     { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 28px', gap: '14px', minHeight: 0, overflowY: 'auto' },
   card:     { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', flexShrink: 0 },
   cardTitle:{ fontSize: '13px', fontWeight: 700, color: '#141514', marginBottom: '12px', fontFamily: "'Poppins', sans-serif", display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  scope:    { background: '#1C1E1C', borderRadius: '14px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  ctypeRow: { display: 'grid', gap: '10px' },
+  scope: { background: '#1C1E1C', borderRadius: '14px', height: '475px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   ctypeDot: { width: '10px', height: '10px', borderRadius: '50%', margin: '0 auto 6px' },
   ctypeNum: { fontSize: '20px', fontWeight: 800, color: '#141514', fontFamily: "'Poppins', sans-serif" },
   ctypeName:{ fontSize: '10px', color: '#A4AAA4', marginTop: '2px', fontFamily: "'Poppins', sans-serif" },

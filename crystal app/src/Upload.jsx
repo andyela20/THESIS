@@ -42,7 +42,7 @@ const styles = {
   // Search styles
   searchWrapper: { position: 'relative' },
   searchInput: { width: '100%', padding: '8px 12px 8px 32px', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', color: '#141514', background: '#F5F6F0', fontFamily: "'Poppins', sans-serif", boxSizing: 'border-box' },
-  searchIcon: { position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#A4AAA4', pointerEvents: 'none' },
+  searchIcon: { position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', color: '#A4AAA4', pointerEvents: 'none' },
   searchDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #D8DAD0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 100, marginTop: '4px', overflow: 'hidden' },
   searchItem: { padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F0F1E8', display: 'flex', flexDirection: 'column', gap: '2px' },
   searchItemName: { fontSize: '12px', fontWeight: 700, color: '#141514', fontFamily: "'Poppins', sans-serif" },
@@ -301,12 +301,18 @@ export default function Upload({
                   {/* Search existing patient */}
                   {tab === 'search' && (
                     <div ref={searchRef} style={styles.searchWrapper}>
-                      <span style={styles.searchIcon}>🔍</span>
+                      <span style={styles.searchIcon}><span style={styles.searchIcon}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A4AAA4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                      </span>
+                      </span>
                       <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by name or Patient ID…"
+                        placeholder="  Search by name or Patient ID…"
                         style={styles.searchInput}
                         autoFocus
                       />
@@ -370,21 +376,6 @@ export default function Upload({
                 <button onClick={handleRemoveImage} className="btn-remove">✕ Remove</button>
               </div>
             )}
-
-            {/* Recent Samples */}
-            <div style={styles.recentLabel}>Recent samples</div>
-            <div style={styles.recentList}>
-              <div style={styles.rcard}>
-                <div style={{ ...styles.rdot, background: '#E24B4A' }}></div>
-                <div style={styles.rinfo}><div style={styles.rname}>Sample #2025-047</div><div style={styles.rdate}>Today · 09:14</div></div>
-                <span style={styles.riskTag}>Moderate</span>
-              </div>
-              <div style={styles.rcard}>
-                <div style={{ ...styles.rdot, background: '#1FB505' }}></div>
-                <div style={styles.rinfo}><div style={styles.rname}>Sample #2025-046</div><div style={styles.rdate}>Yesterday · 14:52</div></div>
-                <span style={styles.riskTag}>Low</span>
-              </div>
-            </div>
 
             {/* Button Bar */}
             <div style={styles.bbar}>

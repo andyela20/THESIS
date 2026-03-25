@@ -87,3 +87,11 @@ export const analyzeImage = async (imageFile) => {
   });
   return res.json();
 };
+
+export const deleteAnalysis = async (id) => {
+  const res = await fetch(`${BASE_URL}/analyses/${id}`, {
+    method: 'DELETE',
+    headers: headers()
+  });
+  return res.json();
+};

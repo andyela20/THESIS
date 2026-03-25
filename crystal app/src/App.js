@@ -65,6 +65,8 @@ export default function App() {
     patients: unseenPatients > 0 ? String(unseenPatients) : null,
     export:   unseenReports  > 0 ? String(unseenReports)  : null,
   };
+  
+  const clearAnalysisData = () => setAnalysisData(null);
 
   return (
     <div>
@@ -97,6 +99,7 @@ export default function App() {
           analysisData={analysisData}
           markResultsViewed={markResultsViewed}
           badges={badges}
+          clearAnalysisData={clearAnalysisData}
         />
       )}
       {currentPage === 'analysis' && (
@@ -108,6 +111,7 @@ export default function App() {
           goToLibrary={goToLibrary}
           goToLogin={goToLogin}
           badges={badges}
+          analysisData={analysisData}
         />
       )}
       {currentPage === 'export' && (
@@ -120,6 +124,7 @@ export default function App() {
           goToLogin={goToLogin}
           markReportsViewed={markReportsViewed}
           badges={badges}
+          analysisData={analysisData}
         />
       )}
       {currentPage === 'patients' && (

@@ -16,7 +16,7 @@ const CRYSTAL_COLORS = {
 
 export default function Results({
   goToUpload, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
-  addCrystalRecords, analysisData, markResultsViewed,
+  addCrystalRecords, analysisData, markResultsViewed, clearAnalysisData,
   badges = {},
 }) {
   const [saved, setSaved]     = useState(false);
@@ -29,9 +29,9 @@ export default function Results({
     setLoading(true);
     try {
       const records = crystals.map(crystal => ({
-        patientId:   analysisData?.patientId   || 'PT-2025-042',
-        patientName: analysisData?.patientName || 'Juan dela Cruz',
-        sampleId:    analysisData?.sampleId    || 'SMPL-042',
+        patientId:   analysisData?.patientId,
+        patientName: analysisData?.patientName,
+        sampleId:    analysisData?.sampleId,
         crystalType: crystal.crystalType || crystal.name,
         count:       crystal.count,
         risk:        crystal.risk,
@@ -40,6 +40,9 @@ export default function Results({
       await saveAnalyses(records);
       addCrystalRecords(records);
       setSaved(true);
+      setTimeout(() => {
+        clearAnalysisData();
+      }, 1500);
     } catch (err) {
       alert('Error saving to library. Make sure backend is running.');
     } finally {

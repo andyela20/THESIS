@@ -16,7 +16,7 @@ const CRYSTAL_COLORS = {
 
 export default function Results({
   goToUpload, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
-  addCrystalRecords, analysisData, markResultsViewed, clearAnalysisData,
+  addCrystalRecords, analysisData, markResultsViewed,
   badges = {},
 }) {
   const [saved, setSaved]     = useState(false);
@@ -40,9 +40,7 @@ export default function Results({
       await saveAnalyses(records);
       addCrystalRecords(records);
       setSaved(true);
-      setTimeout(() => {
-        clearAnalysisData();
-      }, 1500);
+      // ← NO clearAnalysisData here — data stays until user clears manually
     } catch (err) {
       alert('Error saving to library. Make sure backend is running.');
     } finally {

@@ -21,7 +21,7 @@ const RISK_STYLE = {
 
 export default function Export({
   goToUpload, goToResults, goToAnalysis, goToPatients, goToLibrary, goToLogin,
-  markReportsViewed, badges = {}, analysisData,
+  markReportsViewed, badges = {}, analysisData, clearAnalysisData,
 }) {
   useEffect(() => {
     if (markReportsViewed) markReportsViewed();
@@ -29,6 +29,12 @@ export default function Export({
 
   const crystals = analysisData?.results || [];
   const totalCrystals = crystals.reduce((sum, c) => sum + c.count, 0);
+
+  const handleClear = () => {
+    if (window.confirm('Clear this report? This cannot be undone.')) {
+      if (clearAnalysisData) clearAnalysisData();
+    }
+  };
 
   const handleExportPDF = () => {
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -38,13 +44,13 @@ export default function Export({
       const riskStyle = RISK_STYLE[c.risk] || RISK_STYLE.Low;
       return `
         <tr>
-          <td style="padding:10px 14px; border-bottom:1px solid #EEEFE8; font-size:12px; color:#141514; display:flex; align-items:center; gap:8px;">
-            <span style="width:10px;height:10px;border-radius:50%;background:${CRYSTAL_COLORS[c.crystalType] || '#888'};display:inline-block;flex-shrink:0;"></span>
+          <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;font-size:12px;color:#141514;">
+            <span style="width:10px;height:10px;border-radius:50%;background:${CRYSTAL_COLORS[c.crystalType] || '#888'};display:inline-block;margin-right:8px;vertical-align:middle;"></span>
             ${c.crystalType}
           </td>
-          <td style="padding:10px 14px; border-bottom:1px solid #EEEFE8; font-size:12px; color:#141514;">${c.count}</td>
-          <td style="padding:10px 14px; border-bottom:1px solid #EEEFE8; font-size:12px; color:#141514;">${pct}%</td>
-          <td style="padding:10px 14px; border-bottom:1px solid #EEEFE8;">
+          <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;font-size:12px;color:#141514;">${c.count}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;font-size:12px;color:#141514;">${pct}%</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;">
             <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:${riskStyle.background};color:${riskStyle.color};">
               ${c.risk}
             </span>
@@ -61,7 +67,7 @@ export default function Export({
           body { font-family: 'Poppins', sans-serif; margin: 0; padding: 32px; background: #fff; color: #141514; }
           h1   { font-size: 22px; font-weight: 800; color: #1F5330; margin-bottom: 4px; }
           .sub { font-size: 12px; color: #A4AAA4; margin-bottom: 24px; }
-          .info-row { display: flex; gap: 32px; margin-bottom: 24px; }
+          .info-row { display: flex; gap: 32px; margin-bottom: 24px; flex-wrap: wrap; }
           .info-box { background: #F5F6F0; border-radius: 10px; padding: 12px 18px; }
           .info-lbl { font-size: 10px; font-weight: 700; color: #A4AAA4; text-transform: uppercase; margin-bottom: 4px; }
           .info-val { font-size: 15px; font-weight: 800; color: #141514; }
@@ -75,31 +81,14 @@ export default function Export({
         <h1>CrystalScope Report</h1>
         <div class="sub">Generated on ${date}</div>
         <div class="info-row">
-          <div class="info-box">
-            <div class="info-lbl">Patient</div>
-            <div class="info-val">${analysisData?.patientName || '—'}</div>
-          </div>
-          <div class="info-box">
-            <div class="info-lbl">Patient ID</div>
-            <div class="info-val">${analysisData?.patientId || '—'}</div>
-          </div>
-          <div class="info-box">
-            <div class="info-lbl">Sample ID</div>
-            <div class="info-val">${analysisData?.sampleId || '—'}</div>
-          </div>
-          <div class="info-box">
-            <div class="info-lbl">Total crystals</div>
-            <div class="info-val">${totalCrystals}</div>
-          </div>
+          <div class="info-box"><div class="info-lbl">Patient</div><div class="info-val">${analysisData?.patientName || '—'}</div></div>
+          <div class="info-box"><div class="info-lbl">Patient ID</div><div class="info-val">${analysisData?.patientId || '—'}</div></div>
+          <div class="info-box"><div class="info-lbl">Sample ID</div><div class="info-val">${analysisData?.sampleId || '—'}</div></div>
+          <div class="info-box"><div class="info-lbl">Total crystals</div><div class="info-val">${totalCrystals}</div></div>
         </div>
         <table>
           <thead>
-            <tr>
-              <th>Crystal Type</th>
-              <th>Count</th>
-              <th>Distribution</th>
-              <th>Risk</th>
-            </tr>
+            <tr><th>Crystal Type</th><th>Count</th><th>Distribution</th><th>Risk</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -131,33 +120,36 @@ export default function Export({
         <div style={styles.main}>
           <div style={styles.pane}>
 
-            {crystals.length === 0 ? (
-              <div style={styles.emptyState}>
-                <div style={{ fontSize: '40px' }}>📄</div>
-                <div style={{ fontSize: '14px', fontWeight: 500, color: '#A4AAA4', fontFamily: "'Poppins', sans-serif" }}>No report yet</div>
-                <div style={{ fontSize: '12px', color: '#C9CAC0', fontFamily: "'Poppins', sans-serif" }}>Analyze an image first, then come back to export</div>
-                <button onClick={goToLibrary} className="btn-ghost" style={{ marginTop: '8px' }}>
-                  View past reports in Library →
-                </button>
-              </div>
-            ) : (
-              <>
-                <div style={styles.header}>
-                  <div>
-                    <div style={styles.expTitle}>
-                      Detected crystals ({totalCrystals})
-                    </div>
+            {/* Header — always visible */}
+            <div style={styles.header}>
+              <div>
+                {crystals.length > 0 ? (
+                  <>
+                    <div style={styles.expTitle}>Detected crystals ({totalCrystals})</div>
                     {analysisData?.patientName && (
                       <div style={styles.expSub}>
                         {analysisData.patientName} · {analysisData.patientId} · {analysisData.sampleId}
                       </div>
                     )}
-                  </div>
-                  <button onClick={goToLibrary} style={styles.libraryLink}>
-                    View past reports in Library →
-                  </button>
-                </div>
+                  </>
+                ) : (
+                  <div style={styles.expTitle}>Reports</div>
+                )}
+              </div>
+              {/* View past reports — always visible, repositioned to top-right */}
+              <button onClick={goToLibrary} style={styles.libraryLink}>
+                View past reports in Library →
+              </button>
+            </div>
 
+            {crystals.length === 0 ? (
+              <div style={styles.emptyState}>
+                <div style={{ fontSize: '40px' }}>📄</div>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: '#A4AAA4', fontFamily: "'Poppins', sans-serif" }}>No report yet</div>
+                <div style={{ fontSize: '12px', color: '#C9CAC0', fontFamily: "'Poppins', sans-serif" }}>Analyze an image first, then come back to export</div>
+              </div>
+            ) : (
+              <>
                 <div style={styles.expTable}>
                   <div style={styles.expThead}>
                     <div style={styles.eth}>Type</div>
@@ -193,6 +185,9 @@ export default function Export({
                 </div>
 
                 <div style={styles.bbar}>
+                  {/* Clear button — left side */}
+                  <button onClick={handleClear} style={styles.btnClear}>🗑 Clear report</button>
+                  <div style={{ flex: 1 }} />
                   <button onClick={handleExportPDF} className="btn-export">📥 Export PDF</button>
                   <button onClick={goToUpload} className="btn-solid">Analyze another</button>
                 </div>
@@ -213,7 +208,7 @@ const styles = {
   header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 },
   expTitle:    { fontSize: '14px', fontWeight: 700, color: '#141514', fontFamily: "'Poppins', sans-serif" },
   expSub:      { fontSize: '11px', color: '#A4AAA4', marginTop: '2px', fontFamily: "'Poppins', sans-serif" },
-  libraryLink: { fontSize: '11px', color: '#1F5330', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", textDecoration: 'underline' },
+  libraryLink: { fontSize: '11px', color: '#1F5330', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", textDecoration: 'underline', flexShrink: 0 },
   expTable:    { flex: 1, background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 },
   expThead:    { display: 'grid', gridTemplateColumns: '2.2fr 1fr 2.5fr 1fr', background: '#1F5330', flexShrink: 0 },
   eth:         { padding: '10px 16px', fontSize: '10px', fontWeight: 700, color: '#9FC8A8', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" },
@@ -224,6 +219,7 @@ const styles = {
   ebar:        { flex: 1, height: '6px', background: '#D8DAD0', borderRadius: '3px', margin: '0 6px' },
   efill:       { height: '100%', borderRadius: '3px' },
   riskBadge:   { fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', fontFamily: "'Poppins', sans-serif" },
-  bbar:        { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', justifyContent: 'flex-end', gap: '8px' },
+  bbar:        { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', alignItems: 'center', gap: '8px' },
+  btnClear:    { padding: '7px 14px', borderRadius: '8px', border: '1px solid #F5C9C9', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#E24B4A', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
   emptyState:  { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '8px' },
 };

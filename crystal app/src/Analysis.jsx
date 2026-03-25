@@ -15,22 +15,26 @@ const CRYSTAL_COLORS = {
 
 export default function Analysis({
   goToUpload, goToResults, goToExport, goToPatients, goToLibrary, goToLogin,
-  badges = {}, analysisData,
+  badges = {}, analysisData, clearAnalysisData,
 }) {
   const [confidence, setConfidence] = useState(70);
 
   const crystals = analysisData?.results || [];
   const totalCrystals = crystals.reduce((sum, c) => sum + c.count, 0);
 
-  // Overall risk — highest risk among crystals
   const riskOrder = { High: 3, Moderate: 2, Low: 1 };
   const overallRisk = crystals.reduce((top, c) => {
     return (riskOrder[c.risk] || 0) > (riskOrder[top] || 0) ? c.risk : top;
   }, 'Low');
 
   const riskColor = { High: '#A32D2D', Moderate: '#C07320', Low: '#1F5330' };
-
   const filtered = crystals.filter(c => c.count / totalCrystals * 100 >= confidence / 10);
+
+  const handleClear = () => {
+    if (window.confirm('Clear this analysis? This cannot be undone.')) {
+      if (clearAnalysisData) clearAnalysisData();
+    }
+  };
 
   return (
     <div style={styles.app}>
@@ -39,7 +43,7 @@ export default function Analysis({
         <Sidebar
           currentPage="analysis"
           goToUpload={goToUpload}
-          goToResults={goToResults}
+          goToResults={() => goToResults()}
           goToAnalysis={() => {}}
           goToExport={goToExport}
           goToPatients={goToPatients}
@@ -104,7 +108,8 @@ export default function Analysis({
                             <div style={styles.dbar}>
                               <div style={{ ...styles.dfill, width: `${pct}%`, background: color }}></div>
                             </div>
-                            <div style={{ ...styles.riskBadge,
+                            <div style={{
+                              ...styles.riskBadge,
                               background: crystal.risk === 'High' ? '#FFF0ED' : crystal.risk === 'Moderate' ? '#FFF8ED' : '#E8F5E8',
                               color: crystal.risk === 'High' ? '#A32D2D' : crystal.risk === 'Moderate' ? '#C07320' : '#1F5330',
                             }}>
@@ -125,6 +130,13 @@ export default function Analysis({
                     <input type="range" min="0" max="100" value={confidence} onChange={(e) => setConfidence(Number(e.target.value))} style={styles.fRange} />
                     <div style={styles.fval}>{confidence}%</div>
                   </div>
+                  {/* Clear button */}
+                  <button
+                    onClick={handleClear}
+                    style={{ marginTop: 'auto', padding: '7px 14px', borderRadius: '8px', border: '1px solid #F5C9C9', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#E24B4A', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}
+                  >
+                    🗑 Clear analysis
+                  </button>
                 </div>
               </div>
             )}

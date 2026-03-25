@@ -13,19 +13,17 @@ export default function App() {
   const [analysisData, setAnalysisData]     = useState(null);
   const [currentPatient, setCurrentPatient] = useState(null);
 
-  // true = may analysis result na hindi pa na-save sa library
   const [hasUnsavedResult, setHasUnsavedResult] = useState(false);
+  const [unseenPatients, setUnseenPatients]      = useState(0);
+  const [unseenReports, setUnseenReports]        = useState(0);
 
-  const [unseenPatients, setUnseenPatients] = useState(0);
-  const [unseenReports, setUnseenReports]   = useState(0);
-
-  const goToLogin    = () => setCurrentPage('login');
-  const goToUpload   = () => setCurrentPage('upload');
+  const goToLogin  = () => setCurrentPage('login');
+  const goToUpload = () => setCurrentPage('upload');
 
   const goToResults = (data) => {
     if (data) {
       setAnalysisData(data);
-      setHasUnsavedResult(true);   // bagong analysis — may unsaved result
+      setHasUnsavedResult(true);  // new analysis — mark as unsaved
     }
     setCurrentPage('results');
   };
@@ -46,8 +44,9 @@ export default function App() {
 
   const addCrystalRecords = (newRecords) => {
     setCrystalRecords(prev => [...prev, ...newRecords]);
-    setHasUnsavedResult(false);    // na-save na — clear ang Results badge
+    setHasUnsavedResult(false);  // clear badge — saved na
     setUnseenReports(prev => prev + 1);
+    // ← analysisData is NOT cleared here — stays visible in Analysis & Reports pages
   };
 
   const addNewPatient = (patient) => {
@@ -57,16 +56,20 @@ export default function App() {
 
   const clearCurrentPatient = () => setCurrentPatient(null);
 
-  const markResultsViewed = () => {};        // kept for compatibility
+  // Called only when user manually clicks "Delete/Clear" on Analysis or Export page
+  const clearAnalysisData = () => {
+    setAnalysisData(null);
+    setHasUnsavedResult(false);
+  };
+
+  const markResultsViewed = () => {};
   const markReportsViewed = () => setUnseenReports(0);
 
   const badges = {
-    results:  hasUnsavedResult   ? '!' : null,   // '!' = may pending unsaved result
+    results:  hasUnsavedResult   ? '!' : null,
     patients: unseenPatients > 0 ? String(unseenPatients) : null,
     export:   unseenReports  > 0 ? String(unseenReports)  : null,
   };
-  
-  const clearAnalysisData = () => setAnalysisData(null);
 
   return (
     <div>
@@ -99,7 +102,6 @@ export default function App() {
           analysisData={analysisData}
           markResultsViewed={markResultsViewed}
           badges={badges}
-          clearAnalysisData={clearAnalysisData}
         />
       )}
       {currentPage === 'analysis' && (
@@ -110,8 +112,9 @@ export default function App() {
           goToPatients={goToPatients}
           goToLibrary={goToLibrary}
           goToLogin={goToLogin}
-          badges={badges}
           analysisData={analysisData}
+          clearAnalysisData={clearAnalysisData}  // for manual clear button
+          badges={badges}
         />
       )}
       {currentPage === 'export' && (
@@ -123,8 +126,9 @@ export default function App() {
           goToLibrary={goToLibrary}
           goToLogin={goToLogin}
           markReportsViewed={markReportsViewed}
-          badges={badges}
           analysisData={analysisData}
+          clearAnalysisData={clearAnalysisData}  // for manual clear button
+          badges={badges}
         />
       )}
       {currentPage === 'patients' && (

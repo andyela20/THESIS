@@ -13,7 +13,7 @@ const styles = {
   cardTitle: { fontSize: '15px', fontWeight: 700, color: '#141514', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Poppins', sans-serif" },
   patientGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginTop: '12px' },
   pfield: { display: 'flex', flexDirection: 'column', gap: '4px' },
-  pLabel: { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" },
+  pLabel: { fontSize: '10px', fontWeight: 700, color: '#797f79', textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" },
   pInput: { padding: '7px 10px', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', color: '#141514', background: '#F5F6F0', fontFamily: "'Poppins', sans-serif" },
   pidBanner: { display: 'flex', alignItems: 'center', gap: '10px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '9px', padding: '9px 14px', marginTop: '8px' },
   pidCheck: { fontSize: '14px', color: '#1FB505' },
@@ -67,6 +67,7 @@ export default function Upload({
   const [patientAddress, setPatientAddress] = useState(currentPatient?.address || '');
   const [patientAge, setPatientAge]         = useState(currentPatient?.age     || '');
   const [patientSex, setPatientSex]         = useState(currentPatient?.sex     || '');
+  const [patientContact, setPatientContact] = useState(currentPatient?.contact || ''); // ✅ added contact
   const [patientId, setPatientId]           = useState(currentPatient?.patientId || null);
 
   // Search state
@@ -89,6 +90,7 @@ export default function Upload({
       setPatientAddress(currentPatient.address || '');
       setPatientAge(currentPatient.age      || '');
       setPatientSex(currentPatient.sex      || '');
+      setPatientContact(currentPatient.contact || ''); // ✅ sync contact
       setPatientId(currentPatient.patientId || null);
       setTab('confirmed');
     }
@@ -125,6 +127,7 @@ export default function Upload({
     setPatientAddress(patient.address || '');
     setPatientAge(patient.age      || '');
     setPatientSex(patient.sex      || '');
+    setPatientContact(patient.contact || ''); // ✅ set contact from search result
     setPatientId(patient.patientId);
     setCurrentPatient(patient);   // lift to App.js so it persists
     setSearchQuery('');
@@ -133,12 +136,20 @@ export default function Upload({
   };
 
   const handleAddPatient = async () => {
-    if (!patientName.trim()) { alert('Please enter patient name'); return; }
+    // ✅ required field checks
+    if (!patientName.trim())    { alert('Please enter patient name'); return; }
+    if (!patientDOB.trim())     { alert('Please enter date of birth'); return; }
+    if (!patientAge)            { alert('Please enter age'); return; }
+    if (!patientSex)            { alert('Please select sex'); return; }
+    if (!patientAddress.trim()) { alert('Please enter address'); return; }
+    if (!patientContact.trim()) { alert('Please enter contact number'); return; }
+
     const yr  = new Date().getFullYear();
     const seq = String(Math.floor(Math.random() * 900) + 100);
     const newPatientId = `PT-${yr}-${seq}`;
     setLoading(true);
     try {
+      // ✅ include contact
       await addPatient({
         patientId: newPatientId,
         name:      patientName,
@@ -146,6 +157,7 @@ export default function Upload({
         sex:       patientSex,
         dob:       patientDOB,
         address:   patientAddress,
+        contact:   patientContact,
         status:    'Active',
       });
       setPatientId(newPatientId);
@@ -157,6 +169,7 @@ export default function Upload({
         sex:       patientSex,
         dob:       patientDOB,
         address:   patientAddress,
+        contact:   patientContact, // ✅ include contact
       });
       setTab('confirmed');
     } catch {
@@ -174,6 +187,7 @@ export default function Upload({
     setPatientAddress('');
     setPatientAge('');
     setPatientSex('');
+    setPatientContact(''); // ✅ clear contact
     setUploadedImage(null);
     setSearchQuery('');
     setTab('new');
@@ -289,11 +303,38 @@ export default function Upload({
                       </div>
                       <div style={styles.pfield}>
                         <label style={styles.pLabel}>Date of Birth</label>
-                        <input type="date" value={patientDOB} onChange={(e) => setPatientDOB(e.target.value)} style={styles.pInput} />
+                        <input
+                          type="date"
+                          value={patientDOB}
+                          onChange={(e) => {
+                            const dob = e.target.value;
+                            setPatientDOB(dob);
+                            if (dob) {
+                              const today = new Date();
+                              const birth = new Date(dob);
+                              let age = today.getFullYear() - birth.getFullYear();
+                              const m = today.getMonth() - birth.getMonth();
+                              if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+                              setPatientAge(age);
+                            }
+                          }}
+                          style={styles.pInput}
+                        />
                       </div>
                       <div style={styles.pfield}>
                         <label style={styles.pLabel}>Address</label>
                         <input type="text" value={patientAddress} onChange={(e) => setPatientAddress(e.target.value)} placeholder="Street address" style={styles.pInput} />
+                      </div>
+                      {/* ✅ Contact Number field (6th slot) */}
+                      <div style={styles.pfield}>
+                        <label style={styles.pLabel}>Contact Number</label>
+                        <input
+                          type="tel"
+                          value={patientContact}
+                          onChange={(e) => setPatientContact(e.target.value)}
+                          placeholder="09XXXXXXXXX"
+                          style={styles.pInput}
+                        />
                       </div>
                     </div>
                   )}
@@ -360,7 +401,7 @@ export default function Upload({
                 <div style={styles.dzTitle}>
                   {patientId ? 'Drop image here or click to upload' : 'Add patient details first'}
                 </div>
-                <div style={styles.dzHint}>JPEG, PNG · Max 100 MB</div>
+                <div style={styles.dzHint}>JPEG, PNG · Max 10 MB</div>
                 <div style={styles.dzTags}>
                   <span style={styles.dzTag}>JPEG</span>
                   <span style={styles.dzTag}>PNG</span>

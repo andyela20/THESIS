@@ -3,19 +3,32 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import './index.css';
 
-export default function Export({ goToUpload, goToResults, goToAnalysis, goToPatients, goToLibrary, goToLogin }) {
+export default function Export({
+  goToUpload, goToResults, goToAnalysis, goToPatients, goToLibrary, goToLogin,
+  markReportsViewed,
+  badges = {},
+}) {
   const crystals = [
-    { name: 'Calcium Oxalate',  count: 23, pct: 48, color: '#E24B4A' },
-    { name: 'Uric Acid',        count: 12, pct: 25, color: '#1FB505' },
-    { name: 'Struvite',         count: 5,  pct: 10, color: '#6D9922' },
-    { name: 'Calcium Phosphate',count: 8,  pct: 17, color: '#6D7758' },
+    { name: 'Calcium Oxalate',   count: 23, pct: 48, color: '#E24B4A' },
+    { name: 'Uric Acid',         count: 12, pct: 25, color: '#1FB505' },
+    { name: 'Struvite',          count: 5,  pct: 10, color: '#6D9922' },
+    { name: 'Calcium Phosphate', count: 8,  pct: 17, color: '#6D7758' },
   ];
 
   return (
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="export" goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={() => {}} goToPatients={goToPatients} goToLibrary={goToLibrary} />
+        <Sidebar
+          currentPage="export"
+          goToUpload={goToUpload}
+          goToResults={() => goToResults()}
+          goToAnalysis={goToAnalysis}
+          goToExport={() => {}}
+          goToPatients={goToPatients}
+          goToLibrary={goToLibrary}
+          badges={badges}
+        />
         <div style={styles.main}>
           <div style={styles.pane}>
             <div style={styles.expTitle}>Detected crystals (48)</div>

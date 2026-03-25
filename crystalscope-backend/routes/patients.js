@@ -26,6 +26,27 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Search patients by name or patientId — must be ABOVE /:id routes
+router.get('/search', async (req, res) => {
+  try {
+    const username = getUserFromToken(req);
+    if (!username) return res.status(401).json({ message: 'Unauthorized' });
+
+    const q = req.query.q || '';
+    const patients = await Patient.find({
+      createdBy: username,
+      $or: [
+        { name:      { $regex: q, $options: 'i' } },
+        { patientId: { $regex: q, $options: 'i' } },
+      ]
+    }).limit(10).sort({ createdAt: -1 });
+
+    res.json(patients);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Add patient — i-tag ang createdBy
 router.post('/', async (req, res) => {
   try {

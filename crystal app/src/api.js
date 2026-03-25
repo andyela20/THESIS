@@ -39,6 +39,13 @@ export const deletePatient = async (id) => {
   return res.json();
 };
 
+export const searchPatients = async (query) => {
+  const res = await fetch(`${BASE_URL}/patients/search?q=${encodeURIComponent(query)}`, {
+    headers: headers()   // ← fix: may auth token na
+  });
+  return res.json();
+};
+
 // ── Analyses ──
 export const getAnalyses = async () => {
   const res = await fetch(`${BASE_URL}/analyses`, { headers: headers() });
@@ -73,7 +80,7 @@ export const uploadImage = async (formData) => {
 export const analyzeImage = async (imageFile) => {
   const formData = new FormData();
   formData.append('image', imageFile);
-  
+
   const res = await fetch('http://localhost:5001/analyze', {
     method: 'POST',
     body: formData

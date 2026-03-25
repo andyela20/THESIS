@@ -38,8 +38,6 @@ const styles = {
   statLabel: { color: '#A4AAA4', fontWeight: 500 },
   statValue: { color: '#141514', fontWeight: 700 },
   loadingWrap: { display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#A4AAA4', fontFamily: "'Poppins', sans-serif", fontSize: '14px' },
-
-  // Modal styles
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '620px', overflow: 'hidden', margin: '20px' },
   mHead: { background: '#1F5330', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px' },
@@ -66,14 +64,16 @@ const styles = {
 
 const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??';
 
-export default function Patients({ goToLogin, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, crystalRecords }) {
+export default function Patients({
+  goToLogin, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary,
+  crystalRecords,
+  badges = {},
+}) {
   const [patients, setPatients]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [searchTerm, setSearchTerm]     = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [hoveredRow, setHoveredRow]     = useState(null);
-
-  // Modal state
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [editForm, setEditForm]               = useState({});
   const [saving, setSaving]                   = useState(false);
@@ -111,18 +111,15 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
     });
   };
 
-  const handleCloseModal = () => {
-    setSelectedPatient(null);
-    setEditForm({});
-  };
+  const handleCloseModal = () => { setSelectedPatient(null); setEditForm({}); };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updated = await updatePatient(selectedPatient.patientId, editForm);
+      await updatePatient(selectedPatient.patientId, editForm);
       setPatients(patients.map(p => p.patientId === selectedPatient.patientId ? { ...p, ...editForm } : p));
       handleCloseModal();
-    } catch (err) {
+    } catch {
       alert('Error updating patient.');
     } finally {
       setSaving(false);
@@ -135,7 +132,7 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
         await deletePatient(selectedPatient.patientId);
         setPatients(patients.filter(p => p.patientId !== selectedPatient.patientId));
         handleCloseModal();
-      } catch (err) {
+      } catch {
         alert('Error deleting patient.');
       }
     }
@@ -148,11 +145,12 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
         <Sidebar
           currentPage="patients"
           goToUpload={goToUpload}
-          goToResults={goToResults}
+          goToResults={() => goToResults()}
           goToAnalysis={goToAnalysis}
           goToExport={goToExport}
           goToPatients={goToPatients}
           goToLibrary={goToLibrary}
+          badges={badges}
         />
         <div style={styles.main}>
           <div style={styles.pane}>
@@ -160,7 +158,6 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
               <div style={styles.pageTitle}>Patient Directory</div>
               <button style={styles.btnAdd}>+ Add Patient</button>
             </div>
-
             <div style={styles.filterBar}>
               <input
                 type="text"
@@ -235,12 +232,9 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
         </div>
       </div>
 
-      {/* Edit Modal */}
       {selectedPatient && (
         <div style={styles.overlay} onClick={handleCloseModal}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-
-            {/* Modal Header */}
             <div style={styles.mHead}>
               <div style={styles.mAvatar}>{getInitials(selectedPatient.name)}</div>
               <div>
@@ -249,8 +243,6 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
               </div>
               <div style={styles.mBadge}>{editForm.status}</div>
             </div>
-
-            {/* Modal Body */}
             <div style={styles.mBody}>
               <div style={styles.mGrid}>
                 <div style={styles.mFieldFull}>
@@ -282,36 +274,21 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
                   <input style={styles.mInput} value={editForm.address || ''} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
                 </div>
               </div>
-
               <div style={styles.mDivider} />
-
-              {/* Status Toggle */}
               <div style={styles.mStatusRow}>
                 <div style={styles.mStatusLabel}>Patient Status</div>
                 <div style={styles.mToggle}>
                   <button
                     onClick={() => setEditForm({ ...editForm, status: 'Active' })}
-                    style={{
-                      ...styles.btnSmall,
-                      ...(editForm.status === 'Active' ? { background: '#E8F5E8', borderColor: '#1FB505', color: '#1FB505' } : { color: '#A4AAA4' })
-                    }}
-                  >
-                    Active
-                  </button>
+                    style={{ ...styles.btnSmall, ...(editForm.status === 'Active' ? { background: '#E8F5E8', borderColor: '#1FB505', color: '#1FB505' } : { color: '#A4AAA4' }) }}
+                  >Active</button>
                   <button
                     onClick={() => setEditForm({ ...editForm, status: 'Inactive' })}
-                    style={{
-                      ...styles.btnSmall,
-                      ...(editForm.status === 'Inactive' ? { background: '#FFF0ED', borderColor: '#E24B4A', color: '#E24B4A' } : { color: '#A4AAA4' })
-                    }}
-                  >
-                    Inactive
-                  </button>
+                    style={{ ...styles.btnSmall, ...(editForm.status === 'Inactive' ? { background: '#FFF0ED', borderColor: '#E24B4A', color: '#E24B4A' } : { color: '#A4AAA4' }) }}
+                  >Inactive</button>
                 </div>
               </div>
             </div>
-
-            {/* Modal Footer */}
             <div style={styles.mFoot}>
               <button onClick={handleDelete} style={styles.btnDel}>🗑 Delete Patient</button>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -321,7 +298,6 @@ export default function Patients({ goToLogin, goToUpload, goToResults, goToAnaly
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}

@@ -14,18 +14,15 @@ const CRYSTAL_COLORS = {
   'Ca Phosphate':           '#6D7758',
 };
 
-export default function Results({ goToUpload, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin, addCrystalRecords, analysisData }) {
+export default function Results({
+  goToUpload, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
+  addCrystalRecords, analysisData, markResultsViewed,
+  badges = {},
+}) {
   const [saved, setSaved]     = useState(false);
   const [loading, setLoading] = useState(false);
 
-  console.log('analysisData received in Results:', analysisData);
-
-  // Gamitin ang real data mula sa model, otherwise fallback sa hardcoded
-   // Gamitin ang real data mula sa model, otherwise fallback sa hardcoded
- // ✅ Palitan ng ganito — walang fallback
   const crystals = (analysisData?.results?.length > 0) ? analysisData.results : [];
-
-  console.log('crystals to display:', crystals);
 
   const handleSaveToLibrary = async () => {
     if (saved) return;
@@ -54,7 +51,16 @@ export default function Results({ goToUpload, goToAnalysis, goToExport, goToPati
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="results" goToUpload={goToUpload} goToResults={() => {}} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} />
+        <Sidebar
+          currentPage="results"
+          goToUpload={goToUpload}
+          goToResults={() => {}}
+          goToAnalysis={goToAnalysis}
+          goToExport={goToExport}
+          goToPatients={goToPatients}
+          goToLibrary={goToLibrary}
+          badges={badges}
+        />
         <div style={styles.main}>
           <div style={styles.pane}>
 
@@ -68,56 +74,55 @@ export default function Results({ goToUpload, goToAnalysis, goToExport, goToPati
                   </span>
                 )}
               </div>
-             <div style={styles.scope}>
-  {analysisData?.annotatedImage ? (
-    <img
-      src={analysisData.annotatedImage}
-      alt="Annotated crystals"
-      style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '14px' }}
-    />
-  ) : (
-    <div style={{ color: '#A4AAA4', textAlign: 'center', fontSize: '14px', fontFamily: "'Poppins', sans-serif" }}>
-      🔬 Crystal Detection Scope
-    </div>
-  )}
-</div>
+              <div style={styles.scope}>
+                {analysisData?.annotatedImage ? (
+                  <img
+                    src={analysisData.annotatedImage}
+                    alt="Annotated crystals"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '14px' }}
+                  />
+                ) : (
+                  <div style={{ color: '#A4AAA4', textAlign: 'center', fontSize: '14px', fontFamily: "'Poppins', sans-serif" }}>
+                    🔬 Crystal Detection Scope
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Detection Summary */}
-<div style={styles.card}>
-  <div style={styles.cardTitle}>
-    Detection Summary
-    <span style={{ fontSize: '11px', color: '#A4AAA4', fontWeight: 400 }}>
-      {crystals.reduce((sum, c) => sum + c.count, 0)} crystals detected
-    </span>
-  </div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>
+                Detection Summary
+                <span style={{ fontSize: '11px', color: '#A4AAA4', fontWeight: 400 }}>
+                  {crystals.reduce((sum, c) => sum + c.count, 0)} crystals detected
+                </span>
+              </div>
+              {crystals.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#A4AAA4', padding: '20px', fontSize: '13px', fontFamily: "'Poppins', sans-serif" }}>
+                  No crystals detected yet — analyze an image first
+                </div>
+              ) : (
+                <div style={{ ...styles.ctypeRow, gridTemplateColumns: `repeat(${Math.min(crystals.length, 4)}, 1fr)` }}>
+                  {crystals.map((crystal, i) => (
+                    <div key={i} className="ctype-card">
+                      <div style={{ ...styles.ctypeDot, background: CRYSTAL_COLORS[crystal.crystalType] || '#888' }}></div>
+                      <div style={styles.ctypeNum}>{crystal.count}</div>
+                      <div style={styles.ctypeName}>{crystal.crystalType}</div>
+                      <div style={{
+                        fontSize: '9px', marginTop: '4px', fontWeight: 600, padding: '2px 6px',
+                        borderRadius: '8px', display: 'inline-block',
+                        background: crystal.risk === 'High' ? '#FFF0ED' : crystal.risk === 'Moderate' ? '#FFF8ED' : '#E8F5E8',
+                        color: crystal.risk === 'High' ? '#A32D2D' : crystal.risk === 'Moderate' ? '#C07320' : '#1F5330',
+                        fontFamily: "'Poppins', sans-serif"
+                      }}>
+                        {crystal.risk}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-  {/* ← PALITAN LAHAT NG LAMAN NG CARD NA ITO */}
-  {crystals.length === 0 ? (
-    <div style={{ textAlign: 'center', color: '#A4AAA4', padding: '20px', fontSize: '13px', fontFamily: "'Poppins', sans-serif" }}>
-      No crystals detected yet — analyze an image first
-    </div>
-  ) : (
-    <div style={{ ...styles.ctypeRow, gridTemplateColumns: `repeat(${Math.min(crystals.length, 4)}, 1fr)` }}>
-      {crystals.map((crystal, i) => (
-        <div key={i} className="ctype-card">
-          <div style={{ ...styles.ctypeDot, background: CRYSTAL_COLORS[crystal.crystalType] || '#888' }}></div>
-          <div style={styles.ctypeNum}>{crystal.count}</div>
-          <div style={styles.ctypeName}>{crystal.crystalType}</div>
-          <div style={{
-            fontSize: '9px', marginTop: '4px', fontWeight: 600, padding: '2px 6px',
-            borderRadius: '8px', display: 'inline-block',
-            background: crystal.risk === 'High' ? '#FFF0ED' : crystal.risk === 'Moderate' ? '#FFF8ED' : '#E8F5E8',
-            color: crystal.risk === 'High' ? '#A32D2D' : crystal.risk === 'Moderate' ? '#C07320' : '#1F5330',
-            fontFamily: "'Poppins', sans-serif"
-          }}>
-            {crystal.risk}
-          </div>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
             {/* Button Bar */}
             <div style={styles.bbar}>
               <button onClick={goToUpload} className="btn-ghost">← Back to upload</button>

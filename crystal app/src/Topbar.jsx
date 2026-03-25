@@ -16,7 +16,7 @@ export default function Topbar({ goToLogin }) {
     <div style={styles.topbar}>
       <div style={styles.titleGroup}>
         <div style={styles.appTitle}>CrystalScope</div>
-        <div style={styles.appSub}>Automated Urinary Crystal Analysis Deep Learning Detection System</div>
+        <div style={styles.appSub}>Automated Urinary Crystal Detection System</div>
       </div>
       <div style={styles.topbarRight}>
         <div style={styles.statusChip}>

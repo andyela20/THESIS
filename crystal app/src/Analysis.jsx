@@ -3,7 +3,10 @@ import './index.css';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
-export default function Analysis({ goToUpload, goToResults, goToExport, goToPatients, goToLibrary, goToLogin }) {
+export default function Analysis({
+  goToUpload, goToResults, goToExport, goToPatients, goToLibrary, goToLogin,
+  badges = {},
+}) {
   const [confidence, setConfidence] = useState(70);
 
   const distributions = [
@@ -17,7 +20,16 @@ export default function Analysis({ goToUpload, goToResults, goToExport, goToPati
     <div style={styles.app}>
       <Topbar goToLogin={goToLogin} />
       <div style={styles.body}>
-        <Sidebar currentPage="analysis" goToUpload={goToUpload} goToResults={goToResults} goToAnalysis={() => {}} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary}/>
+        <Sidebar
+          currentPage="analysis"
+          goToUpload={goToUpload}
+          goToResults={goToResults}
+          goToAnalysis={() => {}}
+          goToExport={goToExport}
+          goToPatients={goToPatients}
+          goToLibrary={goToLibrary}
+          badges={badges}
+        />
         <div style={styles.main}>
           <div style={styles.pane}>
             <div style={styles.anGrid}>
@@ -72,8 +84,8 @@ export default function Analysis({ goToUpload, goToResults, goToExport, goToPati
               </div>
             </div>
             <div style={styles.bbar}>
-              <button onClick={goToResults} className="btn-ghost">← Back</button>
-              <button onClick={goToExport}  className="btn-solid">Next →</button>
+              <button onClick={() => goToResults()} className="btn-ghost">← Back</button>
+              <button onClick={goToExport} className="btn-solid">Next →</button>
             </div>
           </div>
         </div>

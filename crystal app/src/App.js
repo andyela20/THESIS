@@ -11,17 +11,59 @@ export default function App() {
   const [currentPage, setCurrentPage]       = useState('login');
   const [crystalRecords, setCrystalRecords] = useState([]);
   const [analysisData, setAnalysisData]     = useState(null);
+  const [currentPatient, setCurrentPatient] = useState(null);
+
+  // true = may analysis result na hindi pa na-save sa library
+  const [hasUnsavedResult, setHasUnsavedResult] = useState(false);
+
+  const [unseenPatients, setUnseenPatients] = useState(0);
+  const [unseenReports, setUnseenReports]   = useState(0);
 
   const goToLogin    = () => setCurrentPage('login');
   const goToUpload   = () => setCurrentPage('upload');
-  const goToResults  = (data) => { if (data) setAnalysisData(data); setCurrentPage('results'); };
+
+  const goToResults = (data) => {
+    if (data) {
+      setAnalysisData(data);
+      setHasUnsavedResult(true);   // bagong analysis — may unsaved result
+    }
+    setCurrentPage('results');
+  };
+
   const goToAnalysis = () => setCurrentPage('analysis');
-  const goToExport   = () => setCurrentPage('export');
-  const goToPatients = () => setCurrentPage('patients');
-  const goToLibrary  = () => setCurrentPage('library');
+
+  const goToExport = () => {
+    setUnseenReports(0);
+    setCurrentPage('export');
+  };
+
+  const goToPatients = () => {
+    setUnseenPatients(0);
+    setCurrentPage('patients');
+  };
+
+  const goToLibrary = () => setCurrentPage('library');
 
   const addCrystalRecords = (newRecords) => {
     setCrystalRecords(prev => [...prev, ...newRecords]);
+    setHasUnsavedResult(false);    // na-save na — clear ang Results badge
+    setUnseenReports(prev => prev + 1);
+  };
+
+  const addNewPatient = (patient) => {
+    setCurrentPatient(patient);
+    setUnseenPatients(prev => prev + 1);
+  };
+
+  const clearCurrentPatient = () => setCurrentPatient(null);
+
+  const markResultsViewed = () => {};        // kept for compatibility
+  const markReportsViewed = () => setUnseenReports(0);
+
+  const badges = {
+    results:  hasUnsavedResult   ? '!' : null,   // '!' = may pending unsaved result
+    patients: unseenPatients > 0 ? String(unseenPatients) : null,
+    export:   unseenReports  > 0 ? String(unseenReports)  : null,
   };
 
   return (
@@ -37,6 +79,10 @@ export default function App() {
           goToPatients={goToPatients}
           goToLibrary={goToLibrary}
           goToLogin={goToLogin}
+          currentPatient={currentPatient}
+          setCurrentPatient={addNewPatient}
+          clearCurrentPatient={clearCurrentPatient}
+          badges={badges}
         />
       )}
       {currentPage === 'results' && (
@@ -49,6 +95,8 @@ export default function App() {
           goToLogin={goToLogin}
           addCrystalRecords={addCrystalRecords}
           analysisData={analysisData}
+          markResultsViewed={markResultsViewed}
+          badges={badges}
         />
       )}
       {currentPage === 'analysis' && (
@@ -59,6 +107,7 @@ export default function App() {
           goToPatients={goToPatients}
           goToLibrary={goToLibrary}
           goToLogin={goToLogin}
+          badges={badges}
         />
       )}
       {currentPage === 'export' && (
@@ -69,6 +118,8 @@ export default function App() {
           goToPatients={goToPatients}
           goToLibrary={goToLibrary}
           goToLogin={goToLogin}
+          markReportsViewed={markReportsViewed}
+          badges={badges}
         />
       )}
       {currentPage === 'patients' && (
@@ -81,6 +132,7 @@ export default function App() {
           goToPatients={goToPatients}
           goToLibrary={goToLibrary}
           crystalRecords={crystalRecords}
+          badges={badges}
         />
       )}
       {currentPage === 'library' && (
@@ -93,6 +145,7 @@ export default function App() {
           goToPatients={goToPatients}
           goToLibrary={goToLibrary}
           crystalRecords={crystalRecords}
+          badges={badges}
         />
       )}
     </div>

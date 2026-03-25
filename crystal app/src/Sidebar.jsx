@@ -49,7 +49,16 @@ const PatientsIcon = ({ color }) => (
   </svg>
 );
 
-export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary}) {
+export default function Sidebar({
+  currentPage,
+  goToUpload,
+  goToResults,
+  goToAnalysis,
+  goToExport,
+  goToPatients,
+  goToLibrary,
+  badges = {},   // ← accepts badges from App.js; defaults to empty obj so nothing breaks
+}) {
   const SidebarItem = ({ label, icon, onClick, isActive, badge }) => (
     <div
       onClick={onClick}
@@ -73,16 +82,49 @@ export default function Sidebar({ currentPage, goToUpload, goToResults, goToAnal
       <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', fontFamily: "'Poppins', sans-serif" }}>
         Workspace
       </div>
-      <SidebarItem label="New analysis"   icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}   onClick={goToUpload}   isActive={currentPage === 'upload'} />
-      <SidebarItem label="Results"        icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />} onClick={goToResults}  isActive={currentPage === 'results'}  badge="1" />
-      <SidebarItem label="Analysis"       icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />} onClick={goToAnalysis} isActive={currentPage === 'analysis'} />
-      <SidebarItem label="Reports"        icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}   onClick={goToExport}   isActive={currentPage === 'export'}   badge="3" />
+      <SidebarItem
+        label="New analysis"
+        icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}
+        onClick={goToUpload}
+        isActive={currentPage === 'upload'}
+      />
+      <SidebarItem
+        label="Results"
+        icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />}
+        onClick={() => goToResults()}
+        isActive={currentPage === 'results'}
+        badge={badges.results}   // ← dynamic, from App.js
+      />
+      <SidebarItem
+        label="Analysis"
+        icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />}
+        onClick={goToAnalysis}
+        isActive={currentPage === 'analysis'}
+      />
+      <SidebarItem
+        label="Reports"
+        icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}
+        onClick={goToExport}
+        isActive={currentPage === 'export'}
+        badge={badges.export}    // ← dynamic, from App.js
+      />
 
       <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', marginTop: '10px', fontFamily: "'Poppins', sans-serif" }}>
         Reference
       </div>
-      <SidebarItem label="Crystal library" icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}  onClick={goToLibrary} isActive={currentPage === 'library'} />
-      <SidebarItem label="Patients"         icon={<PatientsIcon color={currentPage === 'patients' ? '#fff' : '#4A5240'} />} onClick={goToPatients} isActive={currentPage === 'patients'} />
+      <SidebarItem
+        label="Crystal library"
+        icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}
+        onClick={goToLibrary}
+        isActive={currentPage === 'library'}
+      />
+      <SidebarItem
+        label="Patients"
+        icon={<PatientsIcon color={currentPage === 'patients' ? '#fff' : '#4A5240'} />}
+        onClick={goToPatients}
+        isActive={currentPage === 'patients'}
+        badge={badges.patients}  // ← dynamic, from App.js
+      />
     </div>
   );
 }

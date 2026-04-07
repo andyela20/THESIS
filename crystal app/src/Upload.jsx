@@ -1,196 +1,143 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-import { addPatient, uploadImage, analyzeImage, searchPatients } from './api';
+import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, getAnalyses } from './api';
 import './index.css';
-
-const styles = {
-  app: { display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', background: '#EEF0E8', overflow: 'hidden' },
-  body: { flex: 1, display: 'grid', gridTemplateColumns: '210px 1fr', minHeight: 0, overflow: 'hidden' },
-  main: { display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', background: '#EEF0E8' },
-  pane: { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 28px', gap: '14px', minHeight: 0, overflowY: 'auto' },
-  patientCard: { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 20px', flexShrink: 0 },
-  cardTitle: { fontSize: '15px', fontWeight: 700, color: '#141514', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Poppins', sans-serif" },
-  patientGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginTop: '12px' },
-  pfield: { display: 'flex', flexDirection: 'column', gap: '4px' },
-  pLabel: { fontSize: '10px', fontWeight: 700, color: '#797f79', textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" },
-  pInput: { padding: '7px 10px', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', color: '#141514', background: '#F5F6F0', fontFamily: "'Poppins', sans-serif" },
-  pidBanner: { display: 'flex', alignItems: 'center', gap: '10px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '9px', padding: '9px 14px', marginTop: '8px' },
-  pidCheck: { fontSize: '14px', color: '#1FB505' },
-  pidVal: { fontSize: '11px', fontWeight: 800, color: '#1F5330', fontFamily: "'Poppins', sans-serif" },
-  pidEdit: { marginLeft: 'auto', background: 'none', border: 'none', color: '#A4AAA4', cursor: 'pointer', fontSize: '10px', fontFamily: "'Poppins', sans-serif" },
-  dzRing: { fontSize: '32px' },
-  dzTitle: { fontSize: '16px', fontWeight: 700, color: '#141514', fontFamily: "'Poppins', sans-serif" },
-  dzHint: { fontSize: '13px', color: '#A4AAA4', fontFamily: "'Poppins', sans-serif" },
-  dzTags: { display: 'flex', gap: '6px' },
-  dzTag: { fontSize: '11px', fontWeight: 500, padding: '3px 10px', borderRadius: '100px', background: '#EEF3E8', color: '#306A33', border: '1px solid #B8C9A8', fontFamily: "'Poppins', sans-serif" },
-  uploadedBox: { flex: 1, minHeight: '80px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '16px', display: 'flex', alignItems: 'center', padding: '16px 20px', gap: '14px' },
-  uploadedIcon: { fontSize: '28px' },
-  uploadedInfo: { flex: 1 },
-  uploadedName: { fontSize: '13px', fontWeight: 700, color: '#141514', fontFamily: "'Poppins', sans-serif" },
-  uploadedSize: { fontSize: '11px', color: '#1FB505', marginTop: '3px', fontWeight: 500, fontFamily: "'Poppins', sans-serif" },
-  recentLabel: { fontSize: '10px', fontWeight: 700, color: '#C9CAC0', textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" },
-  recentList: { flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' },
-  rcard: { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '12px', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: '10px' },
-  rdot: { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
-  rinfo: { flex: 1, minWidth: 0 },
-  rname: { fontSize: '12px', fontWeight: 600, color: '#141514', fontFamily: "'Poppins', sans-serif" },
-  rdate: { fontSize: '10px', color: '#A4AAA4', marginTop: '2px', fontFamily: "'Poppins', sans-serif" },
-  riskTag: { fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '10px', background: '#FFF0ED', color: '#A32D2D', fontFamily: "'Poppins', sans-serif" },
-  bbar: { flexShrink: 0, position: 'sticky', bottom: 0, width: '100%', marginLeft: '-30px', marginRight: '-30px', marginBottom: '1px', padding: '16px 30px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' },
-  uploadHint: { fontSize: '11px', color: '#C07320', fontWeight: 500, fontFamily: "'Poppins', sans-serif" },
-  // Search styles
-  searchWrapper: { position: 'relative' },
-  searchInput: { width: '100%', padding: '8px 12px 8px 32px', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', color: '#141514', background: '#F5F6F0', fontFamily: "'Poppins', sans-serif", boxSizing: 'border-box' },
-  searchIcon: { position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', color: '#A4AAA4', pointerEvents: 'none' },
-  searchDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #D8DAD0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 100, marginTop: '4px', overflow: 'hidden' },
-  searchItem: { padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F0F1E8', display: 'flex', flexDirection: 'column', gap: '2px' },
-  searchItemName: { fontSize: '12px', fontWeight: 700, color: '#141514', fontFamily: "'Poppins', sans-serif" },
-  searchItemSub: { fontSize: '10px', color: '#A4AAA4', fontFamily: "'Poppins', sans-serif" },
-  searchNoResult: { padding: '12px 14px', fontSize: '12px', color: '#A4AAA4', fontFamily: "'Poppins', sans-serif", textAlign: 'center' },
-  tabRow: { display: 'flex', gap: '8px', marginBottom: '10px' },
-  tab: { fontSize: '11px', fontWeight: 600, padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #D8DAD0', background: 'transparent', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", color: '#4A5240' },
-  tabActive: { fontSize: '11px', fontWeight: 600, padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #1FB505', background: '#F2FBF0', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", color: '#1F5330' },
-};
 
 export default function Upload({
   goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
   currentPatient, setCurrentPatient, clearCurrentPatient,
   badges = {},
 }) {
-  // Tab: 'new' = add new patient, 'search' = search existing
-  const [tab, setTab] = useState(currentPatient ? 'confirmed' : 'new');
+  const username = localStorage.getItem('username') || 'User';
+  const hour     = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  // New patient form fields
-  const [patientName, setPatientName]       = useState(currentPatient?.name    || '');
-  const [patientDOB, setPatientDOB]         = useState(currentPatient?.dob     || '');
-  const [patientAddress, setPatientAddress] = useState(currentPatient?.address || '');
-  const [patientAge, setPatientAge]         = useState(currentPatient?.age     || '');
-  const [patientSex, setPatientSex]         = useState(currentPatient?.sex     || '');
-  const [patientContact, setPatientContact] = useState(currentPatient?.contact || ''); // ✅ added contact
+  // Stats
+  const [totalPatients, setTotalPatients]   = useState(0);
+  const [totalAnalyses, setTotalAnalyses]   = useState(0);
+  const [topCrystal, setTopCrystal]         = useState(null);
+  const [lastAnalysis, setLastAnalysis]     = useState(null);
+  const [recentRecords, setRecentRecords]   = useState([]);
+  const [recentPatients, setRecentPatients] = useState([]);
+  const [statsLoading, setStatsLoading]     = useState(true);
+
+  // Patient form
+  const [tab, setTab]                       = useState(currentPatient ? 'confirmed' : 'new');
+  const [patientName, setPatientName]       = useState(currentPatient?.name      || '');
+  const [patientDOB, setPatientDOB]         = useState(currentPatient?.dob       || '');
+  const [patientAddress, setPatientAddress] = useState(currentPatient?.address   || '');
+  const [patientAge, setPatientAge]         = useState(currentPatient?.age       || '');
+  const [patientSex, setPatientSex]         = useState(currentPatient?.sex       || '');
+  const [patientContact, setPatientContact] = useState(currentPatient?.contact   || '');
   const [patientId, setPatientId]           = useState(currentPatient?.patientId || null);
-
-  // Search state
   const [searchQuery, setSearchQuery]       = useState('');
   const [searchResults, setSearchResults]   = useState([]);
   const [searchLoading, setSearchLoading]   = useState(false);
   const [showDropdown, setShowDropdown]     = useState(false);
-  const searchRef = useRef(null);
-
   const [uploadedImage, setUploadedImage]   = useState(null);
   const [loading, setLoading]               = useState(false);
   const [analyzing, setAnalyzing]           = useState(false);
+  const [showAnalysisForm, setShowAnalysisForm] = useState(false);
+  const searchRef   = useRef(null);
   const fileInputRef = useRef(null);
 
-  // If currentPatient changes from outside (e.g. navigating back), sync fields
+  // Fetch dashboard stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [patients, analyses] = await Promise.all([getPatients(), getAnalyses()]);
+        const pList = Array.isArray(patients)  ? patients  : [];
+        const aList = Array.isArray(analyses)  ? analyses  : [];
+
+        setTotalPatients(pList.length);
+        setTotalAnalyses(aList.length);
+        setRecentPatients(pList.slice(0, 3));
+        setRecentRecords(aList.slice(0, 5));
+
+        // Top crystal type
+        const typeCounts = aList.reduce((acc, a) => { acc[a.crystalType] = (acc[a.crystalType] || 0) + a.count; return acc; }, {});
+        const top = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+        setTopCrystal(top ? top[0] : null);
+
+        // Last analysis date
+        if (aList.length > 0) {
+          const sorted = [...aList].sort((a, b) => new Date(b.date) - new Date(a.date));
+          setLastAnalysis(sorted[0]);
+        }
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
   useEffect(() => {
     if (currentPatient) {
-      setPatientName(currentPatient.name    || '');
-      setPatientDOB(currentPatient.dob      || '');
+      setPatientName(currentPatient.name      || '');
+      setPatientDOB(currentPatient.dob        || '');
       setPatientAddress(currentPatient.address || '');
-      setPatientAge(currentPatient.age      || '');
-      setPatientSex(currentPatient.sex      || '');
-      setPatientContact(currentPatient.contact || ''); // ✅ sync contact
-      setPatientId(currentPatient.patientId || null);
+      setPatientAge(currentPatient.age        || '');
+      setPatientSex(currentPatient.sex        || '');
+      setPatientContact(currentPatient.contact || '');
+      setPatientId(currentPatient.patientId   || null);
       setTab('confirmed');
+      setShowAnalysisForm(true);
     }
   }, [currentPatient]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setShowDropdown(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Debounced search
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); setShowDropdown(false); return; }
     const timer = setTimeout(async () => {
       setSearchLoading(true);
-      try {
-        const results = await searchPatients(searchQuery);
-        setSearchResults(results);
-        setShowDropdown(true);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
-      }
+      try { const r = await searchPatients(searchQuery); setSearchResults(r); setShowDropdown(true); }
+      catch { setSearchResults([]); }
+      finally { setSearchLoading(false); }
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const handleSelectSearchResult = (patient) => {
-    setPatientName(patient.name    || '');
-    setPatientDOB(patient.dob      || '');
-    setPatientAddress(patient.address || '');
-    setPatientAge(patient.age      || '');
-    setPatientSex(patient.sex      || '');
-    setPatientContact(patient.contact || ''); // ✅ set contact from search result
-    setPatientId(patient.patientId);
-    setCurrentPatient(patient);   // lift to App.js so it persists
-    setSearchQuery('');
-    setShowDropdown(false);
-    setTab('confirmed');
+    setPatientName(patient.name || ''); setPatientDOB(patient.dob || '');
+    setPatientAddress(patient.address || ''); setPatientAge(patient.age || '');
+    setPatientSex(patient.sex || ''); setPatientContact(patient.contact || '');
+    setPatientId(patient.patientId); setCurrentPatient(patient);
+    setSearchQuery(''); setShowDropdown(false); setTab('confirmed');
   };
 
   const handleAddPatient = async () => {
-    // ✅ required field checks
     if (!patientName.trim())    { alert('Please enter patient name'); return; }
     if (!patientDOB.trim())     { alert('Please enter date of birth'); return; }
     if (!patientAge)            { alert('Please enter age'); return; }
     if (!patientSex)            { alert('Please select sex'); return; }
     if (!patientAddress.trim()) { alert('Please enter address'); return; }
     if (!patientContact.trim()) { alert('Please enter contact number'); return; }
-
-    const yr  = new Date().getFullYear();
-    const seq = String(Math.floor(Math.random() * 900) + 100);
-    const newPatientId = `PT-${yr}-${seq}`;
+    const yr = new Date().getFullYear();
+    const newPatientId = `PT-${yr}-${String(Math.floor(Math.random() * 900) + 100)}`;
     setLoading(true);
     try {
-      // ✅ include contact
-      await addPatient({
-        patientId: newPatientId,
-        name:      patientName,
-        age:       patientAge,
-        sex:       patientSex,
-        dob:       patientDOB,
-        address:   patientAddress,
-        contact:   patientContact,
-        status:    'Active',
-      });
+      await addPatient({ patientId: newPatientId, name: patientName, age: patientAge, sex: patientSex, dob: patientDOB, address: patientAddress, contact: patientContact, status: 'Active' });
       setPatientId(newPatientId);
-      // Lift patient up to App.js so it survives page changes
-      setCurrentPatient({
-        patientId: newPatientId,
-        name:      patientName,
-        age:       patientAge,
-        sex:       patientSex,
-        dob:       patientDOB,
-        address:   patientAddress,
-        contact:   patientContact, // ✅ include contact
-      });
+      setCurrentPatient({ patientId: newPatientId, name: patientName, age: patientAge, sex: patientSex, dob: patientDOB, address: patientAddress, contact: patientContact });
       setTab('confirmed');
-    } catch {
-      alert('Error saving patient. Make sure backend is running.');
-    } finally {
-      setLoading(false);
-    }
+      setTotalPatients(p => p + 1);
+    } catch { alert('Error saving patient. Make sure backend is running.'); }
+    finally { setLoading(false); }
   };
 
-  // Full reset — clear everything including App-level patient
   const handleReset = () => {
-    setPatientName('');
-    setPatientId(null);
-    setPatientDOB('');
-    setPatientAddress('');
-    setPatientAge('');
-    setPatientSex('');
-    setPatientContact(''); // ✅ clear contact
-    setUploadedImage(null);
-    setSearchQuery('');
-    setTab('new');
+    setPatientName(''); setPatientId(null); setPatientDOB(''); setPatientAddress('');
+    setPatientAge(''); setPatientSex(''); setPatientContact('');
+    setUploadedImage(null); setSearchQuery(''); setTab('new');
+    setShowAnalysisForm(false);
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
@@ -201,239 +148,397 @@ export default function Upload({
   const handleRemoveImage   = () => { setUploadedImage(null); fileInputRef.current.value = ''; };
 
   const handleAnalyze = async () => {
-    if (!uploadedImage) return;
-    if (!patientId) { alert('Please add a patient first before analyzing.'); return; }
+    if (!uploadedImage || !patientId) return;
     setAnalyzing(true);
     try {
       const sampleId = `SMPL-${Date.now()}`;
       const formData = new FormData();
-      formData.append('image', uploadedImage);
-      formData.append('patientId', patientId);
-      formData.append('sampleId', sampleId);
+      formData.append('image', uploadedImage); formData.append('patientId', patientId); formData.append('sampleId', sampleId);
       await uploadImage(formData);
-
       const analysisResult = await analyzeImage(uploadedImage);
       if (!analysisResult.success) { alert('Error analyzing image: ' + analysisResult.error); return; }
-
-      goToResults({
-        patientId,
-        patientName,
-        sampleId,
-        results:        analysisResult.summary,
-        annotatedImage: analysisResult.annotatedImage,
-      });
-
-    } catch (err) {
-      alert('Error. Make sure the model server is running on port 5001.');
-    } finally {
-      setAnalyzing(false);
-    }
+      goToResults({ patientId, patientName, sampleId, results: analysisResult.summary, annotatedImage: analysisResult.annotatedImage });
+    } catch { alert('Error. Make sure the model server is running on port 5001.'); }
+    finally { setAnalyzing(false); }
   };
 
+  const CRYSTAL_COLORS = { 'CaOx Dihydrate': '#E24B4A', 'CaOx Monohydrate Ovoid': '#F5A623', 'Phosphate': '#6D9922', 'Calcium Oxalate': '#E24B4A', 'Uric Acid': '#1FB505', 'Struvite': '#6D9922', 'Ca Phosphate': '#6D7758' };
+  const RISK_STYLE = { High: { bg: '#FFF0ED', color: '#A32D2D' }, Moderate: { bg: '#FFF8ED', color: '#C07320' }, Low: { bg: '#E8F5E8', color: '#1F5330' } };
+  const getInitials = (name) => (name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const AVATAR_COLORS = ['#1F5330', '#306A33', '#4A7A50', '#2D6A4F'];
+  const getAvatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
+
   return (
-    <div style={styles.app}>
+    <div style={s.app}>
       <Topbar goToLogin={goToLogin} />
-      <div style={styles.body}>
-        <Sidebar
-          currentPage="upload"
-          goToUpload={() => {}}
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          badges={badges}
-        />
-        <div style={styles.main}>
-          <div style={styles.pane}>
+      <div style={s.body}>
+        <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} badges={badges} />
 
-            {/* Patient Card */}
-            <div style={styles.patientCard}>
-              <div style={styles.cardTitle}>
-                <span>Patient Details</span>
-                {/* Only show Add Patient button on new-patient tab */}
-                {tab === 'new' && (
-                  <button onClick={handleAddPatient} className="btn-small" disabled={loading}>
-                    {loading ? 'Saving...' : '+ Add patient'}
-                  </button>
-                )}
-                {/* When confirmed, show "New Analysis" to fully reset */}
-                {tab === 'confirmed' && (
-                  <button onClick={handleReset} className="btn-small" style={{ background: 'none', color: '#A4AAA4', border: '1px solid #D8DAD0' }}>
-                    ✕ New Analysis
-                  </button>
-                )}
+        <div style={s.main}>
+          <div style={s.pane}>
+
+            {/* ── Greeting Banner ── */}
+            <div style={s.banner}>
+              <div>
+                <div style={s.bannerGreeting}>{greeting}, {username.charAt(0).toUpperCase() + username.slice(1)}!</div>
+                <div style={s.bannerSub}>Here's a summary of your MagniTect workspace.</div>
               </div>
-
-              {/* Confirmed state — patient is locked in */}
-              {tab === 'confirmed' ? (
-                <div style={styles.pidBanner}>
-                  <span style={styles.pidCheck}>✓</span>
-                  <span style={{ fontSize: '12px', color: '#141514', fontFamily: "'Poppins', sans-serif" }}>{patientName}</span>
-                  <span style={styles.pidVal}>{patientId}</span>
-                  <button onClick={handleReset} style={styles.pidEdit}>Edit ×</button>
-                </div>
-              ) : (
-                <>
-                  {/* Tabs: New / Search */}
-                  <div style={styles.tabRow}>
-                    <button style={tab === 'new' ? styles.tabActive : styles.tab} onClick={() => setTab('new')}>+ New patient</button>
-                    <button style={tab === 'search' ? styles.tabActive : styles.tab} onClick={() => setTab('search')}>🔍 Search existing</button>
-                  </div>
-
-                  {/* New patient form */}
-                  {tab === 'new' && (
-                    <div style={styles.patientGrid}>
-                      <div style={styles.pfield}>
-                        <label style={styles.pLabel}>Full name</label>
-                        <input type="text" value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={styles.pInput} />
-                      </div>
-                      <div style={styles.pfield}>
-                        <label style={styles.pLabel}>Age</label>
-                        <input type="number" value={patientAge} onChange={(e) => setPatientAge(e.target.value)} placeholder="e.g. 67" style={styles.pInput} />
-                      </div>
-                      <div style={styles.pfield}>
-                        <label style={styles.pLabel}>Sex</label>
-                        <select value={patientSex} onChange={(e) => setPatientSex(e.target.value)} style={styles.pInput}>
-                          <option value="">Select sex</option>
-                          <option>Male</option>
-                          <option>Female</option>
-                          <option>Other</option>
-                        </select>
-                      </div>
-                      <div style={styles.pfield}>
-                        <label style={styles.pLabel}>Date of Birth</label>
-                        <input
-                          type="date"
-                          value={patientDOB}
-                          onChange={(e) => {
-                            const dob = e.target.value;
-                            setPatientDOB(dob);
-                            if (dob) {
-                              const today = new Date();
-                              const birth = new Date(dob);
-                              let age = today.getFullYear() - birth.getFullYear();
-                              const m = today.getMonth() - birth.getMonth();
-                              if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-                              setPatientAge(age);
-                            }
-                          }}
-                          style={styles.pInput}
-                        />
-                      </div>
-                      <div style={styles.pfield}>
-                        <label style={styles.pLabel}>Address</label>
-                        <input type="text" value={patientAddress} onChange={(e) => setPatientAddress(e.target.value)} placeholder="Street address" style={styles.pInput} />
-                      </div>
-                      {/* ✅ Contact Number field (6th slot) */}
-                      <div style={styles.pfield}>
-                        <label style={styles.pLabel}>Contact Number</label>
-                        <input
-                          type="tel"
-                          value={patientContact}
-                          onChange={(e) => setPatientContact(e.target.value)}
-                          placeholder="09XXXXXXXXX"
-                          style={styles.pInput}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Search existing patient */}
-                  {tab === 'search' && (
-                    <div ref={searchRef} style={styles.searchWrapper}>
-                      <span style={styles.searchIcon}><span style={styles.searchIcon}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A4AAA4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="11" cy="11" r="8"></circle>
-                          <path d="m21 21-4.35-4.35"></path>
-                        </svg>
-                      </span>
-                      </span>
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="  Search by name or Patient ID…"
-                        style={styles.searchInput}
-                        autoFocus
-                      />
-                      {showDropdown && (
-                        <div style={styles.searchDropdown}>
-                          {searchLoading && (
-                            <div style={styles.searchNoResult}>Searching…</div>
-                          )}
-                          {!searchLoading && searchResults.length === 0 && (
-                            <div style={styles.searchNoResult}>No patients found</div>
-                          )}
-                          {!searchLoading && searchResults.map((p) => (
-                            <div
-                              key={p.patientId}
-                              style={styles.searchItem}
-                              onClick={() => handleSelectSearchResult(p)}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#F5F6F0'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
-                            >
-                              <span style={styles.searchItemName}>{p.name}</span>
-                              <span style={styles.searchItemSub}>{p.patientId} · {p.age ? `${p.age} yrs` : ''} · {p.sex || ''}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
+              <button onClick={() => setShowAnalysisForm(true)} style={s.bannerBtn}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                New Analysis
+              </button>
             </div>
 
-            {/* Hidden file input */}
-            <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
-
-            {/* Dropzone */}
-            {!uploadedImage ? (
-              <div
-                className="dropzone"
-                onClick={handleDropzoneClick}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                style={{ opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed' }}
-              >
-                <div style={styles.dzRing}>📤</div>
-                <div style={styles.dzTitle}>
-                  {patientId ? 'Drop image here or click to upload' : 'Add patient details first'}
+            {/* ── Stat Cards ── */}
+            <div style={s.statRow}>
+              {[
+                { label: 'TOTAL PATIENTS', value: statsLoading ? '—' : totalPatients, sub: `${statsLoading ? '—' : totalPatients} active`, accent: '#1F5330' },
+                { label: 'TOTAL ANALYSES', value: statsLoading ? '—' : totalAnalyses, sub: 'crystal records saved', accent: '#4A7A9B' },
+                { label: 'TOP CRYSTAL', value: statsLoading ? '—' : (topCrystal || '—'), sub: topCrystal ? 'most detected type' : 'No data yet', accent: '#888', isText: true },
+                { label: 'LAST ANALYSIS', value: statsLoading ? '—' : (lastAnalysis ? new Date(lastAnalysis.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'), sub: lastAnalysis ? lastAnalysis.patientName : 'No analyses yet', accent: '#C07320', isText: true },
+              ].map((card, i) => (
+                <div key={i} style={s.statCard}>
+                  <div style={{ ...s.statAccent, background: card.accent }} />
+                  <div style={{ ...s.statValue, fontSize: card.isText ? '15px' : '32px', color: card.accent }}>{card.value}</div>
+                  <div style={s.statLabel}>{card.label}</div>
+                  <div style={s.statSub}>{card.sub}</div>
                 </div>
-                <div style={styles.dzHint}>JPEG, PNG · Max 10 MB</div>
-                <div style={styles.dzTags}>
-                  <span style={styles.dzTag}>JPEG</span>
-                  <span style={styles.dzTag}>PNG</span>
+              ))}
+            </div>
+
+            {/* ── Main two-col ── */}
+            <div style={s.twoCol}>
+
+              {/* Recent Crystal Records */}
+              <div style={s.card}>
+                <div style={s.cardHead}>
+                  <span style={s.cardTitle}>Recent Crystal Records</span>
+                  <button onClick={goToLibrary} style={s.viewAll}>View all →</button>
+                </div>
+                {recentRecords.length === 0 ? (
+                  <div style={s.emptyBlock}>
+                    <div style={{ fontSize: '36px', marginBottom: '8px' }}>🔬</div>
+                    <div style={s.emptyText}>No analyses yet</div>
+                    <button onClick={() => setShowAnalysisForm(true)} style={s.emptyBtn}>Run first analysis</button>
+                  </div>
+                ) : (
+                  <div style={s.recordList}>
+                    {recentRecords.map((r, i) => (
+                      <div key={i} style={s.recordRow}>
+                        <div style={{ ...s.recordDot, background: CRYSTAL_COLORS[r.crystalType] || '#888' }} />
+                        <div style={s.recordInfo}>
+                          <div style={s.recordName}>{r.crystalType}</div>
+                          <div style={s.recordMeta}>{r.patientName} · {r.sampleId}</div>
+                        </div>
+                        <div style={{ ...s.riskTag, background: RISK_STYLE[r.risk]?.bg || '#E8F5E8', color: RISK_STYLE[r.risk]?.color || '#1F5330' }}>{r.risk}</div>
+                        <div style={s.recordCount}>{r.count}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right col */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+                {/* Recent Patients */}
+                <div style={s.card}>
+                  <div style={s.cardHead}>
+                    <span style={s.cardTitle}>Recent Patients</span>
+                    <button onClick={goToPatients} style={s.viewAll}>View all →</button>
+                  </div>
+                  {recentPatients.length === 0 ? (
+                    <div style={s.emptyBlock}>
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>👤</div>
+                      <div style={s.emptyText}>No patients yet</div>
+                      <button onClick={() => setShowAnalysisForm(true)} style={s.emptyBtn}>Add first patient</button>
+                    </div>
+                  ) : (
+                    <div style={s.recordList}>
+                      {recentPatients.map((p, i) => (
+                        <div key={i} style={s.recordRow}>
+                          <div style={{ ...s.avatar, background: getAvatarColor(p.name) }}>{getInitials(p.name)}</div>
+                          <div style={s.recordInfo}>
+                            <div style={s.recordName}>{p.name}</div>
+                            <div style={s.recordMeta}>{p.patientId} · {p.age ? `${p.age} yrs` : ''} · {p.sex || ''}</div>
+                          </div>
+                          <div style={{ ...s.riskTag, background: p.status === 'Active' ? '#E8F5E8' : '#F5F5F5', color: p.status === 'Active' ? '#1F5330' : '#A4AAA4' }}>{p.status}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Actions */}
+                <div style={s.card}>
+                  <div style={s.cardHead}><span style={s.cardTitle}>Quick Actions</span></div>
+                  <div style={s.quickGrid}>
+                    {[
+                      { label: 'New Analysis', icon: '📤', onClick: () => setShowAnalysisForm(true) },
+                      { label: 'Patients',     icon: '👥', onClick: goToPatients },
+                      { label: 'Library',      icon: '🔬', onClick: goToLibrary },
+                      { label: 'Reports',      icon: '📄', onClick: goToExport },
+                    ].map((a, i) => (
+                      <button key={i} onClick={a.onClick} style={s.quickBtn}>
+                        <span style={{ fontSize: '18px' }}>{a.icon}</span>
+                        <span style={s.quickLabel}>{a.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div style={styles.uploadedBox}>
-                <div style={styles.uploadedIcon}>🖼️</div>
-                <div style={styles.uploadedInfo}>
-                  <div style={styles.uploadedName}>{uploadedImage.name}</div>
-                  <div style={styles.uploadedSize}>{(uploadedImage.size / 1024).toFixed(1)} KB · Ready to analyze</div>
-                </div>
-                <button onClick={handleRemoveImage} className="btn-remove">✕ Remove</button>
-              </div>
-            )}
-
-            {/* Button Bar */}
-            <div style={styles.bbar}>
-              {!patientId && <span style={styles.uploadHint}>Please add a patient first</span>}
-              {patientId && !uploadedImage && <span style={styles.uploadHint}>Please upload an image first</span>}
-              <button
-                onClick={handleAnalyze}
-                className="btn-solid"
-                disabled={!uploadedImage || !patientId || analyzing}
-              >
-                {analyzing ? '⏳ Analyzing...' : '🔍 Analyze Image'}
-              </button>
             </div>
 
           </div>
         </div>
       </div>
+
+      {/* ── Analysis Drawer/Modal ── */}
+      {showAnalysisForm && (
+        <div style={s.overlay} onClick={handleReset}>
+          <div style={s.drawer} onClick={e => e.stopPropagation()}>
+
+            {/* Drawer header */}
+            <div style={s.drawerHead}>
+              <div style={s.drawerTitle}>New Analysis</div>
+              <button onClick={handleReset} style={s.drawerClose}>✕</button>
+            </div>
+
+            <div style={s.drawerBody}>
+              {/* Patient section */}
+              <div style={s.drawerSection}>
+                <div style={s.sectionLabel}>Patient Details</div>
+
+                {tab === 'confirmed' ? (
+                  <div style={s.confirmedBanner}>
+                    <div style={{ ...s.avatar, background: getAvatarColor(patientName) }}>{getInitials(patientName)}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={s.recordName}>{patientName}</div>
+                      <div style={s.recordMeta}>{patientId}</div>
+                    </div>
+                    <span style={{ color: '#1FB505', fontSize: '16px' }}>✓</span>
+                    <button onClick={() => { setTab('new'); setPatientId(null); }} style={s.editBtn}>Edit</button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={s.tabRow}>
+                      <button style={tab === 'new' ? s.tabActive : s.tab} onClick={() => setTab('new')}>New Patient</button>
+                      <button style={tab === 'search' ? s.tabActive : s.tab} onClick={() => setTab('search')}>Search Existing</button>
+                    </div>
+
+                    {tab === 'new' && (
+                      <>
+                        <div style={s.formGrid}>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Full Name</label>
+                            <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={s.fieldInput} />
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Age</label>
+                            <input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} placeholder="e.g. 45" style={s.fieldInput} />
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Sex</label>
+                            <select value={patientSex} onChange={e => setPatientSex(e.target.value)} style={s.fieldInput}>
+                              <option value="">Select sex</option>
+                              <option>Male</option><option>Female</option><option>Other</option>
+                            </select>
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Date of Birth</label>
+                            <input type="date" value={patientDOB} onChange={e => {
+                              const dob = e.target.value; setPatientDOB(dob);
+                              if (dob) { const t = new Date(); const b = new Date(dob); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; setPatientAge(a); }
+                            }} style={s.fieldInput} />
+                          </div>
+                          <div style={{ ...s.field, gridColumn: '1 / -1' }}>
+                            <label style={s.fieldLabel}>Address</label>
+                            <input type="text" value={patientAddress} onChange={e => setPatientAddress(e.target.value)} placeholder="Street address" style={s.fieldInput} />
+                          </div>
+                          <div style={{ ...s.field, gridColumn: '1 / -1' }}>
+                            <label style={s.fieldLabel}>Contact Number</label>
+                            <input type="tel" value={patientContact} onChange={e => setPatientContact(e.target.value)} placeholder="09XXXXXXXXX" style={s.fieldInput} />
+                          </div>
+                        </div>
+                        <button onClick={handleAddPatient} style={s.addBtn} disabled={loading}>
+                          {loading ? 'Saving...' : '+ Add Patient'}
+                        </button>
+                      </>
+                    )}
+
+                    {tab === 'search' && (
+                      <div ref={searchRef} style={{ position: 'relative' }}>
+                        <div style={s.searchBox}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A4AAA4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                          </svg>
+                          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name or Patient ID…" style={s.searchInput} autoFocus />
+                        </div>
+                        {showDropdown && (
+                          <div style={s.dropdown}>
+                            {searchLoading && <div style={s.dropItem}>Searching…</div>}
+                            {!searchLoading && searchResults.length === 0 && <div style={s.dropItem}>No patients found</div>}
+                            {!searchLoading && searchResults.map(p => (
+                              <div key={p.patientId} style={s.dropResult}
+                                onClick={() => handleSelectSearchResult(p)}
+                                onMouseEnter={e => e.currentTarget.style.background = '#F5F6F0'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                              >
+                                <div style={s.recordName}>{p.name}</div>
+                                <div style={s.recordMeta}>{p.patientId} · {p.age ? `${p.age} yrs` : ''} · {p.sex || ''}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Upload section */}
+              <div style={s.drawerSection}>
+                <div style={s.sectionLabel}>Upload Image</div>
+                <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
+
+                {!uploadedImage ? (
+                  <div
+                    onClick={handleDropzoneClick}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed' }}
+                  >
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={patientId ? '#1F5330' : '#C9CAC0'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>
+                      {patientId ? 'Drop image here or click to upload' : 'Add patient first'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#A4AAA4' }}>JPEG, PNG · Max 10 MB</div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={s.uploadedBox}>
+                    <div style={s.fileIconWrap}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514' }}>{uploadedImage.name}</div>
+                      <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>{(uploadedImage.size / 1024).toFixed(1)} KB · Ready to analyze</div>
+                    </div>
+                    <button onClick={handleRemoveImage} style={{ ...s.editBtn, color: '#E24B4A' }}>✕ Remove</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Drawer footer */}
+            <div style={s.drawerFoot}>
+              {!patientId && <span style={s.hint}>⚠ Add a patient first</span>}
+              {patientId && !uploadedImage && <span style={s.hint}>⚠ Upload an image to continue</span>}
+              <div style={{ flex: 1 }} />
+              <button onClick={handleReset} style={s.cancelBtn}>Cancel</button>
+              <button
+                onClick={handleAnalyze}
+                style={{ ...s.analyzeBtn, opacity: (!uploadedImage || !patientId || analyzing) ? 0.5 : 1, cursor: (!uploadedImage || !patientId || analyzing) ? 'not-allowed' : 'pointer' }}
+                disabled={!uploadedImage || !patientId || analyzing}
+              >
+                {analyzing ? '⏳ Analyzing…' : '🔍 Analyze Image'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const s = {
+  app:             { display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', background: '#EEF0E8', overflow: 'hidden', fontFamily: "'Poppins', sans-serif" },
+  body:            { flex: 1, display: 'grid', gridTemplateColumns: '210px 1fr', minHeight: 0, overflow: 'hidden' },
+  main:            { display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', background: '#EEF0E8' },
+  pane:            { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 24px', gap: '14px', minHeight: 0, overflowY: 'auto' },
+
+  // Banner
+  banner:          { background: '#1F5330', borderRadius: '14px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 },
+  bannerGreeting:  { fontSize: '20px', fontWeight: 700, color: '#fff', marginBottom: '4px' },
+  bannerSub:       { fontSize: '12px', color: 'rgba(255,255,255,0.65)' },
+  bannerBtn:       { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+
+  // Stat cards
+  statRow:         { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', flexShrink: 0 },
+  statCard:        { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden' },
+  statAccent:      { position: 'absolute', top: 0, left: 0, right: 0, height: '3px' },
+  statValue:       { fontWeight: 800, marginBottom: '4px', fontFamily: "'Poppins', sans-serif" },
+  statLabel:       { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' },
+  statSub:         { fontSize: '11px', color: '#A4AAA4' },
+
+  // Two col
+  twoCol:          { display: 'grid', gridTemplateColumns: '1fr 380px', gap: '14px', flex: 1, minHeight: 0 },
+  card:            { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column' },
+  cardHead:        { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' },
+  cardTitle:       { fontSize: '14px', fontWeight: 700, color: '#141514' },
+  viewAll:         { fontSize: '12px', color: '#1F5330', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+
+  // Records
+  recordList:      { display: 'flex', flexDirection: 'column', gap: '2px' },
+  recordRow:       { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #F0F1E8' },
+  recordDot:       { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
+  recordInfo:      { flex: 1, minWidth: 0 },
+  recordName:      { fontSize: '12px', fontWeight: 700, color: '#141514' },
+  recordMeta:      { fontSize: '10px', color: '#A4AAA4', marginTop: '1px' },
+  riskTag:         { fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px' },
+  recordCount:     { fontSize: '13px', fontWeight: 800, color: '#1F5330' },
+  avatar:          { width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 },
+
+  // Empty
+  emptyBlock:      { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '32px', gap: '8px' },
+  emptyText:       { fontSize: '13px', color: '#A4AAA4', fontWeight: 500 },
+  emptyBtn:        { marginTop: '8px', padding: '8px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+
+  // Quick actions
+  quickGrid:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
+  quickBtn:        { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: '#F5F6F0', border: '1px solid #E8EAE0', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  quickLabel:      { fontSize: '12px', fontWeight: 600, color: '#141514' },
+
+  // Overlay drawer
+  overlay:         { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' },
+  drawer:          { background: '#fff', width: '480px', height: '100%', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.12)' },
+  drawerHead:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #D8DAD0', background: '#1F5330' },
+  drawerTitle:     { fontSize: '16px', fontWeight: 700, color: '#fff' },
+  drawerClose:     { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '14px', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  drawerBody:      { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' },
+  drawerSection:   { display: 'flex', flexDirection: 'column', gap: '10px' },
+  drawerFoot:      { padding: '14px 24px', borderTop: '1px solid #D8DAD0', display: 'flex', alignItems: 'center', gap: '10px', background: '#fff' },
+  sectionLabel:    { fontSize: '11px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.08em' },
+
+  // Form
+  confirmedBanner: { display: 'flex', alignItems: 'center', gap: '10px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '10px 14px' },
+  tabRow:          { display: 'flex', gap: '6px' },
+  tab:             { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #D8DAD0', background: 'transparent', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#4A5240', fontFamily: "'Poppins', sans-serif" },
+  tabActive:       { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #1F5330', background: '#F2FBF0', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#1F5330', fontFamily: "'Poppins', sans-serif" },
+  formGrid:        { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
+  field:           { display: 'flex', flexDirection: 'column', gap: '4px' },
+  fieldLabel:      { fontSize: '10px', fontWeight: 700, color: '#797f79', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  fieldInput:      { padding: '8px 10px', border: '1.5px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', color: '#141514', background: '#F5F6F0', outline: 'none', fontFamily: "'Poppins', sans-serif" },
+  addBtn:          { padding: '8px 16px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif', alignSelf: 'flex-start'" },
+  editBtn:         { fontSize: '11px', color: '#A4AAA4', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Poppins', sans-serif" },
+  searchBox:       { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', border: '1.5px solid #D8DAD0', borderRadius: '8px', background: '#F5F6F0' },
+  searchInput:     { border: 'none', background: 'transparent', outline: 'none', fontSize: '12px', color: '#141514', flex: 1, fontFamily: "'Poppins', sans-serif" },
+  dropdown:        { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #D8DAD0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 100, marginTop: '4px', overflow: 'hidden' },
+  dropItem:        { padding: '12px 14px', fontSize: '12px', color: '#A4AAA4', textAlign: 'center' },
+  dropResult:      { padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F0F1E8' },
+  dropzone:        { border: '2px dashed #D8DAD0', borderRadius: '12px', padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s', background: '#FAFBF7' },
+  dzTag:           { fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '100px', background: '#EEF3E8', color: '#306A33', border: '1px solid #B8C9A8' },
+  uploadedBox:     { background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' },
+  fileIconWrap:    { width: '40px', height: '40px', borderRadius: '8px', background: '#E8F5E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  hint:            { fontSize: '11px', color: '#C07320', fontWeight: 500 },
+  cancelBtn:       { padding: '9px 16px', background: '#fff', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#4A5240', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  analyzeBtn:      { padding: '9px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+};

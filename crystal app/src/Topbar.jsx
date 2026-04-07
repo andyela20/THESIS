@@ -15,7 +15,7 @@ export default function Topbar({ goToLogin }) {
   return (
     <div style={styles.topbar}>
       <div style={styles.titleGroup}>
-        <div style={styles.appTitle}>CrystalScope</div>
+        <div style={styles.appTitle}>MagniTect</div>
         <div style={styles.appSub}>Automated Urinary Crystal Detection System</div>
       </div>
       <div style={styles.topbarRight}>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logo from './assets/logo.png';
 
 export default function Login({ onLogin }) {
   const [mode, setMode]               = useState('login');
@@ -73,9 +74,18 @@ export default function Login({ onLogin }) {
 
         {/* ── LEFT PANEL ── */}
         <div style={styles.lgLeft}>
-          <div style={styles.lgTitle}>
-            {mode === 'login' ? 'Welcome to MagniTect' : 'CREATE ACCOUNT'}
-          </div>
+
+          {/* Logo replaces the title text */}
+          <img
+            src={logo}
+            alt="Magnitect Logo"
+            style={styles.logoImg}
+          />
+
+          {/* Show "CREATE ACCOUNT" text only in register mode */}
+          {mode === 'register' && (
+            <div style={styles.lgTitle}>CREATE ACCOUNT</div>
+          )}
 
           <div style={styles.lgGroup}>
             <label style={styles.label}>Username</label>
@@ -159,7 +169,7 @@ export default function Login({ onLogin }) {
         {/* ── RIGHT PANEL ── */}
         <div style={styles.rightPanel}>
           <div style={styles.rightInner}>
-            <h2 style={styles.rightHeading}>AI-Powered Urinalysis</h2>
+            <h2 style={styles.rightHeading}>Welcome to MagniTect</h2>
             <p style={styles.rightSub}>
               Detect and classify urinary crystals with precision using advanced image recognition technology.
             </p>
@@ -194,8 +204,15 @@ const styles = {
 
   /* ── left panel ── */
   lgLeft:       { display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+  logoImg: { 
+    height: '80px', 
+    width: 'auto', 
+    marginBottom: '14px',  // was 32px, reduced to tighten the gap
+    objectFit: 'contain', 
+    alignSelf: 'flex-start' 
+  },
   lgTitle:      { fontSize: '33px', fontWeight: 700, color: '#2d5a27', marginBottom: '40px', letterSpacing: '1px' },
-  lgGroup:      { marginBottom: '26px' },
+  lgGroup: { marginBottom: '15px' },  // was 26px, slightly tighter too
   label:        { display: 'block', fontSize: '13px', color: '#4a6645', marginBottom: '8px', fontWeight: 600, letterSpacing: '0.4px' },
   input:        { width: '100%', padding: '14px 0', border: 'none', borderBottom: '2px solid #d4dccf', fontSize: '14px', color: '#1a3a1a', background: 'transparent', outline: 'none', transition: 'border-color 0.25s', boxSizing: 'border-box' },
   lgOpts:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '34px', fontSize: '13px' },

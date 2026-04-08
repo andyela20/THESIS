@@ -134,7 +134,7 @@ export default function Login({ onLogin }) {
             disabled={loading}
             style={{ opacity: loading ? 0.7 : 1 }}
           >
-            {loading ? 'PLEASE WAIT...' : mode === 'login' ? 'SUBMIT' : 'CREATE ACCOUNT'}
+            {loading ? 'PLEASE WAIT...' : mode === 'login' ? 'LOGIN' : 'CREATE ACCOUNT'}
           </button>
 
           <div style={styles.toggleWrap}>

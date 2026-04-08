@@ -76,14 +76,12 @@ export default function Login({ onLogin }) {
         {/* ── LEFT PANEL ── */}
         <div style={styles.lgLeft}>
 
-          {/* Logo replaces the title text */}
           <img
             src={logo}
             alt="Magnitect Logo"
             style={styles.logoImg}
           />
 
-          {/* Show "CREATE ACCOUNT" text only in register mode */}
           {mode === 'register' && (
             <div style={styles.lgTitle}>CREATE ACCOUNT</div>
           )}
@@ -168,9 +166,7 @@ export default function Login({ onLogin }) {
         </div>
 
         {/* ── RIGHT PANEL ── */}
-        {/* ── RIGHT PANEL ── */}
         <div style={styles.rightPanel}>
-          {/* Background logo watermark */}
           <img
             src={logoBg}
             alt=""
@@ -212,15 +208,9 @@ const styles = {
 
   /* ── left panel ── */
   lgLeft:       { display: 'flex', flexDirection: 'column', justifyContent: 'center' },
-  logoImg: { 
-    height: '80px', 
-    width: 'auto', 
-    marginBottom: '14px',  // was 32px, reduced to tighten the gap
-    objectFit: 'contain', 
-    alignSelf: 'flex-start' 
-  },
+  logoImg:      { height: '80px', width: 'auto', marginBottom: '14px', objectFit: 'contain', alignSelf: 'flex-start' },
   lgTitle:      { fontSize: '33px', fontWeight: 700, color: '#2d5a27', marginBottom: '40px', letterSpacing: '1px' },
-  lgGroup: { marginBottom: '15px' },  // was 26px, slightly tighter too
+  lgGroup:      { marginBottom: '15px' },
   label:        { display: 'block', fontSize: '13px', color: '#4a6645', marginBottom: '8px', fontWeight: 600, letterSpacing: '0.4px' },
   input:        { width: '100%', padding: '14px 0', border: 'none', borderBottom: '2px solid #d4dccf', fontSize: '14px', color: '#1a3a1a', background: 'transparent', outline: 'none', transition: 'border-color 0.25s', boxSizing: 'border-box' },
   lgOpts:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '34px', fontSize: '13px' },
@@ -232,26 +222,15 @@ const styles = {
   toggleText:   { fontSize: '13px', color: '#4a6645' },
   toggleBtn:    { fontSize: '13px', fontWeight: 700, color: '#2d5a27', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 },
 
-  rightPanel: { 
-    background: 'linear-gradient(160deg, #588157 0%, #2d5a27 100%)', // ✅ green stays
-    borderRadius: '16px', 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: '48px 40px',
-    position: 'relative',  // ✅ needed for logo positioning
-    overflow: 'hidden',    // ✅ keeps logo inside the card
-  },
-  rightBgLogo: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',  // perfectly centered
-    width: '100%',                         // big but doesn't overflow
-    height: 'auto',
-    opacity: 0.10,
-    filter: 'brightness(0) invert(1)',    // white
-    pointerEvents: 'none',
-    userSelect: 'none',
-  },
+  /* ── right panel ── */
+  rightPanel:   { background: 'linear-gradient(160deg, #588157 0%, #2d5a27 100%)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px', position: 'relative', overflow: 'hidden' },
+  rightBgLogo:  { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '125%', height: 'auto', opacity: 0.10, filter: 'brightness(0) invert(1)', pointerEvents: 'none', userSelect: 'none' },
+  rightInner:   { color: '#fff', position: 'relative', zIndex: 1 },  // 👈 added position & zIndex
+  rightHeading: { fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 12px 0' },
+  rightSub:     { fontSize: '14px', color: 'rgba(255,255,255,0.82)', lineHeight: 1.65, margin: '0 0 28px 0' },
+  featureList:  { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' },
+  featureItem:  { display: 'flex', alignItems: 'flex-start', gap: '14px' },
+  featureIcon:  { fontSize: '24px', flexShrink: 0, marginTop: '2px' },
+  featureTitle: { fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '4px' },
+  featureDesc:  { fontSize: '12px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 },
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import logo from './assets/logo.png';
+import logoBg from './assets/LOGOGRAPHIC.png';
 
 export default function Login({ onLogin }) {
   const [mode, setMode]               = useState('login');
@@ -167,7 +168,14 @@ export default function Login({ onLogin }) {
         </div>
 
         {/* ── RIGHT PANEL ── */}
+        {/* ── RIGHT PANEL ── */}
         <div style={styles.rightPanel}>
+          {/* Background logo watermark */}
+          <img
+            src={logoBg}
+            alt=""
+            style={styles.rightBgLogo}
+          />
           <div style={styles.rightInner}>
             <h2 style={styles.rightHeading}>Welcome to MagniTect</h2>
             <p style={styles.rightSub}>
@@ -224,15 +232,26 @@ const styles = {
   toggleText:   { fontSize: '13px', color: '#4a6645' },
   toggleBtn:    { fontSize: '13px', fontWeight: 700, color: '#2d5a27', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 },
 
-  /* ── right panel ── */
-  rightPanel:   { background: 'linear-gradient(160deg, #588157 0%, #2d5a27 100%)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px' },
-  rightInner:   { color: '#fff' },
-  rightIcon:    { fontSize: '52px', marginBottom: '18px' },
-  rightHeading: { fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 12px 0' },
-  rightSub:     { fontSize: '14px', color: 'rgba(255,255,255,0.82)', lineHeight: 1.65, margin: '0 0 28px 0' },
-  featureList:  { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' },
-  featureItem:  { display: 'flex', alignItems: 'flex-start', gap: '14px' },
-  featureIcon:  { fontSize: '24px', flexShrink: 0, marginTop: '2px' },
-  featureTitle: { fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '4px' },
-  featureDesc:  { fontSize: '12px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 },
+  rightPanel: { 
+    background: 'linear-gradient(160deg, #588157 0%, #2d5a27 100%)', // ✅ green stays
+    borderRadius: '16px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    padding: '48px 40px',
+    position: 'relative',  // ✅ needed for logo positioning
+    overflow: 'hidden',    // ✅ keeps logo inside the card
+  },
+  rightBgLogo: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',  // perfectly centered
+    width: '100%',                         // big but doesn't overflow
+    height: 'auto',
+    opacity: 0.10,
+    filter: 'brightness(0) invert(1)',    // white
+    pointerEvents: 'none',
+    userSelect: 'none',
+  },
 };

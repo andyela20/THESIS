@@ -39,37 +39,33 @@ export default function Upload({
   const [loading, setLoading]               = useState(false);
   const [analyzing, setAnalyzing]           = useState(false);
   const [showAnalysisForm, setShowAnalysisForm] = useState(false);
-  const searchRef   = useRef(null);
+
+  // Modal window state
+  const [minimized, setMinimized] = useState(false);
+  const [expanded, setExpanded]   = useState(false);
+
+  const searchRef    = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Fetch dashboard stats
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const [patients, analyses] = await Promise.all([getPatients(), getAnalyses()]);
-        const pList = Array.isArray(patients)  ? patients  : [];
-        const aList = Array.isArray(analyses)  ? analyses  : [];
-
+        const pList = Array.isArray(patients) ? patients : [];
+        const aList = Array.isArray(analyses) ? analyses : [];
         setTotalPatients(pList.length);
         setTotalAnalyses(aList.length);
         setRecentPatients(pList.slice(0, 3));
         setRecentRecords(aList.slice(0, 5));
-
-        // Top crystal type
         const typeCounts = aList.reduce((acc, a) => { acc[a.crystalType] = (acc[a.crystalType] || 0) + a.count; return acc; }, {});
         const top = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
         setTopCrystal(top ? top[0] : null);
-
-        // Last analysis date
         if (aList.length > 0) {
           const sorted = [...aList].sort((a, b) => new Date(b.date) - new Date(a.date));
           setLastAnalysis(sorted[0]);
         }
-      } catch (err) {
-        console.error('Error fetching stats:', err);
-      } finally {
-        setStatsLoading(false);
-      }
+      } catch (err) { console.error('Error fetching stats:', err); }
+      finally { setStatsLoading(false); }
     };
     fetchStats();
   }, []);
@@ -85,6 +81,7 @@ export default function Upload({
       setPatientId(currentPatient.patientId   || null);
       setTab('confirmed');
       setShowAnalysisForm(true);
+      setMinimized(false);
     }
   }, [currentPatient]);
 
@@ -137,9 +134,11 @@ export default function Upload({
     setPatientName(''); setPatientId(null); setPatientDOB(''); setPatientAddress('');
     setPatientAge(''); setPatientSex(''); setPatientContact('');
     setUploadedImage(null); setSearchQuery(''); setTab('new');
-    setShowAnalysisForm(false);
+    setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
     if (clearCurrentPatient) clearCurrentPatient();
   };
+
+  const openModal = () => { setShowAnalysisForm(true); setMinimized(false); setExpanded(false); };
 
   const handleFileChange    = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
   const handleDropzoneClick = () => { if (!patientId) return; fileInputRef.current.click(); };
@@ -168,6 +167,9 @@ export default function Upload({
   const AVATAR_COLORS = ['#1F5330', '#306A33', '#4A7A50', '#2D6A4F'];
   const getAvatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
 
+  const modalW = expanded ? 'min(92vw, 1100px)' : '660px';
+  const modalH = expanded ? '90vh'              : '640px';
+
   return (
     <div style={s.app}>
       <Topbar goToLogin={goToLogin} />
@@ -177,13 +179,13 @@ export default function Upload({
         <div style={s.main}>
           <div style={s.pane}>
 
-            {/* ── Greeting Banner ── */}
+            {/* Banner */}
             <div style={s.banner}>
               <div>
                 <div style={s.bannerGreeting}>{greeting}, {username.charAt(0).toUpperCase() + username.slice(1)}!</div>
                 <div style={s.bannerSub}>Here's a summary of your MagniTect workspace.</div>
               </div>
-              <button onClick={() => setShowAnalysisForm(true)} style={s.bannerBtn}>
+              <button onClick={openModal} style={s.bannerBtn}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
@@ -191,7 +193,7 @@ export default function Upload({
               </button>
             </div>
 
-            {/* ── Stat Cards ── */}
+            {/* Stat Cards */}
             <div style={s.statRow}>
               {[
                 { label: 'TOTAL PATIENTS', value: statsLoading ? '—' : totalPatients, sub: `${statsLoading ? '—' : totalPatients} active`, accent: '#1F5330' },
@@ -208,10 +210,8 @@ export default function Upload({
               ))}
             </div>
 
-            {/* ── Main two-col ── */}
+            {/* Two col */}
             <div style={s.twoCol}>
-
-              {/* Recent Crystal Records */}
               <div style={s.card}>
                 <div style={s.cardHead}>
                   <span style={s.cardTitle}>Recent Crystal Records</span>
@@ -221,7 +221,7 @@ export default function Upload({
                   <div style={s.emptyBlock}>
                     <div style={{ fontSize: '36px', marginBottom: '8px' }}>🔬</div>
                     <div style={s.emptyText}>No analyses yet</div>
-                    <button onClick={() => setShowAnalysisForm(true)} style={s.emptyBtn}>Run first analysis</button>
+                    <button onClick={openModal} style={s.emptyBtn}>Run first analysis</button>
                   </div>
                 ) : (
                   <div style={s.recordList}>
@@ -240,10 +240,7 @@ export default function Upload({
                 )}
               </div>
 
-              {/* Right col */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-                {/* Recent Patients */}
                 <div style={s.card}>
                   <div style={s.cardHead}>
                     <span style={s.cardTitle}>Recent Patients</span>
@@ -253,7 +250,7 @@ export default function Upload({
                     <div style={s.emptyBlock}>
                       <div style={{ fontSize: '32px', marginBottom: '8px' }}>👤</div>
                       <div style={s.emptyText}>No patients yet</div>
-                      <button onClick={() => setShowAnalysisForm(true)} style={s.emptyBtn}>Add first patient</button>
+                      <button onClick={openModal} style={s.emptyBtn}>Add first patient</button>
                     </div>
                   ) : (
                     <div style={s.recordList}>
@@ -271,12 +268,11 @@ export default function Upload({
                   )}
                 </div>
 
-                {/* Quick Actions */}
                 <div style={s.card}>
                   <div style={s.cardHead}><span style={s.cardTitle}>Quick Actions</span></div>
                   <div style={s.quickGrid}>
                     {[
-                      { label: 'New Analysis', icon: '📤', onClick: () => setShowAnalysisForm(true) },
+                      { label: 'New Analysis', icon: '📤', onClick: openModal },
                       { label: 'Patients',     icon: '👥', onClick: goToPatients },
                       { label: 'Library',      icon: '🔬', onClick: goToLibrary },
                       { label: 'Reports',      icon: '📄', onClick: goToExport },
@@ -295,30 +291,110 @@ export default function Upload({
         </div>
       </div>
 
-      {/* ── Analysis Drawer/Modal ── */}
-      {showAnalysisForm && (
-        <div style={s.overlay} onClick={handleReset}>
-          <div style={s.drawer} onClick={e => e.stopPropagation()}>
+      {/* ── Minimized floating pill ── */}
+      {showAnalysisForm && minimized && (
+        <div style={s.minimizedPill} onClick={() => setMinimized(false)}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>New Analysis</span>
+          {patientId && <span style={s.pillBadge}>{patientName.split(' ')[0]}</span>}
+          {uploadedImage && <span style={s.pillBadge2}>📎 Image ready</span>}
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginLeft: '2px' }}>· Tap to restore</span>
+          <button style={s.pillClose} onClick={(e) => { e.stopPropagation(); handleReset(); }}>✕</button>
+        </div>
+      )}
 
-            {/* Drawer header */}
-            <div style={s.drawerHead}>
-              <div style={s.drawerTitle}>New Analysis</div>
-              <button onClick={handleReset} style={s.drawerClose}>✕</button>
+      {/* ── Centered Modal ── */}
+      {showAnalysisForm && !minimized && (
+        <div
+          style={s.overlay}
+          onClick={(e) => { if (e.target === e.currentTarget) setMinimized(true); }}
+        >
+          <div
+            style={{
+              ...s.modal,
+              width: modalW,
+              maxHeight: modalH,
+              transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)',
+            }}
+          >
+            {/* Modal titlebar */}
+            <div style={s.modalHead}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={s.modalHeadIcon}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <span style={s.modalTitle}>New Analysis</span>
+                {patientId && (
+                  <span style={s.patientChip}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1FB505', display: 'inline-block' }} />
+                    {patientName}
+                  </span>
+                )}
+              </div>
+
+              {/* Window controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button style={s.winBtn} title="Minimize" onClick={() => setMinimized(true)}>
+                  <svg width="10" height="2" viewBox="0 0 10 2"><rect width="10" height="2" rx="1" fill="rgba(255,255,255,0.85)"/></svg>
+                </button>
+                <button style={s.winBtn} title={expanded ? 'Restore size' : 'Expand'} onClick={() => setExpanded(e => !e)}>
+                  {expanded
+                    ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="2.5" y="0.5" width="7" height="7" rx="1" stroke="rgba(255,255,255,0.85)" strokeWidth="1.3"/><rect x="0.5" y="2.5" width="7" height="7" rx="1" fill="#1F5330" stroke="rgba(255,255,255,0.85)" strokeWidth="1.3"/></svg>
+                    : <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="0.65" y="0.65" width="8.7" height="8.7" rx="1" stroke="rgba(255,255,255,0.85)" strokeWidth="1.3"/></svg>
+                  }
+                </button>
+                <button style={{ ...s.winBtn, background: 'rgba(226,75,74,0.35)', borderColor: 'rgba(226,75,74,0.5)' }} title="Close" onClick={handleReset}>
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1 1l7 7M8 1l-7 7" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                </button>
+              </div>
             </div>
 
-            <div style={s.drawerBody}>
-              {/* Patient section */}
-              <div style={s.drawerSection}>
-                <div style={s.sectionLabel}>Patient Details</div>
+            {/* Step progress */}
+            <div style={s.progressBar}>
+              {[
+                { num: '1', label: 'Patient',  done: !!patientId,      active: !patientId },
+                { num: '2', label: 'Image',    done: !!uploadedImage,  active: !!patientId && !uploadedImage },
+                { num: '3', label: 'Analyze',  done: false,            active: !!patientId && !!uploadedImage },
+              ].map((step, i) => (
+                <React.Fragment key={step.label}>
+                  {i > 0 && <div style={{ flex: 1, height: '2px', background: step.done || (i === 1 && patientId) ? '#1FB505' : '#E0E2D8', margin: '0 6px', marginBottom: '14px' }} />}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                    <div style={{
+                      width: '22px', height: '22px', borderRadius: '50%',
+                      background: step.done ? '#1FB505' : step.active ? '#1F5330' : '#E0E2D8',
+                      color: step.done || step.active ? '#fff' : '#A4AAA4',
+                      fontSize: '10px', fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {step.done ? '✓' : step.num}
+                    </div>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: step.done ? '#1FB505' : step.active ? '#1F5330' : '#A4AAA4' }}>
+                      {step.label}
+                    </span>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Body — side-by-side when expanded */}
+            <div style={{ ...s.modalBody, flexDirection: expanded ? 'row' : 'column', gap: expanded ? '0' : '20px' }}>
+
+              {/* Patient column */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 20px 0 0' : '0' }}>
+                <div style={s.sectionLabel}><span style={s.sectionNum}>01</span> Patient Details</div>
 
                 {tab === 'confirmed' ? (
                   <div style={s.confirmedBanner}>
-                    <div style={{ ...s.avatar, background: getAvatarColor(patientName) }}>{getInitials(patientName)}</div>
+                    <div style={{ ...s.avatar, background: getAvatarColor(patientName), width: '36px', height: '36px', fontSize: '13px' }}>{getInitials(patientName)}</div>
                     <div style={{ flex: 1 }}>
                       <div style={s.recordName}>{patientName}</div>
-                      <div style={s.recordMeta}>{patientId}</div>
+                      <div style={s.recordMeta}>{patientId} · {patientAge ? `${patientAge} yrs` : ''} · {patientSex}</div>
                     </div>
-                    <span style={{ color: '#1FB505', fontSize: '16px' }}>✓</span>
+                    <span style={{ color: '#1FB505', fontSize: '15px' }}>✓</span>
                     <button onClick={() => { setTab('new'); setPatientId(null); }} style={s.editBtn}>Edit</button>
                   </div>
                 ) : (
@@ -330,22 +406,10 @@ export default function Upload({
 
                     {tab === 'new' && (
                       <>
-                        <div style={s.formGrid}>
-                          <div style={s.field}>
-                            <label style={s.fieldLabel}>Full Name</label>
-                            <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={s.fieldInput} />
-                          </div>
-                          <div style={s.field}>
-                            <label style={s.fieldLabel}>Age</label>
-                            <input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} placeholder="e.g. 45" style={s.fieldInput} />
-                          </div>
-                          <div style={s.field}>
-                            <label style={s.fieldLabel}>Sex</label>
-                            <select value={patientSex} onChange={e => setPatientSex(e.target.value)} style={s.fieldInput}>
-                              <option value="">Select sex</option>
-                              <option>Male</option><option>Female</option><option>Other</option>
-                            </select>
-                          </div>
+                        <div style={{ ...s.formGrid, gridTemplateColumns: expanded ? '1fr 1fr 1fr' : '1fr 1fr' }}>
+                          <div style={s.field}><label style={s.fieldLabel}>Full Name</label><input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={s.fieldInput} /></div>
+                          <div style={s.field}><label style={s.fieldLabel}>Age</label><input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} placeholder="e.g. 45" style={s.fieldInput} /></div>
+                          <div style={s.field}><label style={s.fieldLabel}>Sex</label><select value={patientSex} onChange={e => setPatientSex(e.target.value)} style={s.fieldInput}><option value="">Select sex</option><option>Male</option><option>Female</option><option>Other</option></select></div>
                           <div style={s.field}>
                             <label style={s.fieldLabel}>Date of Birth</label>
                             <input type="date" value={patientDOB} onChange={e => {
@@ -353,27 +417,17 @@ export default function Upload({
                               if (dob) { const t = new Date(); const b = new Date(dob); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; setPatientAge(a); }
                             }} style={s.fieldInput} />
                           </div>
-                          <div style={{ ...s.field, gridColumn: '1 / -1' }}>
-                            <label style={s.fieldLabel}>Address</label>
-                            <input type="text" value={patientAddress} onChange={e => setPatientAddress(e.target.value)} placeholder="Street address" style={s.fieldInput} />
-                          </div>
-                          <div style={{ ...s.field, gridColumn: '1 / -1' }}>
-                            <label style={s.fieldLabel}>Contact Number</label>
-                            <input type="tel" value={patientContact} onChange={e => setPatientContact(e.target.value)} placeholder="09XXXXXXXXX" style={s.fieldInput} />
-                          </div>
+                          <div style={{ ...s.field, gridColumn: expanded ? 'auto' : '1 / -1' }}><label style={s.fieldLabel}>Address</label><input type="text" value={patientAddress} onChange={e => setPatientAddress(e.target.value)} placeholder="Street address" style={s.fieldInput} /></div>
+                          <div style={{ ...s.field, gridColumn: expanded ? 'auto' : '1 / -1' }}><label style={s.fieldLabel}>Contact Number</label><input type="tel" value={patientContact} onChange={e => setPatientContact(e.target.value)} placeholder="09XXXXXXXXX" style={s.fieldInput} /></div>
                         </div>
-                        <button onClick={handleAddPatient} style={s.addBtn} disabled={loading}>
-                          {loading ? 'Saving...' : '+ Add Patient'}
-                        </button>
+                        <button onClick={handleAddPatient} style={s.addBtn} disabled={loading}>{loading ? 'Saving...' : '+ Add Patient'}</button>
                       </>
                     )}
 
                     {tab === 'search' && (
                       <div ref={searchRef} style={{ position: 'relative' }}>
                         <div style={s.searchBox}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A4AAA4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                          </svg>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A4AAA4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                           <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name or Patient ID…" style={s.searchInput} autoFocus />
                         </div>
                         {showDropdown && (
@@ -381,11 +435,7 @@ export default function Upload({
                             {searchLoading && <div style={s.dropItem}>Searching…</div>}
                             {!searchLoading && searchResults.length === 0 && <div style={s.dropItem}>No patients found</div>}
                             {!searchLoading && searchResults.map(p => (
-                              <div key={p.patientId} style={s.dropResult}
-                                onClick={() => handleSelectSearchResult(p)}
-                                onMouseEnter={e => e.currentTarget.style.background = '#F5F6F0'}
-                                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                              >
+                              <div key={p.patientId} style={s.dropResult} onClick={() => handleSelectSearchResult(p)} onMouseEnter={e => e.currentTarget.style.background = '#F5F6F0'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                                 <div style={s.recordName}>{p.name}</div>
                                 <div style={s.recordMeta}>{p.patientId} · {p.age ? `${p.age} yrs` : ''} · {p.sex || ''}</div>
                               </div>
@@ -398,35 +448,28 @@ export default function Upload({
                 )}
               </div>
 
-              {/* Upload section */}
-              <div style={s.drawerSection}>
-                <div style={s.sectionLabel}>Upload Image</div>
+              {/* Vertical divider in expanded mode */}
+              {expanded && <div style={{ width: '1px', background: '#E8EAE0', flexShrink: 0, margin: '0 4px' }} />}
+
+              {/* Image upload column */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 0 0 20px' : '0' }}>
+                <div style={s.sectionLabel}><span style={s.sectionNum}>02</span> Upload Image</div>
                 <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
 
                 {!uploadedImage ? (
-                  <div
-                    onClick={handleDropzoneClick}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed' }}
-                  >
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={patientId ? '#1F5330' : '#C9CAC0'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <div onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}
+                    style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed', flex: expanded ? 1 : 'unset' }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={patientId ? '#1F5330' : '#C9CAC0'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>
-                      {patientId ? 'Drop image here or click to upload' : 'Add patient first'}
-                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>{patientId ? 'Drop image here or click to upload' : 'Add patient first'}</div>
                     <div style={{ fontSize: '11px', color: '#A4AAA4' }}>JPEG, PNG · Max 10 MB</div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}
-                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>{['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}</div>
                   </div>
                 ) : (
                   <div style={s.uploadedBox}>
                     <div style={s.fileIconWrap}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                      </svg>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514' }}>{uploadedImage.name}</div>
@@ -438,8 +481,8 @@ export default function Upload({
               </div>
             </div>
 
-            {/* Drawer footer */}
-            <div style={s.drawerFoot}>
+            {/* Footer */}
+            <div style={s.modalFoot}>
               {!patientId && <span style={s.hint}>⚠ Add a patient first</span>}
               {patientId && !uploadedImage && <span style={s.hint}>⚠ Upload an image to continue</span>}
               <div style={{ flex: 1 }} />
@@ -460,85 +503,91 @@ export default function Upload({
 }
 
 const s = {
-  app:             { display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', background: '#EEF0E8', overflow: 'hidden', fontFamily: "'Poppins', sans-serif" },
-  body:            { flex: 1, display: 'grid', gridTemplateColumns: '210px 1fr', minHeight: 0, overflow: 'hidden' },
-  main:            { display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', background: '#EEF0E8' },
-  pane:            { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 24px', gap: '14px', minHeight: 0, overflowY: 'auto' },
+  app:   { display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', background: '#EEF0E8', overflow: 'hidden', fontFamily: "'Poppins', sans-serif" },
+  body:  { flex: 1, display: 'grid', gridTemplateColumns: '210px 1fr', minHeight: 0, overflow: 'hidden' },
+  main:  { display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', background: '#EEF0E8' },
+  pane:  { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 24px', gap: '14px', minHeight: 0, overflowY: 'auto' },
 
-  // Banner
-  banner:          { background: '#1F5330', borderRadius: '14px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 },
-  bannerGreeting:  { fontSize: '20px', fontWeight: 700, color: '#fff', marginBottom: '4px' },
-  bannerSub:       { fontSize: '12px', color: 'rgba(255,255,255,0.65)' },
-  bannerBtn:       { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  banner:         { background: '#1F5330', borderRadius: '14px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 },
+  bannerGreeting: { fontSize: '20px', fontWeight: 700, color: '#fff', marginBottom: '4px' },
+  bannerSub:      { fontSize: '12px', color: 'rgba(255,255,255,0.65)' },
+  bannerBtn:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
 
-  // Stat cards
-  statRow:         { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', flexShrink: 0 },
-  statCard:        { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden' },
-  statAccent:      { position: 'absolute', top: 0, left: 0, right: 0, height: '3px' },
-  statValue:       { fontWeight: 800, marginBottom: '4px', fontFamily: "'Poppins', sans-serif" },
-  statLabel:       { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' },
-  statSub:         { fontSize: '11px', color: '#A4AAA4' },
+  statRow:    { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', flexShrink: 0 },
+  statCard:   { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden' },
+  statAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: '3px' },
+  statValue:  { fontWeight: 800, marginBottom: '4px', fontFamily: "'Poppins', sans-serif" },
+  statLabel:  { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' },
+  statSub:    { fontSize: '11px', color: '#A4AAA4' },
 
-  // Two col
-  twoCol:          { display: 'grid', gridTemplateColumns: '1fr 380px', gap: '14px', flex: 1, minHeight: 0 },
-  card:            { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column' },
-  cardHead:        { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' },
-  cardTitle:       { fontSize: '14px', fontWeight: 700, color: '#141514' },
-  viewAll:         { fontSize: '12px', color: '#1F5330', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  twoCol:    { display: 'grid', gridTemplateColumns: '1fr 380px', gap: '14px', flex: 1, minHeight: 0 },
+  card:      { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column' },
+  cardHead:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' },
+  cardTitle: { fontSize: '14px', fontWeight: 700, color: '#141514' },
+  viewAll:   { fontSize: '12px', color: '#1F5330', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
 
-  // Records
-  recordList:      { display: 'flex', flexDirection: 'column', gap: '2px' },
-  recordRow:       { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #F0F1E8' },
-  recordDot:       { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
-  recordInfo:      { flex: 1, minWidth: 0 },
-  recordName:      { fontSize: '12px', fontWeight: 700, color: '#141514' },
-  recordMeta:      { fontSize: '10px', color: '#A4AAA4', marginTop: '1px' },
-  riskTag:         { fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px' },
-  recordCount:     { fontSize: '13px', fontWeight: 800, color: '#1F5330' },
-  avatar:          { width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 },
+  recordList:  { display: 'flex', flexDirection: 'column', gap: '2px' },
+  recordRow:   { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #F0F1E8' },
+  recordDot:   { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
+  recordInfo:  { flex: 1, minWidth: 0 },
+  recordName:  { fontSize: '12px', fontWeight: 700, color: '#141514' },
+  recordMeta:  { fontSize: '10px', color: '#A4AAA4', marginTop: '1px' },
+  riskTag:     { fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px' },
+  recordCount: { fontSize: '13px', fontWeight: 800, color: '#1F5330' },
+  avatar:      { width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 },
 
-  // Empty
-  emptyBlock:      { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '32px', gap: '8px' },
-  emptyText:       { fontSize: '13px', color: '#A4AAA4', fontWeight: 500 },
-  emptyBtn:        { marginTop: '8px', padding: '8px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  emptyBlock: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '32px', gap: '8px' },
+  emptyText:  { fontSize: '13px', color: '#A4AAA4', fontWeight: 500 },
+  emptyBtn:   { marginTop: '8px', padding: '8px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
 
-  // Quick actions
-  quickGrid:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  quickBtn:        { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: '#F5F6F0', border: '1px solid #E8EAE0', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-  quickLabel:      { fontSize: '12px', fontWeight: 600, color: '#141514' },
+  quickGrid:  { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
+  quickBtn:   { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: '#F5F6F0', border: '1px solid #E8EAE0', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  quickLabel: { fontSize: '12px', fontWeight: 600, color: '#141514' },
 
-  // Overlay drawer
-  overlay:         { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' },
-  drawer:          { background: '#fff', width: '480px', height: '100%', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.12)' },
-  drawerHead:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #D8DAD0', background: '#1F5330' },
-  drawerTitle:     { fontSize: '16px', fontWeight: 700, color: '#fff' },
-  drawerClose:     { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '14px', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  drawerBody:      { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' },
-  drawerSection:   { display: 'flex', flexDirection: 'column', gap: '10px' },
-  drawerFoot:      { padding: '14px 24px', borderTop: '1px solid #D8DAD0', display: 'flex', alignItems: 'center', gap: '10px', background: '#fff' },
-  sectionLabel:    { fontSize: '11px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  // ── Centered Modal ──
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(8,18,10,0.58)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  modal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.24), 0 4px 20px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', overflow: 'hidden', maxWidth: '95vw' },
 
-  // Form
+  modalHead:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 18px', background: '#1F5330', flexShrink: 0 },
+  modalHeadIcon: { width: '26px', height: '26px', borderRadius: '6px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  modalTitle:    { fontSize: '14px', fontWeight: 700, color: '#fff' },
+  patientChip:   { display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '20px', padding: '3px 10px', fontSize: '11px', fontWeight: 600, color: '#fff' },
+  winBtn:        { width: '26px', height: '26px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+
+  progressBar: { display: 'flex', alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #ECEEE6', background: '#F8F9F5', flexShrink: 0 },
+
+  modalBody: { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex' },
+  modalFoot: { padding: '12px 24px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
+
+  sectionLabel: { display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10px', fontWeight: 700, color: '#8C9A8C', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' },
+  sectionNum:   { width: '17px', height: '17px', borderRadius: '50%', background: '#EEF0E8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 800, color: '#1F5330' },
+
   confirmedBanner: { display: 'flex', alignItems: 'center', gap: '10px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '10px 14px' },
-  tabRow:          { display: 'flex', gap: '6px' },
-  tab:             { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #D8DAD0', background: 'transparent', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#4A5240', fontFamily: "'Poppins', sans-serif" },
-  tabActive:       { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #1F5330', background: '#F2FBF0', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#1F5330', fontFamily: "'Poppins', sans-serif" },
-  formGrid:        { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
-  field:           { display: 'flex', flexDirection: 'column', gap: '4px' },
-  fieldLabel:      { fontSize: '10px', fontWeight: 700, color: '#797f79', textTransform: 'uppercase', letterSpacing: '0.06em' },
-  fieldInput:      { padding: '8px 10px', border: '1.5px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', color: '#141514', background: '#F5F6F0', outline: 'none', fontFamily: "'Poppins', sans-serif" },
-  addBtn:          { padding: '8px 16px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif', alignSelf: 'flex-start'" },
-  editBtn:         { fontSize: '11px', color: '#A4AAA4', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Poppins', sans-serif" },
-  searchBox:       { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', border: '1.5px solid #D8DAD0', borderRadius: '8px', background: '#F5F6F0' },
-  searchInput:     { border: 'none', background: 'transparent', outline: 'none', fontSize: '12px', color: '#141514', flex: 1, fontFamily: "'Poppins', sans-serif" },
-  dropdown:        { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #D8DAD0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 100, marginTop: '4px', overflow: 'hidden' },
-  dropItem:        { padding: '12px 14px', fontSize: '12px', color: '#A4AAA4', textAlign: 'center' },
-  dropResult:      { padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F0F1E8' },
-  dropzone:        { border: '2px dashed #D8DAD0', borderRadius: '12px', padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s', background: '#FAFBF7' },
-  dzTag:           { fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '100px', background: '#EEF3E8', color: '#306A33', border: '1px solid #B8C9A8' },
-  uploadedBox:     { background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' },
-  fileIconWrap:    { width: '40px', height: '40px', borderRadius: '8px', background: '#E8F5E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  hint:            { fontSize: '11px', color: '#C07320', fontWeight: 500 },
-  cancelBtn:       { padding: '9px 16px', background: '#fff', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#4A5240', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-  analyzeBtn:      { padding: '9px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  tabRow:   { display: 'flex', gap: '6px' },
+  tab:      { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #D8DAD0', background: 'transparent', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#4A5240', fontFamily: "'Poppins', sans-serif" },
+  tabActive: { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #1F5330', background: '#F2FBF0', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#1F5330', fontFamily: "'Poppins', sans-serif" },
+  formGrid:  { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
+  field:     { display: 'flex', flexDirection: 'column', gap: '4px' },
+  fieldLabel: { fontSize: '10px', fontWeight: 700, color: '#797f79', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  fieldInput: { padding: '8px 10px', border: '1.5px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', color: '#141514', background: '#F5F6F0', outline: 'none', fontFamily: "'Poppins', sans-serif" },
+  addBtn:    { padding: '8px 16px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif", alignSelf: 'flex-start' },
+  editBtn:   { fontSize: '11px', color: '#A4AAA4', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Poppins', sans-serif" },
+  searchBox: { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', border: '1.5px solid #D8DAD0', borderRadius: '8px', background: '#F5F6F0' },
+  searchInput: { border: 'none', background: 'transparent', outline: 'none', fontSize: '12px', color: '#141514', flex: 1, fontFamily: "'Poppins', sans-serif" },
+  dropdown:  { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #D8DAD0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 100, marginTop: '4px', overflow: 'hidden' },
+  dropItem:  { padding: '12px 14px', fontSize: '12px', color: '#A4AAA4', textAlign: 'center' },
+  dropResult: { padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F0F1E8' },
+  dropzone:  { border: '2px dashed #D8DAD0', borderRadius: '12px', padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s', background: '#FAFBF7' },
+  dzTag:     { fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '100px', background: '#EEF3E8', color: '#306A33', border: '1px solid #B8C9A8' },
+  uploadedBox: { background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' },
+  fileIconWrap: { width: '40px', height: '40px', borderRadius: '8px', background: '#E8F5E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+
+  hint:       { fontSize: '11px', color: '#C07320', fontWeight: 500 },
+  cancelBtn:  { padding: '9px 16px', background: '#fff', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#4A5240', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+  analyzeBtn: { padding: '9px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
+
+  minimizedPill: { position: 'fixed', bottom: '24px', right: '24px', background: '#1F5330', borderRadius: '30px', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 20px rgba(31,83,48,0.4)', cursor: 'pointer', zIndex: 1001 },
+  pillBadge:  { background: 'rgba(255,255,255,0.2)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', fontWeight: 600, color: '#fff' },
+  pillBadge2: { background: 'rgba(31,181,5,0.25)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', fontWeight: 600, color: '#9fff85' },
+  pillClose:  { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', width: '20px', height: '20px', borderRadius: '50%', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '2px' },
 };

@@ -468,16 +468,16 @@ def get_adaptive_threshold(pil_image: Image.Image) -> float:
     print(f"[ADAPTIVE] brightness={brightness:.1f} | contrast={contrast:.1f} | blur={blur_score:.1f}")
 
     if blur_score < 50:
-        threshold = 0.40
+        threshold = 0.50   # ↑ from 0.40 (STRICTER)
         reason = "blurry image"
     elif brightness < 80 or contrast < 30:
-        threshold = 0.45
+        threshold = 0.50   # ↑ from 0.45
         reason = "dark or low-contrast image"
     elif brightness > 200 and contrast < 40:
-        threshold = 0.55
+        threshold = 0.55   # keep strict
         reason = "overexposed"
     elif blur_score >= 100 and brightness >= 80:
-        threshold = 0.50
+        threshold = 0.45   # ↓ slightly (balanced)
         reason = "sharp, well-lit image"
     else:
         threshold = 0.45
@@ -486,17 +486,9 @@ def get_adaptive_threshold(pil_image: Image.Image) -> float:
     print(f"[ADAPTIVE] threshold={threshold} ({reason})")
     return threshold
 
-
 def get_threshold_with_retry(pil_image: Image.Image) -> float:
-    """
-    Two-pass threshold selection:
-    - First pass: strict threshold based on image quality
-    - If too few detections found (< 2), lower threshold by 0.10
-    - Minimum floor: 0.35 para hindi masyadong maraming false positives
-    """
     base_threshold = get_adaptive_threshold(pil_image)
 
-    # Quick first-pass check
     test_detections = detection_model.model.predict(
         pil_image, threshold=base_threshold
     )
@@ -505,13 +497,11 @@ def get_threshold_with_retry(pil_image: Image.Image) -> float:
     print(f"[RETRY CHECK] detections at {base_threshold}: {count}")
 
     if count < 2:
-        # Lower threshold but never below 0.35
-        lowered = max(base_threshold - 0.10, 0.45)
-        print(f"[RETRY] Too few detections — lowering threshold {base_threshold} → {lowered}")
+        lowered = max(base_threshold - 0.05, 0.40)  # less drop + higher floor
+        print(f"[RETRY] lowering {base_threshold} → {lowered}")
         return lowered
 
     return base_threshold
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  Custom SAHI wrapper for RF-DETR XL
 # ══════════════════════════════════════════════════════════════════════════════

@@ -135,148 +135,148 @@
 # if __name__ == '__main__':
 #     app.run(host='0.0.0.0', port=5001, debug=True)
 
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
-from rfdetr_plus import RFDETRXLarge  # ← Fixed: Large ang model mo, hindi Medium
-import supervision as sv
-import os
-import uuid
-import cv2
-import numpy as np
-import pillow_heif
-from PIL import Image
+# from flask import Flask, request, jsonify, send_from_directory
+# from flask_cors import CORS
+# from rfdetr_plus import RFDETRXLarge  # ← Fixed: Large ang model mo, hindi Medium
+# import supervision as sv
+# import os
+# import uuid
+# import cv2
+# import numpy as np
+# import pillow_heif
+# from PIL import Image
 
-# Register HEIC opener — allows PIL to open .heic/.heif files
-pillow_heif.register_heif_opener()
+# # Register HEIC opener — allows PIL to open .heic/.heif files
+# pillow_heif.register_heif_opener()
 
-app = Flask(__name__)
-CORS(app)
+# app = Flask(__name__)
+# CORS(app)
 
-# Load RF-DETR model
-MODEL_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRxl.pt')
-model = RFDETRXLarge(
-    pretrain_weights=MODEL_PATH,
-    num_classes=5,
-    resolution=880,
-    patch_size=20,
-    positional_encoding_size=44,
-)
-# ↑ Fix 1: RFDETRLarge (matches 'l' sa filename)
-# ↑ Fix 2: resolution=560 — subukan muna, kung may error pa try 640 o 704
+# # Load RF-DETR model
+# MODEL_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRxl.pt')
+# model = RFDETRXLarge(
+#     pretrain_weights=MODEL_PATH,
+#     num_classes=5,
+#     resolution=880,
+#     patch_size=20,
+#     positional_encoding_size=44,
+# )
+# # ↑ Fix 1: RFDETRLarge (matches 'l' sa filename)
+# # ↑ Fix 2: resolution=560 — subukan muna, kung may error pa try 640 o 704
 
-CLASS_NAMES = {
-    1: 'Ammonium Biurate',
-    2: 'CaOx Dihydrate',
-    3: 'CaOx Monohydrate Ovoid',
-    4: 'Triple Phosphate',
-    5: 'Uric Acid'
-}
+# CLASS_NAMES = {
+#     1: 'Ammonium Biurate',
+#     2: 'CaOx Dihydrate',
+#     3: 'CaOx Monohydrate Ovoid',
+#     4: 'Triple Phosphate',
+#     5: 'Uric Acid'
+# }
 
-RISK_MAP = {
-    'Ammonium Biurate':       'Moderate',
-    'CaOx Dihydrate':         'High',
-    'CaOx Monohydrate Ovoid': 'High',
-    'Triple Phosphate':       'Moderate',
-    'Uric Acid':              'High',
-}
+# RISK_MAP = {
+#     'Ammonium Biurate':       'Moderate',
+#     'CaOx Dihydrate':         'High',
+#     'CaOx Monohydrate Ovoid': 'High',
+#     'Triple Phosphate':       'Moderate',
+#     'Uric Acid':              'High',
+# }
 
-UPLOAD_FOLDER = 'temp_uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# UPLOAD_FOLDER = 'temp_uploads'
+# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@app.route('/health', methods=['GET'])
-def health():
-    return jsonify({ 'status': 'ok', 'message': 'CrystalScope model API is running!' })
+# @app.route('/health', methods=['GET'])
+# def health():
+#     return jsonify({ 'status': 'ok', 'message': 'CrystalScope model API is running!' })
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    if 'image' not in request.files:
-        return jsonify({ 'error': 'No image provided' }), 400
+# @app.route('/analyze', methods=['POST'])
+# def analyze():
+#     if 'image' not in request.files:
+#         return jsonify({ 'error': 'No image provided' }), 400
 
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({ 'error': 'No image selected' }), 400
+#     file = request.files['image']
+#     if file.filename == '':
+#         return jsonify({ 'error': 'No image selected' }), 400
 
-    filename = f"{uuid.uuid4()}_{file.filename}"
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
+#     filename = f"{uuid.uuid4()}_{file.filename}"
+#     filepath = os.path.join(UPLOAD_FOLDER, filename)
+#     file.save(filepath)
 
-    try:
-        # Open image via PIL — supports JPG, PNG, TIFF, BMP, and HEIC
-        pil_image = Image.open(filepath).convert("RGB")
+#     try:
+#         # Open image via PIL — supports JPG, PNG, TIFF, BMP, and HEIC
+#         pil_image = Image.open(filepath).convert("RGB")
 
-        # Run RF-DETR detection
-        detections: sv.Detections = model.predict(pil_image, threshold=0.35)
+#         # Run RF-DETR detection
+#         detections: sv.Detections = model.predict(pil_image, threshold=0.35)
 
-        # Convert PIL image to OpenCV format for annotation
-        frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+#         # Convert PIL image to OpenCV format for annotation
+#         frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-        # Annotate
-        box_annotator   = sv.BoxAnnotator()
-        label_annotator = sv.LabelAnnotator()
+#         # Annotate
+#         box_annotator   = sv.BoxAnnotator()
+#         label_annotator = sv.LabelAnnotator()
 
-        labels = [
-            CLASS_NAMES.get(int(cls), f'Unknown_{cls}')
-            for cls in detections.class_id
-        ] if detections.class_id is not None else []
+#         labels = [
+#             CLASS_NAMES.get(int(cls), f'Unknown_{cls}')
+#             for cls in detections.class_id
+#         ] if detections.class_id is not None else []
 
-        annotated_frame = box_annotator.annotate(scene=frame.copy(), detections=detections)
-        annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
+#         annotated_frame = box_annotator.annotate(scene=frame.copy(), detections=detections)
+#         annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
 
-        # Save annotated image as .jpg regardless of original format
-        annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
-        annotated_path     = os.path.join(UPLOAD_FOLDER, annotated_filename)
-        cv2.imwrite(annotated_path, annotated_frame)
+#         # Save annotated image as .jpg regardless of original format
+#         annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
+#         annotated_path     = os.path.join(UPLOAD_FOLDER, annotated_filename)
+#         cv2.imwrite(annotated_path, annotated_frame)
 
-        # Process results
-        crystal_counts = {}
-        detection_list = []
+#         # Process results
+#         crystal_counts = {}
+#         detection_list = []
 
-        if detections.class_id is not None:
-            for i in range(len(detections)):
-                class_id   = int(detections.class_id[i])
-                confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
-                class_name = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
-                bbox       = detections.xyxy[i].tolist()
+#         if detections.class_id is not None:
+#             for i in range(len(detections)):
+#                 class_id   = int(detections.class_id[i])
+#                 confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+#                 class_name = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
+#                 bbox       = detections.xyxy[i].tolist()
 
-                crystal_counts[class_name] = crystal_counts.get(class_name, 0) + 1
+#                 crystal_counts[class_name] = crystal_counts.get(class_name, 0) + 1
 
-                detection_list.append({
-                    'crystalType': class_name,
-                    'confidence':  round(confidence * 100, 2),
-                    'bbox':        bbox
-                })
+#                 detection_list.append({
+#                     'crystalType': class_name,
+#                     'confidence':  round(confidence * 100, 2),
+#                     'bbox':        bbox
+#                 })
 
-        summary = [
-            {
-                'crystalType': crystal_type,
-                'count':       count,
-                'risk':        RISK_MAP.get(crystal_type, 'Unknown'),
-            }
-            for crystal_type, count in crystal_counts.items()
-        ]
+#         summary = [
+#             {
+#                 'crystalType': crystal_type,
+#                 'count':       count,
+#                 'risk':        RISK_MAP.get(crystal_type, 'Unknown'),
+#             }
+#             for crystal_type, count in crystal_counts.items()
+#         ]
 
-        return jsonify({
-            'success':        True,
-            'summary':        summary,
-            'detections':     detection_list,
-            'total':          len(detection_list),
-            'annotatedImage': f'http://localhost:5001/image/{annotated_filename}'
-        })
+#         return jsonify({
+#             'success':        True,
+#             'summary':        summary,
+#             'detections':     detection_list,
+#             'total':          len(detection_list),
+#             'annotatedImage': f'http://localhost:5001/image/{annotated_filename}'
+#         })
 
-    except Exception as e:
-        return jsonify({ 'success': False, 'error': str(e) }), 500
+#     except Exception as e:
+#         return jsonify({ 'success': False, 'error': str(e) }), 500
 
-    finally:
-        if os.path.exists(filepath):
-            os.remove(filepath)
+#     finally:
+#         if os.path.exists(filepath):
+#             os.remove(filepath)
 
-# Serve annotated image
-@app.route('/image/<filename>', methods=['GET'])
-def serve_image(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+# # Serve annotated image
+# @app.route('/image/<filename>', methods=['GET'])
+# def serve_image(filename):
+#     return send_from_directory(UPLOAD_FOLDER, filename)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=5001, debug=True)
 
 
 # from flask import Flask, request, jsonify, send_from_directory
@@ -394,3 +394,330 @@ if __name__ == '__main__':
 
 # if __name__ == '__main__':
 #     app.run(host='0.0.0.0', port=5001, debug=True)
+
+
+# WITH SAHI
+
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+from rfdetr import RFDETRLarge
+import supervision as sv
+import os
+import uuid
+import cv2
+import numpy as np
+import pillow_heif
+from PIL import Image
+
+# ─── SAHI imports ─────────────────────────────────────────────────────────────
+from sahi.models.base import DetectionModel
+from sahi.prediction import ObjectPrediction
+from sahi.predict import get_sliced_prediction
+# ──────────────────────────────────────────────────────────────────────────────
+
+pillow_heif.register_heif_opener()
+
+app = Flask(__name__)
+CORS(app)
+
+# ─── Paths & constants ────────────────────────────────────────────────────────
+MODEL_PATH = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRl.pt'
+)
+
+CLASS_NAMES = {
+    1: 'Ammonium Biurate',
+    2: 'CaOx Dihydrate',
+    3: 'CaOx Monohydrate Ovoid',
+    4: 'Triple Phosphate',
+    5: 'Uric Acid',
+}
+
+RISK_MAP = {
+    'Ammonium Biurate':       'Moderate',
+    'CaOx Dihydrate':         'High',
+    'CaOx Monohydrate Ovoid': 'High',
+    'Triple Phosphate':       'Moderate',
+    'Uric Acid':              'High',
+}
+
+UPLOAD_FOLDER = 'temp_uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Custom SAHI wrapper for RF-DETR
+#  SAHI doesn't ship an RF-DETR adapter yet, so we subclass DetectionModel
+#  and implement the two required methods: load_model() and perform_inference()
+# ══════════════════════════════════════════════════════════════════════════════
+class RFDETRDetectionModel(DetectionModel):
+    """
+    SAHI-compatible wrapper around RFDETRLarge.
+
+    SAHI calls:
+      1. load_model()          — once at startup
+      2. perform_inference()   — once per tile during sliced prediction
+    """
+
+    def load_model(self):
+        """Load RF-DETR weights and store as self.model."""
+        self.model = RFDETRLarge(
+            pretrain_weights=self.model_path,
+            num_classes=5,
+            resolution=704,
+        )
+        self.set_model(self.model)
+
+    def set_model(self, model):
+        self.model = model
+
+    def perform_inference(self, image: np.ndarray):
+        """
+        Run inference on a single tile (numpy BGR array from SAHI).
+        Stores raw results in self._original_predictions so
+        convert_original_predictions() can consume them.
+        """
+        # SAHI passes numpy BGR — convert to PIL RGB for RF-DETR
+        pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        detections: sv.Detections = self.model.predict(
+            pil_image, threshold=self.confidence_threshold
+        )
+        self._original_predictions = detections
+
+    def convert_original_predictions(
+        self,
+        shift_amount: list = None,
+        full_shape: list = None,
+    ):
+        """
+        Translate RF-DETR sv.Detections into SAHI ObjectPrediction objects.
+        SAHI calls this right after perform_inference() for every tile.
+        """
+        # Safely normalize shift_amount — always a flat [x, y] list
+        if shift_amount is None:
+            shift_amount = [0, 0]
+        elif isinstance(shift_amount, (list, tuple)) and len(shift_amount) > 0:
+            # SAHI sometimes wraps it as [[x, y]] — unwrap if needed
+            if isinstance(shift_amount[0], (list, tuple)):
+                shift_amount = shift_amount[0]
+        
+        # Safely normalize full_shape — always a flat [h, w] list or None
+        if isinstance(full_shape, (list, tuple)) and len(full_shape) > 0:
+            if isinstance(full_shape[0], (list, tuple)):
+                full_shape = full_shape[0]
+
+        detections = self._original_predictions
+        object_predictions = []
+
+        if detections.class_id is not None and len(detections.class_id) > 0:
+            for i in range(len(detections)):
+                x1, y1, x2, y2 = detections.xyxy[i].tolist()
+                confidence      = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+                class_id        = int(detections.class_id[i])
+                class_name      = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
+
+                if confidence < self.confidence_threshold:
+                    continue
+
+                object_predictions.append(
+                    ObjectPrediction(
+                        bbox=[x1, y1, x2, y2],
+                        category_id=class_id,
+                        category_name=class_name,
+                        score=confidence,
+                        shift_amount=shift_amount,
+                        full_shape=full_shape,
+                    )
+                )
+
+        self._object_prediction_list_per_image = [object_predictions]
+
+    @property
+    def object_prediction_list(self):
+        return self._object_prediction_list_per_image[0]
+
+    @property
+    def num_categories(self):
+        return len(CLASS_NAMES)
+
+    @property
+    def has_mask(self):
+        return False
+
+    @property
+    def category_names(self):
+        return list(CLASS_NAMES.values())
+
+
+# ─── Instantiate the custom SAHI wrapper once at startup ─────────────────────
+detection_model = RFDETRDetectionModel(
+    model_path=MODEL_PATH,
+    confidence_threshold=0.35,
+    device="cpu",   # change to "cuda:0" if you have a GPU
+)
+detection_model.load_model()
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Helper: adaptive SAHI sliced prediction
+#
+#  Strategy based on image size:
+#    < 800px  — direct inference, no slicing (fast)
+#    800-1280 — single pass, 640px tiles (balanced)
+#    > 1280px — two passes: 768px + 384px tiles (catches big & small crystals)
+# ──────────────────────────────────────────────────────────────────────────────
+def run_sahi(pil_image: Image.Image, image_path: str):
+    w, h = pil_image.size
+    long_edge = max(w, h)
+
+    def annotate(pil_img, dets):
+        frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        labels = (
+            [CLASS_NAMES.get(int(c), f'Unknown_{c}') for c in dets.class_id]
+            if dets.class_id is not None and len(dets.class_id) > 0
+            else []
+        )
+        box_annotator   = sv.BoxAnnotator()
+        label_annotator = sv.LabelAnnotator()
+        ann = box_annotator.annotate(scene=frame.copy(), detections=dets)
+        ann = label_annotator.annotate(scene=ann, detections=dets, labels=labels)
+        return ann
+
+    # ── Case 1: Small image — skip slicing, direct inference ─────────────────
+    if long_edge < 800:
+        detections = detection_model.model.predict(pil_image, threshold=detection_model.confidence_threshold)
+        return detections, annotate(pil_image, detections)
+
+    # ── Case 2: Medium image — single pass with 640px tiles ──────────────────
+    elif long_edge <= 1280:
+        slice_passes = [
+            dict(slice_height=640, slice_width=640,
+                 overlap_height_ratio=0.15, overlap_width_ratio=0.15),
+        ]
+
+    # ── Case 3: Large image — two passes for mixed crystal sizes ─────────────
+    else:
+        slice_passes = [
+            # Pass A — large tiles: catches big/medium crystals
+            dict(slice_height=768, slice_width=768,
+                 overlap_height_ratio=0.15, overlap_width_ratio=0.15),
+            # Pass B — small tiles: catches tiny crystals missed by Pass A
+            dict(slice_height=384, slice_width=384,
+                 overlap_height_ratio=0.2, overlap_width_ratio=0.2),
+        ]
+
+    # ── Run all passes and pool all predictions ───────────────────────────────
+    all_xyxy, all_conf, all_cls = [], [], []
+
+    for params in slice_passes:
+        result = get_sliced_prediction(
+            image=image_path,
+            detection_model=detection_model,
+            postprocess_type="GREEDYNMM",
+            postprocess_match_threshold=0.3,
+            verbose=0,
+            **params,
+        )
+        for obj in result.object_prediction_list:
+            bbox = obj.bbox
+            all_xyxy.append([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy])
+            all_conf.append(obj.score.value)
+            all_cls.append(int(obj.category.id))
+
+    # ── Merge all passes via NMS to remove cross-pass duplicates ─────────────
+    if all_xyxy:
+        raw = sv.Detections(
+            xyxy=np.array(all_xyxy, dtype=np.float32),
+            confidence=np.array(all_conf, dtype=np.float32),
+            class_id=np.array(all_cls, dtype=int),
+        )
+        detections = raw.with_nms(threshold=0.4)
+    else:
+        detections = sv.Detections.empty()
+
+    return detections, annotate(pil_image, detections)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Routes
+# ──────────────────────────────────────────────────────────────────────────────
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok', 'message': 'CrystalScope model API is running!'})
+
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    filename = f"{uuid.uuid4()}_{file.filename}"
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+
+    try:
+        pil_image = Image.open(filepath).convert("RGB")
+
+        # SAHI sliced inference
+        detections, annotated_frame = run_sahi(pil_image, filepath)
+
+        # Save annotated image
+        annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
+        annotated_path     = os.path.join(UPLOAD_FOLDER, annotated_filename)
+        cv2.imwrite(annotated_path, annotated_frame)
+
+        # Build response
+        crystal_counts = {}
+        detection_list = []
+
+        if detections.class_id is not None and len(detections.class_id) > 0:
+            for i in range(len(detections)):
+                class_id   = int(detections.class_id[i])
+                confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+                class_name = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
+                bbox       = detections.xyxy[i].tolist()
+
+                crystal_counts[class_name] = crystal_counts.get(class_name, 0) + 1
+                detection_list.append({
+                    'crystalType': class_name,
+                    'confidence':  round(confidence * 100, 2),
+                    'bbox':        bbox,
+                })
+
+        summary = [
+            {
+                'crystalType': crystal_type,
+                'count':       count,
+                'risk':        RISK_MAP.get(crystal_type, 'Unknown'),
+            }
+            for crystal_type, count in crystal_counts.items()
+        ]
+
+        return jsonify({
+            'success':        True,
+            'summary':        summary,
+            'detections':     detection_list,
+            'total':          len(detection_list),
+            'annotatedImage': f'http://localhost:5001/image/{annotated_filename}',
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    finally:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+
+@app.route('/image/<filename>', methods=['GET'])
+def serve_image(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5001, debug=True)

@@ -425,7 +425,6 @@ MODEL_PATH = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRxl_patched.pt'
 )
 
-# FIX 1: 0-indexed class names (not 1-indexed)
 CLASS_NAMES = {
     1: 'Ammonium Biurate',
     2: 'CaOx Dihydrate',
@@ -447,12 +446,74 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Custom SAHI wrapper for RF-DETR XL
+#  Adaptive Confidence Threshold (Strategy 3: Combined)
 #
-#  FIX 2: Custom __init__ — bypasses SAHI base class calling load_model()
-#          before our attributes are set (caused NotImplementedError).
-#  FIX 3: Removed duplicate detection_model.load_model() call after
-#          instantiation — load_model() is already called inside __init__.
+#  Evaluates image quality based on:
+#    - Blur score  (Laplacian variance — higher = sharper)
+#    - Brightness  (mean pixel value)
+#    - Contrast    (std dev of pixel values)
+#
+#  Threshold scale:
+#    Blurry image          → 0.20 (lenient — catch more detections)
+#    Dark / low contrast   → 0.25 (slightly lenient)
+#    Normal / sharp        → 0.35 (standard)
+#    Overexposed / washed  → 0.45 (strict — avoid false positives)
+# ══════════════════════════════════════════════════════════════════════════════
+def get_adaptive_threshold(pil_image: Image.Image) -> float:
+    gray       = np.array(pil_image.convert("L"))
+    brightness = float(gray.mean())
+    contrast   = float(gray.std())
+    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+
+    print(f"[ADAPTIVE] brightness={brightness:.1f} | contrast={contrast:.1f} | blur={blur_score:.1f}")
+
+    if blur_score < 50:
+        threshold = 0.40
+        reason = "blurry image"
+    elif brightness < 80 or contrast < 30:
+        threshold = 0.45
+        reason = "dark or low-contrast image"
+    elif brightness > 200 and contrast < 40:
+        threshold = 0.55
+        reason = "overexposed"
+    elif blur_score >= 100 and brightness >= 80:
+        threshold = 0.50
+        reason = "sharp, well-lit image"
+    else:
+        threshold = 0.45
+        reason = "default fallback"
+
+    print(f"[ADAPTIVE] threshold={threshold} ({reason})")
+    return threshold
+
+
+def get_threshold_with_retry(pil_image: Image.Image) -> float:
+    """
+    Two-pass threshold selection:
+    - First pass: strict threshold based on image quality
+    - If too few detections found (< 2), lower threshold by 0.10
+    - Minimum floor: 0.35 para hindi masyadong maraming false positives
+    """
+    base_threshold = get_adaptive_threshold(pil_image)
+
+    # Quick first-pass check
+    test_detections = detection_model.model.predict(
+        pil_image, threshold=base_threshold
+    )
+    count = len(test_detections) if test_detections.class_id is not None else 0
+
+    print(f"[RETRY CHECK] detections at {base_threshold}: {count}")
+
+    if count < 2:
+        # Lower threshold but never below 0.35
+        lowered = max(base_threshold - 0.10, 0.35)
+        print(f"[RETRY] Too few detections — lowering threshold {base_threshold} → {lowered}")
+        return lowered
+
+    return base_threshold
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Custom SAHI wrapper for RF-DETR XL
 # ══════════════════════════════════════════════════════════════════════════════
 class RFDETRDetectionModel(DetectionModel):
 
@@ -463,7 +524,6 @@ class RFDETRDetectionModel(DetectionModel):
         self.device = device
         self._object_prediction_list_per_image = [[]]
         self._original_predictions = None
-        # Manually call load_model after attributes are ready
         self.load_model()
 
     def load_model(self):
@@ -478,9 +538,7 @@ class RFDETRDetectionModel(DetectionModel):
         self.model = model
 
     def perform_inference(self, image: np.ndarray):
-        """
-        Run inference on a single tile (numpy BGR array from SAHI).
-        """
+        """Run inference on a single tile (numpy BGR from SAHI)."""
         pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         detections: sv.Detections = self.model.predict(
             pil_image, threshold=self.confidence_threshold
@@ -492,17 +550,13 @@ class RFDETRDetectionModel(DetectionModel):
         shift_amount: list = None,
         full_shape: list = None,
     ):
-        """
-        Translate RF-DETR sv.Detections into SAHI ObjectPrediction objects.
-        """
-        # Safely normalize shift_amount
+        """Translate sv.Detections into SAHI ObjectPrediction objects."""
         if shift_amount is None:
             shift_amount = [0, 0]
         elif isinstance(shift_amount, (list, tuple)) and len(shift_amount) > 0:
             if isinstance(shift_amount[0], (list, tuple)):
                 shift_amount = shift_amount[0]
 
-        # Safely normalize full_shape
         if isinstance(full_shape, (list, tuple)) and len(full_shape) > 0:
             if isinstance(full_shape[0], (list, tuple)):
                 full_shape = full_shape[0]
@@ -551,10 +605,9 @@ class RFDETRDetectionModel(DetectionModel):
 
 
 # ─── Instantiate once at startup ─────────────────────────────────────────────
-# FIX 3: No need to call detection_model.load_model() again — already done in __init__
 detection_model = RFDETRDetectionModel(
     model_path=MODEL_PATH,
-    confidence_threshold=0.35,
+    confidence_threshold=0.35,  # default — overridden per-request by adaptive
     device="cuda:0",
 )
 # ──────────────────────────────────────────────────────────────────────────────
@@ -569,6 +622,10 @@ detection_model = RFDETRDetectionModel(
 #    > 1280px — two passes: 768px + 384px tiles (big & small crystals)
 # ──────────────────────────────────────────────────────────────────────────────
 def run_sahi(pil_image: Image.Image, image_path: str):
+    # ── Step 1: Compute adaptive threshold for this image ────────────────────
+    adaptive_conf = get_adaptive_threshold(pil_image)
+    detection_model.confidence_threshold = adaptive_conf  # update dynamically
+
     w, h = pil_image.size
     long_edge = max(w, h)
 
@@ -590,7 +647,7 @@ def run_sahi(pil_image: Image.Image, image_path: str):
         detections = detection_model.model.predict(
             pil_image, threshold=detection_model.confidence_threshold
         )
-        return detections, annotate(pil_image, detections)
+        return detections, annotate(pil_image, detections), adaptive_conf
 
     # ── Case 2: Medium image — single pass with 640px tiles ──────────────────
     elif long_edge <= 1280:
@@ -637,7 +694,7 @@ def run_sahi(pil_image: Image.Image, image_path: str):
     else:
         detections = sv.Detections.empty()
 
-    return detections, annotate(pil_image, detections)
+    return detections, annotate(pil_image, detections), adaptive_conf
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -664,7 +721,8 @@ def analyze():
     try:
         pil_image = Image.open(filepath).convert("RGB")
 
-        detections, annotated_frame = run_sahi(pil_image, filepath)
+        # SAHI sliced inference with adaptive confidence
+        detections, annotated_frame, used_threshold = run_sahi(pil_image, filepath)
 
         annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
         annotated_path     = os.path.join(UPLOAD_FOLDER, annotated_filename)
@@ -697,11 +755,12 @@ def analyze():
         ]
 
         return jsonify({
-            'success':        True,
-            'summary':        summary,
-            'detections':     detection_list,
-            'total':          len(detection_list),
-            'annotatedImage': f'http://localhost:5001/image/{annotated_filename}',
+            'success':          True,
+            'summary':          summary,
+            'detections':       detection_list,
+            'total':            len(detection_list),
+            'annotatedImage':   f'http://localhost:5001/image/{annotated_filename}',
+            'thresholdUsed':    used_threshold,   # ← returned to frontend for transparency
         })
 
     except Exception as e:

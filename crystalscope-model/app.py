@@ -400,7 +400,7 @@
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from rfdetr_plus import RFDETRXLarge
+from rfdetr import RFDETRLarge
 import supervision as sv
 import os
 import uuid
@@ -422,7 +422,7 @@ CORS(app)
 
 # ─── Paths & constants ────────────────────────────────────────────────────────
 MODEL_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRxl_patched.pt'
+    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRl.pt'
 )
 
 CLASS_NAMES = {
@@ -506,7 +506,7 @@ def get_threshold_with_retry(pil_image: Image.Image) -> float:
 
     if count < 2:
         # Lower threshold but never below 0.35
-        lowered = max(base_threshold - 0.10, 0.35)
+        lowered = max(base_threshold - 0.10, 0.45)
         print(f"[RETRY] Too few detections — lowering threshold {base_threshold} → {lowered}")
         return lowered
 
@@ -528,10 +528,10 @@ class RFDETRDetectionModel(DetectionModel):
 
     def load_model(self):
         """Load RF-DETR XL weights."""
-        self.model = RFDETRXLarge(
-            pretrain_weights=self.model_path,
-            num_classes=5,
-        )
+        self.model = RFDETRLarge(
+        pretrain_weights=self.model_path,
+        num_classes=5,
+    )
         self.set_model(self.model)
 
     def set_model(self, model):

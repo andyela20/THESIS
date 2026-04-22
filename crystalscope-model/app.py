@@ -400,7 +400,7 @@
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from rfdetr import RFDETRLarge
+from rfdetr_plus import RFDETRXLarge
 import supervision as sv
 import os
 import uuid
@@ -422,9 +422,10 @@ CORS(app)
 
 # ─── Paths & constants ────────────────────────────────────────────────────────
 MODEL_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRl.pt'
+    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRxl_patched.pt'
 )
 
+# FIX 1: 0-indexed class names (not 1-indexed)
 CLASS_NAMES = {
     1: 'Ammonium Biurate',
     2: 'CaOx Dihydrate',
@@ -446,25 +447,30 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Custom SAHI wrapper for RF-DETR
-#  SAHI doesn't ship an RF-DETR adapter yet, so we subclass DetectionModel
-#  and implement the two required methods: load_model() and perform_inference()
+#  Custom SAHI wrapper for RF-DETR XL
+#
+#  FIX 2: Custom __init__ — bypasses SAHI base class calling load_model()
+#          before our attributes are set (caused NotImplementedError).
+#  FIX 3: Removed duplicate detection_model.load_model() call after
+#          instantiation — load_model() is already called inside __init__.
 # ══════════════════════════════════════════════════════════════════════════════
 class RFDETRDetectionModel(DetectionModel):
-    """
-    SAHI-compatible wrapper around RFDETRLarge.
 
-    SAHI calls:
-      1. load_model()          — once at startup
-      2. perform_inference()   — once per tile during sliced prediction
-    """
+    def __init__(self, model_path, confidence_threshold=0.35, device="cuda:0", **kwargs):
+        # Do NOT call super().__init__() — it calls load_model() too early
+        self.model_path = model_path
+        self.confidence_threshold = confidence_threshold
+        self.device = device
+        self._object_prediction_list_per_image = [[]]
+        self._original_predictions = None
+        # Manually call load_model after attributes are ready
+        self.load_model()
 
     def load_model(self):
-        """Load RF-DETR weights and store as self.model."""
-        self.model = RFDETRLarge(
+        """Load RF-DETR XL weights."""
+        self.model = RFDETRXLarge(
             pretrain_weights=self.model_path,
             num_classes=5,
-            resolution=704,
         )
         self.set_model(self.model)
 
@@ -474,10 +480,7 @@ class RFDETRDetectionModel(DetectionModel):
     def perform_inference(self, image: np.ndarray):
         """
         Run inference on a single tile (numpy BGR array from SAHI).
-        Stores raw results in self._original_predictions so
-        convert_original_predictions() can consume them.
         """
-        # SAHI passes numpy BGR — convert to PIL RGB for RF-DETR
         pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         detections: sv.Detections = self.model.predict(
             pil_image, threshold=self.confidence_threshold
@@ -491,17 +494,15 @@ class RFDETRDetectionModel(DetectionModel):
     ):
         """
         Translate RF-DETR sv.Detections into SAHI ObjectPrediction objects.
-        SAHI calls this right after perform_inference() for every tile.
         """
-        # Safely normalize shift_amount — always a flat [x, y] list
+        # Safely normalize shift_amount
         if shift_amount is None:
             shift_amount = [0, 0]
         elif isinstance(shift_amount, (list, tuple)) and len(shift_amount) > 0:
-            # SAHI sometimes wraps it as [[x, y]] — unwrap if needed
             if isinstance(shift_amount[0], (list, tuple)):
                 shift_amount = shift_amount[0]
-        
-        # Safely normalize full_shape — always a flat [h, w] list or None
+
+        # Safely normalize full_shape
         if isinstance(full_shape, (list, tuple)) and len(full_shape) > 0:
             if isinstance(full_shape[0], (list, tuple)):
                 full_shape = full_shape[0]
@@ -549,13 +550,13 @@ class RFDETRDetectionModel(DetectionModel):
         return list(CLASS_NAMES.values())
 
 
-# ─── Instantiate the custom SAHI wrapper once at startup ─────────────────────
+# ─── Instantiate once at startup ─────────────────────────────────────────────
+# FIX 3: No need to call detection_model.load_model() again — already done in __init__
 detection_model = RFDETRDetectionModel(
     model_path=MODEL_PATH,
     confidence_threshold=0.35,
-    device="cpu",   # change to "cuda:0" if you have a GPU
+    device="cuda:0",
 )
-detection_model.load_model()
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -565,7 +566,7 @@ detection_model.load_model()
 #  Strategy based on image size:
 #    < 800px  — direct inference, no slicing (fast)
 #    800-1280 — single pass, 640px tiles (balanced)
-#    > 1280px — two passes: 768px + 384px tiles (catches big & small crystals)
+#    > 1280px — two passes: 768px + 384px tiles (big & small crystals)
 # ──────────────────────────────────────────────────────────────────────────────
 def run_sahi(pil_image: Image.Image, image_path: str):
     w, h = pil_image.size
@@ -584,9 +585,11 @@ def run_sahi(pil_image: Image.Image, image_path: str):
         ann = label_annotator.annotate(scene=ann, detections=dets, labels=labels)
         return ann
 
-    # ── Case 1: Small image — skip slicing, direct inference ─────────────────
+    # ── Case 1: Small image — direct inference, no slicing ───────────────────
     if long_edge < 800:
-        detections = detection_model.model.predict(pil_image, threshold=detection_model.confidence_threshold)
+        detections = detection_model.model.predict(
+            pil_image, threshold=detection_model.confidence_threshold
+        )
         return detections, annotate(pil_image, detections)
 
     # ── Case 2: Medium image — single pass with 640px tiles ──────────────────
@@ -599,15 +602,13 @@ def run_sahi(pil_image: Image.Image, image_path: str):
     # ── Case 3: Large image — two passes for mixed crystal sizes ─────────────
     else:
         slice_passes = [
-            # Pass A — large tiles: catches big/medium crystals
             dict(slice_height=768, slice_width=768,
                  overlap_height_ratio=0.15, overlap_width_ratio=0.15),
-            # Pass B — small tiles: catches tiny crystals missed by Pass A
             dict(slice_height=384, slice_width=384,
                  overlap_height_ratio=0.2, overlap_width_ratio=0.2),
         ]
 
-    # ── Run all passes and pool all predictions ───────────────────────────────
+    # ── Run all passes and pool predictions ──────────────────────────────────
     all_xyxy, all_conf, all_cls = [], [], []
 
     for params in slice_passes:
@@ -625,7 +626,7 @@ def run_sahi(pil_image: Image.Image, image_path: str):
             all_conf.append(obj.score.value)
             all_cls.append(int(obj.category.id))
 
-    # ── Merge all passes via NMS to remove cross-pass duplicates ─────────────
+    # ── Merge via NMS to remove cross-pass duplicates ─────────────────────────
     if all_xyxy:
         raw = sv.Detections(
             xyxy=np.array(all_xyxy, dtype=np.float32),
@@ -663,15 +664,12 @@ def analyze():
     try:
         pil_image = Image.open(filepath).convert("RGB")
 
-        # SAHI sliced inference
         detections, annotated_frame = run_sahi(pil_image, filepath)
 
-        # Save annotated image
         annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
         annotated_path     = os.path.join(UPLOAD_FOLDER, annotated_filename)
         cv2.imwrite(annotated_path, annotated_frame)
 
-        # Build response
         crystal_counts = {}
         detection_list = []
 
@@ -720,4 +718,4 @@ def serve_image(filename):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)

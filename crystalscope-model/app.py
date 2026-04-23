@@ -396,7 +396,7 @@
 #     app.run(host='0.0.0.0', port=5001, debug=True)
 
 
-# WITH SAHI + CLASS-SPECIFIC THRESHOLDS (FINAL)
+# WITH SAHI
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -409,25 +409,21 @@ import numpy as np
 import pillow_heif
 from PIL import Image
 
+# ─── SAHI imports ─────────────────────────────────────────────────────────────
 from sahi.models.base import DetectionModel
 from sahi.prediction import ObjectPrediction
 from sahi.predict import get_sliced_prediction
+# ──────────────────────────────────────────────────────────────────────────────
 
 pillow_heif.register_heif_opener()
 
 app = Flask(__name__)
 CORS(app)
 
-# ─── CONFIG ─────────────────────────────────────────
+# ─── Paths & constants ────────────────────────────────────────────────────────
 MODEL_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)),
-    'model', 'best_DF-DETRl.pt'
+    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRl.pt'
 )
-
-UPLOAD_FOLDER = 'temp_uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-MIN_BOX_SIZE = 10
 
 CLASS_NAMES = {
     1: 'Ammonium Biurate',
@@ -438,249 +434,362 @@ CLASS_NAMES = {
 }
 
 RISK_MAP = {
-    'Ammonium Biurate': 'Moderate',
-    'CaOx Dihydrate': 'High',
+    'Ammonium Biurate':       'Moderate',
+    'CaOx Dihydrate':         'High',
     'CaOx Monohydrate Ovoid': 'High',
-    'Triple Phosphate': 'Moderate',
-    'Uric Acid': 'High',
+    'Triple Phosphate':       'Moderate',
+    'Uric Acid':              'High',
 }
 
-# ✅ YOUR EVALUATED CLASS THRESHOLDS
-CLASS_THRESHOLDS = {
-    1: 0.45,
-    2: 0.25,
-    3: 0.45,
-    4: 0.45,
-    5: 0.45,
-}
+UPLOAD_FOLDER = 'temp_uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# ────────────────────────────────────────────────────
-# ADAPTIVE THRESHOLD
-# ────────────────────────────────────────────────────
-def get_adaptive_threshold(pil_image):
-    gray = np.array(pil_image.convert("L"))
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Adaptive Confidence Threshold (Strategy 3: Combined)
+#
+#  Evaluates image quality based on:
+#    - Blur score  (Laplacian variance — higher = sharper)
+#    - Brightness  (mean pixel value)
+#    - Contrast    (std dev of pixel values)
+#
+#  Threshold scale:
+#    Blurry image          → 0.20 (lenient — catch more detections)
+#    Dark / low contrast   → 0.25 (slightly lenient)
+#    Normal / sharp        → 0.35 (standard)
+#    Overexposed / washed  → 0.45 (strict — avoid false positives)
+# ══════════════════════════════════════════════════════════════════════════════
+def get_adaptive_threshold(pil_image: Image.Image) -> float:
+    gray       = np.array(pil_image.convert("L"))
     brightness = float(gray.mean())
-    contrast = float(gray.std())
+    contrast   = float(gray.std())
     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
 
-    print(f"[ADAPTIVE] b={brightness:.1f} c={contrast:.1f} blur={blur_score:.1f}")
+    print(f"[ADAPTIVE] brightness={brightness:.1f} | contrast={contrast:.1f} | blur={blur_score:.1f}")
 
+    # ── Strong conditions ─────────────────────────────
     if blur_score < 40:
-        return 0.52
+        threshold = 0.52
+        reason = "very blurry"
+
     elif brightness < 70 or contrast < 25:
-        return 0.52
+        threshold = 0.52
+        reason = "very dark / very low contrast"
+
     elif brightness > 210 and contrast < 35:
-        return 0.57
+        threshold = 0.57
+        reason = "overexposed"
+
+    # ── Good condition ───────────────────────────────
     elif blur_score >= 120 and 90 <= brightness <= 180:
-        return 0.44
+        threshold = 0.44
+        reason = "clean, well-balanced image"
+
+    # ── Mid-quality (NEW – important) ────────────────
     elif blur_score >= 80:
-        return 0.47
+        threshold = 0.47
+        reason = "moderate quality"
+
+    # ── Fallback ─────────────────────────────────────
     else:
-        return 0.48
+        threshold = 0.48
+        reason = "default fallback"
 
+    print(f"[ADAPTIVE] threshold={threshold} ({reason})")
+    return threshold
 
-def get_threshold_with_retry(pil_image):
-    base = get_adaptive_threshold(pil_image)
+def get_threshold_with_retry(pil_image: Image.Image) -> float:
+    base_threshold = get_adaptive_threshold(pil_image)
 
-    test = detection_model.model.predict(pil_image, threshold=base)
-    count = len(test) if test.class_id is not None else 0
+    test_detections = detection_model.model.predict(
+        pil_image, threshold=base_threshold
+    )
 
-    print(f"[RETRY] base={base} count={count}")
+    count = len(test_detections) if test_detections.class_id is not None else 0
+    print(f"[RETRY CHECK] detections at {base_threshold}: {count}")
 
+    # ── Case 1: No detections → aggressive drop
     if count == 0:
-        return max(base - 0.08, 0.40)
+        lowered = max(base_threshold - 0.08, 0.40)
+        print(f"[RETRY] no detections → {base_threshold} → {lowered}")
+        return lowered
+
+    # ── Case 2: Too few detections → slight drop
     elif count < 3:
-        return max(base - 0.04, 0.40)
+        lowered = max(base_threshold - 0.04, 0.40)
+        print(f"[RETRY] few detections → {base_threshold} → {lowered}")
+        return lowered
+
+    # ── Case 3: Too many detections → increase threshold 
     elif count > 20:
-        return min(base + 0.05, 0.60)
+        raised = min(base_threshold + 0.05, 0.60)
+        print(f"[RETRY] too many detections → {base_threshold} → {raised}")
+        return raised
 
-    return base
-
-
-# ────────────────────────────────────────────────────
-# SAHI WRAPPER
-# ────────────────────────────────────────────────────
+    return base_threshold
+# ══════════════════════════════════════════════════════════════════════════════
+#  Custom SAHI wrapper for RF-DETR XL
+# ══════════════════════════════════════════════════════════════════════════════
 class RFDETRDetectionModel(DetectionModel):
 
-    def __init__(self, model_path, confidence_threshold=0.35):
+    def __init__(self, model_path, confidence_threshold=0.35, device="cuda:0", **kwargs):
+        # Do NOT call super().__init__() — it calls load_model() too early
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
+        self.device = device
         self._object_prediction_list_per_image = [[]]
         self._original_predictions = None
         self.load_model()
 
     def load_model(self):
+        """Load RF-DETR XL weights."""
         self.model = RFDETRLarge(
-            pretrain_weights=self.model_path,
-            num_classes=5,
-        )
+        pretrain_weights=self.model_path,
+        num_classes=5,
+    )
+        self.set_model(self.model)
+
+    def set_model(self, model):
+        self.model = model
 
     def perform_inference(self, image: np.ndarray):
-        pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        self._original_predictions = self.model.predict(
-            pil, threshold=self.confidence_threshold
+        """Run inference on a single tile (numpy BGR from SAHI)."""
+        pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        detections: sv.Detections = self.model.predict(
+            pil_image, threshold=self.confidence_threshold
         )
+        self._original_predictions = detections
 
-    def convert_original_predictions(self, shift_amount=None, full_shape=None):
+    def convert_original_predictions(
+        self,
+        shift_amount: list = None,
+        full_shape: list = None,
+    ):
+        """Translate sv.Detections into SAHI ObjectPrediction objects."""
+        if shift_amount is None:
+            shift_amount = [0, 0]
+        elif isinstance(shift_amount, (list, tuple)) and len(shift_amount) > 0:
+            if isinstance(shift_amount[0], (list, tuple)):
+                shift_amount = shift_amount[0]
+
+        if isinstance(full_shape, (list, tuple)) and len(full_shape) > 0:
+            if isinstance(full_shape[0], (list, tuple)):
+                full_shape = full_shape[0]
+
         detections = self._original_predictions
-        objs = []
+        object_predictions = []
 
-        if detections.class_id is not None:
+        if detections.class_id is not None and len(detections.class_id) > 0:
             for i in range(len(detections)):
-                conf = float(detections.confidence[i])
+                x1, y1, x2, y2 = detections.xyxy[i].tolist()
+                confidence      = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+                class_id        = int(detections.class_id[i])
+                class_name      = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
 
-                if conf < self.confidence_threshold:
+                if confidence < self.confidence_threshold:
                     continue
 
-                x1, y1, x2, y2 = detections.xyxy[i].tolist()
-                cls_id = int(detections.class_id[i])
-
-                objs.append(
+                object_predictions.append(
                     ObjectPrediction(
                         bbox=[x1, y1, x2, y2],
-                        category_id=cls_id,
-                        category_name=CLASS_NAMES.get(cls_id, "Unknown"),
-                        score=conf,
+                        category_id=class_id,
+                        category_name=class_name,
+                        score=confidence,
+                        shift_amount=shift_amount,
+                        full_shape=full_shape,
                     )
                 )
 
-        self._object_prediction_list_per_image = [objs]
+        self._object_prediction_list_per_image = [object_predictions]
 
     @property
     def object_prediction_list(self):
         return self._object_prediction_list_per_image[0]
 
+    @property
+    def num_categories(self):
+        return len(CLASS_NAMES)
 
-# ────────────────────────────────────────────────────
-# INIT MODEL
-# ────────────────────────────────────────────────────
-detection_model = RFDETRDetectionModel(MODEL_PATH)
+    @property
+    def has_mask(self):
+        return False
+
+    @property
+    def category_names(self):
+        return list(CLASS_NAMES.values())
 
 
-# ────────────────────────────────────────────────────
-# SAHI PIPELINE
-# ────────────────────────────────────────────────────
-def run_sahi(pil_image, image_path):
+# ─── Instantiate once at startup ─────────────────────────────────────────────
+detection_model = RFDETRDetectionModel(
+    model_path=MODEL_PATH,
+    confidence_threshold=0.35,  # default — overridden per-request by adaptive
+    device="cuda:0",
+)
+# ──────────────────────────────────────────────────────────────────────────────
 
-    threshold = get_threshold_with_retry(pil_image)
-    detection_model.confidence_threshold = threshold
 
-    print(f"[FINAL THRESHOLD] {threshold}")
+# ──────────────────────────────────────────────────────────────────────────────
+#  Helper: adaptive SAHI sliced prediction
+#
+#  Strategy based on image size:
+#    < 800px  — direct inference, no slicing (fast)
+#    800-1280 — single pass, 640px tiles (balanced)
+#    > 1280px — two passes: 768px + 384px tiles (big & small crystals)
+# ──────────────────────────────────────────────────────────────────────────────
+def run_sahi(pil_image: Image.Image, image_path: str):
+    # ── Step 1: Compute adaptive threshold for this image ────────────────────
+    adaptive_conf = get_adaptive_threshold(pil_image)
+    detection_model.confidence_threshold = adaptive_conf  # update dynamically
 
-    result = get_sliced_prediction(
-        image=image_path,
-        detection_model=detection_model,
-        slice_height=640,
-        slice_width=640,
-        overlap_height_ratio=0.15,
-        overlap_width_ratio=0.15,
-        postprocess_type="GREEDYNMM",
-        postprocess_match_threshold=0.3,
-        verbose=0,
-    )
+    w, h = pil_image.size
+    long_edge = max(w, h)
 
-    boxes, confs, classes = [], [], []
-
-    for obj in result.object_prediction_list:
-        bbox = obj.bbox
-        x1, y1, x2, y2 = bbox.minx, bbox.miny, bbox.maxx, bbox.maxy
-
-        w, h = x2 - x1, y2 - y1
-        if w < MIN_BOX_SIZE or h < MIN_BOX_SIZE:
-            continue
-
-        class_id = int(obj.category.id)
-        class_threshold = CLASS_THRESHOLDS.get(class_id, 0.40)
-
-        if obj.score.value < class_threshold:
-            continue
-
-        boxes.append([x1, y1, x2, y2])
-        confs.append(obj.score.value)
-        classes.append(class_id)
-
-    if boxes:
-        det = sv.Detections(
-            xyxy=np.array(boxes),
-            confidence=np.array(confs),
-            class_id=np.array(classes),
+    def annotate(pil_img, dets):
+        frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        labels = (
+            [CLASS_NAMES.get(int(c), f'Unknown_{c}') for c in dets.class_id]
+            if dets.class_id is not None and len(dets.class_id) > 0
+            else []
         )
-        det = det.with_nms(threshold=0.30)
+        box_annotator   = sv.BoxAnnotator()
+        label_annotator = sv.LabelAnnotator()
+        ann = box_annotator.annotate(scene=frame.copy(), detections=dets)
+        ann = label_annotator.annotate(scene=ann, detections=dets, labels=labels)
+        return ann
+
+    # ── Case 1: Small image — direct inference, no slicing ───────────────────
+    if long_edge < 800:
+        detections = detection_model.model.predict(
+            pil_image, threshold=detection_model.confidence_threshold
+        )
+        return detections, annotate(pil_image, detections), adaptive_conf
+
+    # ── Case 2: Medium image — single pass with 640px tiles ──────────────────
+    elif long_edge <= 1280:
+        slice_passes = [
+            dict(slice_height=640, slice_width=640,
+                 overlap_height_ratio=0.15, overlap_width_ratio=0.15),
+        ]
+
+    # ── Case 3: Large image — two passes for mixed crystal sizes ─────────────
     else:
-        det = sv.Detections.empty()
+        slice_passes = [
+            dict(slice_height=768, slice_width=768,
+                 overlap_height_ratio=0.15, overlap_width_ratio=0.15),
+            dict(slice_height=384, slice_width=384,
+                 overlap_height_ratio=0.2, overlap_width_ratio=0.2),
+        ]
 
-    frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-    ann = sv.BoxAnnotator().annotate(frame.copy(), det)
-    ann = sv.LabelAnnotator().annotate(
-        ann,
-        det,
-        labels=[CLASS_NAMES.get(int(c)) for c in det.class_id] if det.class_id is not None else []
-    )
+    # ── Run all passes and pool predictions ──────────────────────────────────
+    all_xyxy, all_conf, all_cls = [], [], []
 
-    return det, ann, threshold
+    for params in slice_passes:
+        result = get_sliced_prediction(
+            image=image_path,
+            detection_model=detection_model,
+            postprocess_type="GREEDYNMM",
+            postprocess_match_threshold=0.3,
+            verbose=0,
+            **params,
+        )
+        for obj in result.object_prediction_list:
+            bbox = obj.bbox
+            all_xyxy.append([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy])
+            all_conf.append(obj.score.value)
+            all_cls.append(int(obj.category.id))
+
+    # ── Merge via NMS to remove cross-pass duplicates ─────────────────────────
+    if all_xyxy:
+        raw = sv.Detections(
+            xyxy=np.array(all_xyxy, dtype=np.float32),
+            confidence=np.array(all_conf, dtype=np.float32),
+            class_id=np.array(all_cls, dtype=int),
+        )
+        detections = raw.with_nms(threshold=0.4)
+    else:
+        detections = sv.Detections.empty()
+
+    return detections, annotate(pil_image, detections), adaptive_conf
 
 
-# ────────────────────────────────────────────────────
-# ROUTES
-# ────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+#  Routes
+# ──────────────────────────────────────────────────────────────────────────────
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok', 'message': 'CrystalScope model API is running!'})
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+
     file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
     filename = f"{uuid.uuid4()}_{file.filename}"
-    path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(path)
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
 
     try:
-        pil = Image.open(path).convert("RGB")
+        pil_image = Image.open(filepath).convert("RGB")
 
-        det, ann, threshold = run_sahi(pil, path)
+        # SAHI sliced inference with adaptive confidence
+        detections, annotated_frame, used_threshold = run_sahi(pil_image, filepath)
 
-        out_name = f"annotated_{uuid.uuid4()}.jpg"
-        out_path = os.path.join(UPLOAD_FOLDER, out_name)
-        cv2.imwrite(out_path, ann)
+        annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
+        annotated_path     = os.path.join(UPLOAD_FOLDER, annotated_filename)
+        cv2.imwrite(annotated_path, annotated_frame)
 
-        results = []
-        counts = {}
+        crystal_counts = {}
+        detection_list = []
 
-        if det.class_id is not None:
-            for i in range(len(det)):
-                cls = CLASS_NAMES[int(det.class_id[i])]
-                conf = float(det.confidence[i])
+        if detections.class_id is not None and len(detections.class_id) > 0:
+            for i in range(len(detections)):
+                class_id   = int(detections.class_id[i])
+                confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+                class_name = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
+                bbox       = detections.xyxy[i].tolist()
 
-                counts[cls] = counts.get(cls, 0) + 1
-
-                results.append({
-                    "crystalType": cls,
-                    "confidence": round(conf * 100, 2),
-                    "bbox": det.xyxy[i].tolist()
+                crystal_counts[class_name] = crystal_counts.get(class_name, 0) + 1
+                detection_list.append({
+                    'crystalType': class_name,
+                    'confidence':  round(confidence * 100, 2),
+                    'bbox':        bbox,
                 })
 
         summary = [
             {
-                "crystalType": k,
-                "count": v,
-                "risk": RISK_MAP.get(k)
+                'crystalType': crystal_type,
+                'count':       count,
+                'risk':        RISK_MAP.get(crystal_type, 'Unknown'),
             }
-            for k, v in counts.items()
+            for crystal_type, count in crystal_counts.items()
         ]
 
         return jsonify({
-            "success": True,
-            "summary": summary,
-            "detections": results,
-            "total": len(results),
-            "thresholdUsed": threshold,
-            "annotatedImage": f"http://localhost:5001/image/{out_name}"
+            'success':          True,
+            'summary':          summary,
+            'detections':       detection_list,
+            'total':            len(detection_list),
+            'annotatedImage':   f'http://localhost:5001/image/{annotated_filename}',
+            'thresholdUsed':    used_threshold,   # ← returned to frontend for transparency
         })
 
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
     finally:
-        os.remove(path)
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
 
-@app.route('/image/<filename>')
+@app.route('/image/<filename>', methods=['GET'])
 def serve_image(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)

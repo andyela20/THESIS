@@ -5,7 +5,7 @@ import Results from './Results';
 import Analysis from './Analysis';
 import Export from './Export';
 import Patients from './Patients';
-import CrystalLibrary from './CrystalLibrary';
+import ParticleLibrary from './ParticleLibrary';  // renamed from CrystalLibrary
 
 export default function App() {
   const [currentPage, setCurrentPage]       = useState('login');
@@ -23,7 +23,7 @@ export default function App() {
   const goToResults = (data) => {
     if (data) {
       setAnalysisData(data);
-      setHasUnsavedResult(true);  // new analysis — mark as unsaved
+      setHasUnsavedResult(true);
     }
     setCurrentPage('results');
   };
@@ -44,9 +44,8 @@ export default function App() {
 
   const addCrystalRecords = (newRecords) => {
     setCrystalRecords(prev => [...prev, ...newRecords]);
-    setHasUnsavedResult(false);  // clear badge — saved na
+    setHasUnsavedResult(false);
     setUnseenReports(prev => prev + 1);
-    // ← analysisData is NOT cleared here — stays visible in Analysis & Reports pages
   };
 
   const addNewPatient = (patient) => {
@@ -56,7 +55,6 @@ export default function App() {
 
   const clearCurrentPatient = () => setCurrentPatient(null);
 
-  // Called only when user manually clicks "Delete/Clear" on Analysis or Export page
   const clearAnalysisData = () => {
     setAnalysisData(null);
     setHasUnsavedResult(false);
@@ -113,7 +111,7 @@ export default function App() {
           goToLibrary={goToLibrary}
           goToLogin={goToLogin}
           analysisData={analysisData}
-          clearAnalysisData={clearAnalysisData}  // for manual clear button
+          clearAnalysisData={clearAnalysisData}
           badges={badges}
         />
       )}
@@ -127,7 +125,7 @@ export default function App() {
           goToLogin={goToLogin}
           markReportsViewed={markReportsViewed}
           analysisData={analysisData}
-          clearAnalysisData={clearAnalysisData}  // for manual clear button
+          clearAnalysisData={clearAnalysisData}
           badges={badges}
         />
       )}
@@ -145,7 +143,7 @@ export default function App() {
         />
       )}
       {currentPage === 'library' && (
-        <CrystalLibrary
+        <ParticleLibrary
           goToLogin={goToLogin}
           goToUpload={goToUpload}
           goToResults={goToResults}

@@ -2,39 +2,41 @@ import React, { useState } from 'react';
 import './index.css';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-
-const CRYSTAL_COLORS = {
-  'CaOx Dihydrate':         '#E24B4A',
-  'CaOx Monohydrate Ovoid': '#F5A623',
-  'Phosphate':              '#6D9922',
-  'Calcium Oxalate':        '#E24B4A',
-  'Uric Acid':              '#1FB505',
-  'Struvite':               '#6D9922',
-  'Ca Phosphate':           '#6D7758',
-};
+import { PARTICLE_COLORS, PARTICLE_TYPES, RISK_STYLE } from './particleConstants';
 
 export default function Analysis({
   goToUpload, goToResults, goToExport, goToPatients, goToLibrary, goToLogin,
   badges = {}, analysisData, clearAnalysisData,
 }) {
-  const [confidence, setConfidence] = useState(70);
+  const [confidence, setConfidence] = useState(0);
 
-  const crystals = analysisData?.results || [];
-  const totalCrystals = crystals.reduce((sum, c) => sum + c.count, 0);
+  const particles    = analysisData?.results || [];
+  const totalCount   = particles.reduce((sum, p) => sum + p.count, 0);
 
-  const riskOrder = { High: 3, Moderate: 2, Low: 1 };
-  const overallRisk = crystals.reduce((top, c) => {
-    return (riskOrder[c.risk] || 0) > (riskOrder[top] || 0) ? c.risk : top;
+  const riskOrder    = { High: 3, Moderate: 2, Low: 1 };
+  const overallRisk  = particles.reduce((top, p) => {
+    return (riskOrder[p.risk] || 0) > (riskOrder[top] || 0) ? p.risk : top;
   }, 'Low');
 
   const riskColor = { High: '#A32D2D', Moderate: '#C07320', Low: '#1F5330' };
-  const filtered = crystals.filter(c => c.count / totalCrystals * 100 >= confidence / 10);
+
+  // Filter: show particles with count >= threshold (slider = min count, 0–50)
+  const filtered = particles.filter(p => p.count >= confidence);
 
   const handleClear = () => {
     if (window.confirm('Clear this analysis? This cannot be undone.')) {
       if (clearAnalysisData) clearAnalysisData();
     }
   };
+
+  // Group particles by category for the distribution view
+  const groupedByCategory = filtered.reduce((acc, p) => {
+    const ptype = PARTICLE_TYPES.find(pt => pt.label === p.particleType);
+    const group = ptype?.group || 'Other';
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(p);
+    return acc;
+  }, {});
 
   return (
     <div style={styles.app}>
@@ -53,7 +55,7 @@ export default function Analysis({
         <div style={styles.main}>
           <div style={styles.pane}>
 
-            {crystals.length === 0 ? (
+            {particles.length === 0 ? (
               <div style={styles.emptyState}>
                 <div style={{ fontSize: '40px' }}>🔬</div>
                 <div style={{ fontSize: '14px', fontWeight: 500, color: '#A4AAA4', fontFamily: "'Poppins', sans-serif" }}>No analysis yet</div>
@@ -66,7 +68,7 @@ export default function Analysis({
                   {/* Summary Card */}
                   <div style={styles.card}>
                     <div style={styles.cardTitle}>
-                      Analysis results
+                      Analysis Results
                       {analysisData?.patientName && (
                         <span style={{ fontSize: '11px', color: '#A4AAA4', fontWeight: 400 }}>
                           {analysisData.patientName} · {analysisData.sampleId}
@@ -75,49 +77,56 @@ export default function Analysis({
                     </div>
                     <div style={styles.stats}>
                       <div>
-                        <div style={styles.statLbl}>Total crystals</div>
-                        <div style={styles.statVal}>{totalCrystals}</div>
+                        <div style={styles.statLbl}>Total Particles</div>
+                        <div style={styles.statVal}>{totalCount}</div>
                       </div>
                       <div>
-                        <div style={styles.statLbl}>Crystal types</div>
-                        <div style={styles.statVal}>{crystals.length}</div>
+                        <div style={styles.statLbl}>Particle Types</div>
+                        <div style={styles.statVal}>{particles.length}</div>
                       </div>
                       <div>
-                        <div style={styles.statLbl}>Risk level</div>
+                        <div style={styles.statLbl}>Risk Level</div>
                         <div style={{ ...styles.statVal, fontSize: '18px', color: riskColor[overallRisk] }}>{overallRisk}</div>
+                      </div>
+                      <div>
+                        <div style={styles.statLbl}>Categories</div>
+                        <div style={styles.statVal}>{Object.keys(groupedByCategory).length}</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Distribution Card */}
                   <div style={styles.distCard}>
-                    <div style={styles.cardTitle}>Crystal distribution</div>
+                    <div style={styles.cardTitle}>Particle Distribution</div>
                     {filtered.length === 0 ? (
                       <div style={{ color: '#A4AAA4', fontSize: '12px', fontFamily: "'Poppins', sans-serif", textAlign: 'center', padding: '20px' }}>
-                        No crystals match the current filter
+                        No particles match the current filter
                       </div>
                     ) : (
-                      filtered.map((crystal, i) => {
-                        const pct = totalCrystals > 0 ? Math.round(crystal.count / totalCrystals * 100) : 0;
-                        const color = CRYSTAL_COLORS[crystal.crystalType] || '#888';
-                        return (
-                          <div key={i} style={styles.drow}>
-                            <div style={{ ...styles.ddot, background: color }}></div>
-                            <div style={styles.dname}>{crystal.crystalType}</div>
-                            <div style={styles.dcnt}>{crystal.count} ({pct}%)</div>
-                            <div style={styles.dbar}>
-                              <div style={{ ...styles.dfill, width: `${pct}%`, background: color }}></div>
-                            </div>
-                            <div style={{
-                              ...styles.riskBadge,
-                              background: crystal.risk === 'High' ? '#FFF0ED' : crystal.risk === 'Moderate' ? '#FFF8ED' : '#E8F5E8',
-                              color: crystal.risk === 'High' ? '#A32D2D' : crystal.risk === 'Moderate' ? '#C07320' : '#1F5330',
-                            }}>
-                              {crystal.risk}
-                            </div>
-                          </div>
-                        );
-                      })
+                      Object.entries(groupedByCategory).map(([groupName, groupParticles]) => (
+                        <div key={groupName}>
+                          {/* Group label */}
+                          <div style={styles.groupLabel}>{groupName}</div>
+                          {groupParticles.map((particle, i) => {
+                            const pct   = totalCount > 0 ? Math.round(particle.count / totalCount * 100) : 0;
+                            const color = PARTICLE_COLORS[particle.particleType] || '#888';
+                            const rs    = RISK_STYLE[particle.risk] || RISK_STYLE.Low;
+                            return (
+                              <div key={i} style={styles.drow}>
+                                <div style={{ ...styles.ddot, background: color }} />
+                                <div style={styles.dname}>{particle.particleType}</div>
+                                <div style={styles.dcnt}>{particle.count} ({pct}%)</div>
+                                <div style={styles.dbar}>
+                                  <div style={{ ...styles.dfill, width: `${pct}%`, background: color }} />
+                                </div>
+                                <div style={{ ...styles.riskBadge, ...rs }}>
+                                  {particle.risk}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
@@ -127,13 +136,32 @@ export default function Analysis({
                   <div style={styles.cardTitle}>Filters</div>
                   <div>
                     <div style={styles.flbl}>Min. count threshold</div>
-                    <input type="range" min="0" max="100" value={confidence} onChange={(e) => setConfidence(Number(e.target.value))} style={styles.fRange} />
-                    <div style={styles.fval}>{confidence}%</div>
+                    <input
+                      type="range"
+                      min="0" max="50"
+                      value={confidence}
+                      onChange={(e) => setConfidence(Number(e.target.value))}
+                      style={styles.fRange}
+                    />
+                    <div style={styles.fval}>≥ {confidence} particles</div>
                   </div>
-                  {/* Clear button */}
+
+                  {/* Model source legend */}
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={styles.flbl}>Detection Source</div>
+                    <div style={styles.legendItem}>
+                      <div style={{ ...styles.legendDot, background: '#1F5330' }} />
+                      <span style={styles.legendText}>YOLOv8 — Cells, Casts, Misc</span>
+                    </div>
+                    <div style={styles.legendItem}>
+                      <div style={{ ...styles.legendDot, background: '#E24B4A' }} />
+                      <span style={styles.legendText}>RF-DETR — Crystals</span>
+                    </div>
+                  </div>
+
                   <button
                     onClick={handleClear}
-                    style={{ marginTop: 'auto', padding: '7px 14px', borderRadius: '8px', border: '1px solid #F5C9C9', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#E24B4A', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}
+                    style={styles.clearBtn}
                   >
                     🗑 Clear analysis
                   </button>
@@ -164,18 +192,23 @@ const styles = {
   stats:      { display: 'flex', gap: '32px' },
   statLbl:    { fontSize: '10px', fontWeight: 600, color: '#A4AAA4', textTransform: 'uppercase', marginBottom: '3px', fontFamily: "'Poppins', sans-serif" },
   statVal:    { fontSize: '28px', fontWeight: 800, color: '#1F5330', fontFamily: "'Poppins', sans-serif" },
-  distCard:   { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  drow:       { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #EEEFE8' },
+  distCard:   { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowY: 'auto' },
+  groupLabel: { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '10px 0 4px', fontFamily: "'Poppins', sans-serif" },
+  drow:       { display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: '1px solid #EEEFE8' },
   ddot:       { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
-  dname:      { fontSize: '12px', fontWeight: 600, color: '#141514', width: '130px', flexShrink: 0, fontFamily: "'Poppins', sans-serif" },
+  dname:      { fontSize: '12px', fontWeight: 600, color: '#141514', width: '160px', flexShrink: 0, fontFamily: "'Poppins', sans-serif" },
   dcnt:       { fontSize: '11px', color: '#A4AAA4', width: '80px', flexShrink: 0, fontFamily: "'Poppins', sans-serif" },
   dbar:       { flex: 1, height: '6px', background: '#EEEFE8', borderRadius: '3px' },
   dfill:      { height: '100%', borderRadius: '3px' },
   riskBadge:  { fontSize: '9px', fontWeight: 600, padding: '2px 7px', borderRadius: '10px', fontFamily: "'Poppins', sans-serif", flexShrink: 0 },
   filterCard: { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '14px' },
   flbl:       { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', marginBottom: '5px', fontFamily: "'Poppins', sans-serif" },
-  fRange:     { width: '100%', accentColor: '#1FB505' },
-  fval:       { fontSize: '14px', fontWeight: 800, color: '#1FB505', marginTop: '5px', fontFamily: "'Poppins', sans-serif" },
+  fRange:     { width: '100%', accentColor: '#1F5330' },
+  fval:       { fontSize: '13px', fontWeight: 800, color: '#1F5330', marginTop: '5px', fontFamily: "'Poppins', sans-serif" },
+  legendItem: { display: 'flex', alignItems: 'center', gap: '7px', marginTop: '6px' },
+  legendDot:  { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0 },
+  legendText: { fontSize: '11px', color: '#4A5240', fontFamily: "'Poppins', sans-serif" },
+  clearBtn:   { marginTop: 'auto', padding: '7px 14px', borderRadius: '8px', border: '1px solid #F5C9C9', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#E24B4A', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
   bbar:       { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', justifyContent: 'flex-end', gap: '8px' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '8px' },
 };

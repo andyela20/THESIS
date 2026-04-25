@@ -5,7 +5,7 @@ import Results from './Results';
 import Analysis from './Analysis';
 import Export from './Export';
 import Patients from './Patients';
-import CrystalLibrary from './CrystalLibrary';
+import CrystalLibrary from './ParticleLibrary';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('login');

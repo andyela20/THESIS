@@ -1,23 +1,8 @@
 import React, { useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import { PARTICLE_COLORS, RISK_STYLE } from './particleConstants';
 import './index.css';
-
-const CRYSTAL_COLORS = {
-  'CaOx Dihydrate':         '#E24B4A',
-  'CaOx Monohydrate Ovoid': '#F5A623',
-  'Phosphate':              '#6D9922',
-  'Calcium Oxalate':        '#E24B4A',
-  'Uric Acid':              '#1FB505',
-  'Struvite':               '#6D9922',
-  'Ca Phosphate':           '#6D7758',
-};
-
-const RISK_STYLE = {
-  High:     { background: '#FFF0ED', color: '#A32D2D' },
-  Moderate: { background: '#FFF8ED', color: '#C07320' },
-  Low:      { background: '#E8F5E8', color: '#1F5330' },
-};
 
 export default function Export({
   goToUpload, goToResults, goToAnalysis, goToPatients, goToLibrary, goToLogin,
@@ -27,8 +12,8 @@ export default function Export({
     if (markReportsViewed) markReportsViewed();
   }, [markReportsViewed]);
 
-  const crystals = analysisData?.results || [];
-  const totalCrystals = crystals.reduce((sum, c) => sum + c.count, 0);
+  const particles  = analysisData?.results || [];
+  const totalCount = particles.reduce((sum, p) => sum + p.count, 0);
 
   const handleClear = () => {
     if (window.confirm('Clear this report? This cannot be undone.')) {
@@ -39,20 +24,21 @@ export default function Export({
   const handleExportPDF = () => {
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const rows = crystals.map(c => {
-      const pct = totalCrystals > 0 ? Math.round(c.count / totalCrystals * 100) : 0;
-      const riskStyle = RISK_STYLE[c.risk] || RISK_STYLE.Low;
+    const rows = particles.map(p => {
+      const pct     = totalCount > 0 ? Math.round(p.count / totalCount * 100) : 0;
+      const color   = PARTICLE_COLORS[p.particleType] || '#888';
+      const rs      = RISK_STYLE[p.risk] || RISK_STYLE.Low;
       return `
         <tr>
           <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;font-size:12px;color:#141514;">
-            <span style="width:10px;height:10px;border-radius:50%;background:${CRYSTAL_COLORS[c.crystalType] || '#888'};display:inline-block;margin-right:8px;vertical-align:middle;"></span>
-            ${c.crystalType}
+            <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;margin-right:8px;vertical-align:middle;"></span>
+            ${p.particleType}
           </td>
-          <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;font-size:12px;color:#141514;">${c.count}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;font-size:12px;color:#141514;">${p.count}</td>
           <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;font-size:12px;color:#141514;">${pct}%</td>
           <td style="padding:10px 14px;border-bottom:1px solid #EEEFE8;">
-            <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:${riskStyle.background};color:${riskStyle.color};">
-              ${c.risk}
+            <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:${rs.background};color:${rs.color};">
+              ${p.risk}
             </span>
           </td>
         </tr>
@@ -62,9 +48,9 @@ export default function Export({
     const html = `
       <html>
       <head>
-        <title>CrystalScope Report</title>
+        <title>MagniTect Urinalysis Report</title>
         <style>
-          body { font-family: 'Poppins', sans-serif; margin: 0; padding: 32px; background: #fff; color: #141514; }
+          body { font-family: 'Arial', sans-serif; margin: 0; padding: 32px; background: #fff; color: #141514; }
           h1   { font-size: 22px; font-weight: 800; color: #1F5330; margin-bottom: 4px; }
           .sub { font-size: 12px; color: #A4AAA4; margin-bottom: 24px; }
           .info-row { display: flex; gap: 32px; margin-bottom: 24px; flex-wrap: wrap; }
@@ -78,17 +64,17 @@ export default function Export({
         </style>
       </head>
       <body>
-        <h1>CrystalScope Report</h1>
+        <h1>MagniTect Urinalysis Report</h1>
         <div class="sub">Generated on ${date}</div>
         <div class="info-row">
           <div class="info-box"><div class="info-lbl">Patient</div><div class="info-val">${analysisData?.patientName || '—'}</div></div>
           <div class="info-box"><div class="info-lbl">Patient ID</div><div class="info-val">${analysisData?.patientId || '—'}</div></div>
           <div class="info-box"><div class="info-lbl">Sample ID</div><div class="info-val">${analysisData?.sampleId || '—'}</div></div>
-          <div class="info-box"><div class="info-lbl">Total crystals</div><div class="info-val">${totalCrystals}</div></div>
+          <div class="info-box"><div class="info-lbl">Total Particles</div><div class="info-val">${totalCount}</div></div>
         </div>
         <table>
           <thead>
-            <tr><th>Crystal Type</th><th>Count</th><th>Distribution</th><th>Risk</th></tr>
+            <tr><th>Particle Type</th><th>Count</th><th>Distribution</th><th>Risk</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -120,12 +106,12 @@ export default function Export({
         <div style={styles.main}>
           <div style={styles.pane}>
 
-            {/* Header — always visible */}
+            {/* Header */}
             <div style={styles.header}>
               <div>
-                {crystals.length > 0 ? (
+                {particles.length > 0 ? (
                   <>
-                    <div style={styles.expTitle}>Detected crystals ({totalCrystals})</div>
+                    <div style={styles.expTitle}>Detected Particles ({totalCount})</div>
                     {analysisData?.patientName && (
                       <div style={styles.expSub}>
                         {analysisData.patientName} · {analysisData.patientId} · {analysisData.sampleId}
@@ -136,13 +122,12 @@ export default function Export({
                   <div style={styles.expTitle}>Reports</div>
                 )}
               </div>
-              {/* View past reports — always visible, repositioned to top-right */}
               <button onClick={goToLibrary} style={styles.libraryLink}>
                 View past reports in Library →
               </button>
             </div>
 
-            {crystals.length === 0 ? (
+            {particles.length === 0 ? (
               <div style={styles.emptyState}>
                 <div style={{ fontSize: '40px' }}>📄</div>
                 <div style={{ fontSize: '14px', fontWeight: 500, color: '#A4AAA4', fontFamily: "'Poppins', sans-serif" }}>No report yet</div>
@@ -152,31 +137,31 @@ export default function Export({
               <>
                 <div style={styles.expTable}>
                   <div style={styles.expThead}>
-                    <div style={styles.eth}>Type</div>
+                    <div style={styles.eth}>Particle Type</div>
                     <div style={styles.eth}>Count</div>
                     <div style={styles.eth}>Distribution</div>
                     <div style={styles.eth}>Risk</div>
                   </div>
                   <div style={styles.expBody}>
-                    {crystals.map((crystal, i) => {
-                      const pct = totalCrystals > 0 ? Math.round(crystal.count / totalCrystals * 100) : 0;
-                      const color = CRYSTAL_COLORS[crystal.crystalType] || '#888';
-                      const riskStyle = RISK_STYLE[crystal.risk] || RISK_STYLE.Low;
+                    {particles.map((particle, i) => {
+                      const pct     = totalCount > 0 ? Math.round(particle.count / totalCount * 100) : 0;
+                      const color   = PARTICLE_COLORS[particle.particleType] || '#888';
+                      const rs      = RISK_STYLE[particle.risk] || RISK_STYLE.Low;
                       return (
                         <div key={i} style={styles.erow}>
                           <div style={styles.etd}>
-                            <div style={{ ...styles.ddot, background: color }}></div>
-                            {crystal.crystalType}
+                            <div style={{ ...styles.ddot, background: color }} />
+                            {particle.particleType}
                           </div>
-                          <div style={styles.etd}>{crystal.count}</div>
+                          <div style={styles.etd}>{particle.count}</div>
                           <div style={styles.etd}>
                             <div style={styles.ebar}>
-                              <div style={{ ...styles.efill, width: `${pct}%`, background: color }}></div>
+                              <div style={{ ...styles.efill, width: `${pct}%`, background: color }} />
                             </div>
                             {pct}%
                           </div>
                           <div style={styles.etd}>
-                            <span style={{ ...styles.riskBadge, ...riskStyle }}>{crystal.risk}</span>
+                            <span style={{ ...styles.riskBadge, ...rs }}>{particle.risk}</span>
                           </div>
                         </div>
                       );
@@ -185,10 +170,16 @@ export default function Export({
                 </div>
 
                 <div style={styles.bbar}>
-                  {/* Clear button — left side */}
                   <button onClick={handleClear} style={styles.btnClear}>🗑 Clear report</button>
                   <div style={{ flex: 1 }} />
-                  <button onClick={handleExportPDF} className="btn-export">📥 Export PDF</button>
+                  <button onClick={handleExportPDF} className="btn-export" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Export PDF
+                  </button>
                   <button onClick={goToUpload} className="btn-solid">Analyze another</button>
                 </div>
               </>

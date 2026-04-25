@@ -16,13 +16,14 @@ const ResultsIcon = ({ color }) => (
   </svg>
 );
 
-const UrineCrystalIcon = ({ color }) => (
+const ParticleIcon = ({ color }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2 L18 6 L18 12 L12 16 L6 12 L6 6 Z" fill="none" stroke={color} strokeWidth="1.5"/>
-    <line x1="12" y1="2" x2="12" y2="16" stroke={color} strokeWidth="1.5"/>
-    <line x1="6" y1="9" x2="18" y2="9" stroke={color} strokeWidth="1.5"/>
-    <line x1="6" y1="6" x2="18" y2="12" stroke={color} strokeWidth="1"/>
-    <line x1="18" y1="6" x2="6" y2="12" stroke={color} strokeWidth="1"/>
+    <circle cx="12" cy="12" r="3"/>
+    <circle cx="12" cy="12" r="8" strokeDasharray="2 2"/>
+    <line x1="12" y1="2" x2="12" y2="6"/>
+    <line x1="12" y1="18" x2="12" y2="22"/>
+    <line x1="2" y1="12" x2="6" y2="12"/>
+    <line x1="18" y1="12" x2="22" y2="12"/>
   </svg>
 );
 
@@ -57,7 +58,7 @@ export default function Sidebar({
   goToExport,
   goToPatients,
   goToLibrary,
-  badges = {},   // ← accepts badges from App.js; defaults to empty obj so nothing breaks
+  badges = {},
 }) {
   const SidebarItem = ({ label, icon, onClick, isActive, badge }) => (
     <div
@@ -83,7 +84,7 @@ export default function Sidebar({
         Workspace
       </div>
       <SidebarItem
-        label="New analysis"
+        label="New Analysis"
         icon={<UploadIcon color={currentPage === 'upload' ? '#fff' : '#4A5240'} />}
         onClick={goToUpload}
         isActive={currentPage === 'upload'}
@@ -93,11 +94,11 @@ export default function Sidebar({
         icon={<ResultsIcon color={currentPage === 'results' ? '#fff' : '#4A5240'} />}
         onClick={() => goToResults()}
         isActive={currentPage === 'results'}
-        badge={badges.results}   // ← dynamic, from App.js
+        badge={badges.results}
       />
       <SidebarItem
         label="Analysis"
-        icon={<UrineCrystalIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />}
+        icon={<ParticleIcon color={currentPage === 'analysis' ? '#fff' : '#4A5240'} />}
         onClick={goToAnalysis}
         isActive={currentPage === 'analysis'}
       />
@@ -106,14 +107,14 @@ export default function Sidebar({
         icon={<ReportsIcon color={currentPage === 'export' ? '#fff' : '#4A5240'} />}
         onClick={goToExport}
         isActive={currentPage === 'export'}
-        badge={badges.export}    // ← dynamic, from App.js
+        badge={badges.export}
       />
 
       <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A4AAA4', padding: '10px 10px 4px', marginTop: '10px', fontFamily: "'Poppins', sans-serif" }}>
         Reference
       </div>
       <SidebarItem
-        label="Crystal library"
+        label="Particle Library"
         icon={<LibraryIcon color={currentPage === 'library' ? '#fff' : '#4A5240'} />}
         onClick={goToLibrary}
         isActive={currentPage === 'library'}
@@ -123,7 +124,7 @@ export default function Sidebar({
         icon={<PatientsIcon color={currentPage === 'patients' ? '#fff' : '#4A5240'} />}
         onClick={goToPatients}
         isActive={currentPage === 'patients'}
-        badge={badges.patients}  // ← dynamic, from App.js
+        badge={badges.patients}
       />
     </div>
   );

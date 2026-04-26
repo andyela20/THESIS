@@ -4,16 +4,33 @@ import Topbar from './Topbar';
 import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, getAnalyses } from './api';
 import './index.css';
 
+// Inject keyframes once into <head>
+const ANIM_STYLE = `
+  @keyframes spin        { to { transform: rotate(360deg); } }
+  @keyframes pulseRing   { 0%,100% { transform: scale(0.85); opacity: 0.5; } 50% { transform: scale(1.18); opacity: 0.12; } }
+  @keyframes scanLine    { 0% { top: 6%; } 100% { top: 86%; } }
+  @keyframes fadeInScale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+  @keyframes dotBounce   { 0%,80%,100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-7px); opacity: 1; } }
+`;
+function injectStyles() {
+  if (document.getElementById('upload-anim')) return;
+  const el = document.createElement('style');
+  el.id = 'upload-anim';
+  el.textContent = ANIM_STYLE;
+  document.head.appendChild(el);
+}
+
 export default function Upload({
   goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
   currentPatient, setCurrentPatient, clearCurrentPatient,
   badges = {},
 }) {
+  injectStyles();
+
   const username = localStorage.getItem('username') || 'User';
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  // Stats
   const [totalPatients, setTotalPatients]   = useState(0);
   const [totalAnalyses, setTotalAnalyses]   = useState(0);
   const [topCrystal, setTopCrystal]         = useState(null);
@@ -22,7 +39,6 @@ export default function Upload({
   const [recentPatients, setRecentPatients] = useState([]);
   const [statsLoading, setStatsLoading]     = useState(true);
 
-  // Patient form
   const [tab, setTab]                       = useState(currentPatient ? 'confirmed' : 'new');
   const [patientName, setPatientName]       = useState(currentPatient?.name      || '');
   const [patientDOB, setPatientDOB]         = useState(currentPatient?.dob       || '');
@@ -38,11 +54,10 @@ export default function Upload({
   const [uploadedImage, setUploadedImage]   = useState(null);
   const [loading, setLoading]               = useState(false);
   const [analyzing, setAnalyzing]           = useState(false);
+  const [analyzeStep, setAnalyzeStep]       = useState(0); // 0=idle 1=uploading 2=analyzing 3=done
   const [showAnalysisForm, setShowAnalysisForm] = useState(false);
-
-  // Modal window state
-  const [minimized, setMinimized] = useState(false);
-  const [expanded, setExpanded]   = useState(false);
+  const [minimized, setMinimized]           = useState(false);
+  const [expanded, setExpanded]             = useState(false);
 
   const searchRef    = useRef(null);
   const fileInputRef = useRef(null);
@@ -64,7 +79,7 @@ export default function Upload({
           const sorted = [...aList].sort((a, b) => new Date(b.date) - new Date(a.date));
           setLastAnalysis(sorted[0]);
         }
-      } catch (err) { console.error('Error fetching stats:', err); }
+      } catch (err) { console.error(err); }
       finally { setStatsLoading(false); }
     };
     fetchStats();
@@ -135,11 +150,11 @@ export default function Upload({
     setPatientAge(''); setPatientSex(''); setPatientContact('');
     setUploadedImage(null); setSearchQuery(''); setTab('new');
     setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
+    setAnalyzing(false); setAnalyzeStep(0);
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
   const openModal = () => { setShowAnalysisForm(true); setMinimized(false); setExpanded(false); };
-
   const handleFileChange    = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
   const handleDropzoneClick = () => { if (!patientId) return; fileInputRef.current.click(); };
   const handleDrop          = (e) => { e.preventDefault(); if (!patientId) return; const f = e.dataTransfer.files[0]; if (f) setUploadedImage(f); };
@@ -149,16 +164,22 @@ export default function Upload({
   const handleAnalyze = async () => {
     if (!uploadedImage || !patientId) return;
     setAnalyzing(true);
+    setAnalyzeStep(1);
     try {
       const sampleId = `SMPL-${Date.now()}`;
       const formData = new FormData();
-      formData.append('image', uploadedImage); formData.append('patientId', patientId); formData.append('sampleId', sampleId);
+      formData.append('image', uploadedImage);
+      formData.append('patientId', patientId);
+      formData.append('sampleId', sampleId);
       await uploadImage(formData);
+      setAnalyzeStep(2);
       const analysisResult = await analyzeImage(uploadedImage);
+      setAnalyzeStep(3);
       if (!analysisResult.success) { alert('Error analyzing image: ' + analysisResult.error); return; }
+      await new Promise(r => setTimeout(r, 700));
       goToResults({ patientId, patientName, sampleId, results: analysisResult.summary, annotatedImage: analysisResult.annotatedImage });
     } catch { alert('Error. Make sure the model server is running on port 5001.'); }
-    finally { setAnalyzing(false); }
+    finally { setAnalyzing(false); setAnalyzeStep(0); }
   };
 
   const CRYSTAL_COLORS = { 'CaOx Dihydrate': '#E24B4A', 'CaOx Monohydrate Ovoid': '#F5A623', 'Phosphate': '#6D9922', 'Calcium Oxalate': '#E24B4A', 'Uric Acid': '#1FB505', 'Struvite': '#6D9922', 'Ca Phosphate': '#6D7758' };
@@ -168,7 +189,15 @@ export default function Upload({
   const getAvatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
 
   const modalW = expanded ? 'min(92vw, 1100px)' : '660px';
-  const modalH = expanded ? '90vh'              : '640px';
+  const modalH = expanded ? '90vh' : '640px';
+
+  // Step labels shown in the overlay
+  const STEP_LABELS = ['', 'Uploading image…', 'AI detecting crystals…', 'Analysis complete!'];
+  const STEP_PILLS  = [
+    { label: 'Upload',   done: analyzeStep >= 2 },
+    { label: 'Analyze',  done: analyzeStep >= 3 },
+    { label: 'Complete', done: analyzeStep === 3 },
+  ];
 
   return (
     <div style={s.app}>
@@ -193,7 +222,7 @@ export default function Upload({
               </button>
             </div>
 
-            {/* Stat Cards */}
+            {/* Stat cards */}
             <div style={s.statRow}>
               {[
                 { label: 'TOTAL PATIENTS', value: statsLoading ? '—' : totalPatients, sub: `${statsLoading ? '—' : totalPatients} active`, accent: '#1F5330' },
@@ -267,64 +296,17 @@ export default function Upload({
                     </div>
                   )}
                 </div>
-
                 <div style={s.card}>
                   <div style={s.cardHead}><span style={s.cardTitle}>Quick Actions</span></div>
                   <div style={s.quickGrid}>
                     {[
-                      {
-                        label: 'New Analysis',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                          </svg>
-                        ),
-                        onClick: openModal,
-                      },
-                      {
-                        label: 'Patients',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                          </svg>
-                        ),
-                        onClick: goToPatients,
-                      },
-                      {
-                        label: 'Library',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="3"/>
-                            <path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z"/>
-                            <path d="M2 2l4 4"/>
-                            <path d="M22 22l-4-4"/>
-                            <line x1="8" y1="11" x2="2" y2="11"/>
-                            <line x1="22" y1="11" x2="14" y2="11"/>
-                          </svg>
-                        ),
-                        onClick: goToLibrary,
-                      },
-                      {
-                        label: 'Reports',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
-                          </svg>
-                        ),
-                        onClick: goToExport,
-                      },
+                      { label: 'New Analysis', icon: '📤', onClick: openModal },
+                      { label: 'Patients',     icon: '👥', onClick: goToPatients },
+                      { label: 'Library',      icon: '🔬', onClick: goToLibrary },
+                      { label: 'Reports',      icon: '📄', onClick: goToExport },
                     ].map((a, i) => (
                       <button key={i} onClick={a.onClick} style={s.quickBtn}>
-                        <span style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>{a.icon}</span>
+                        <span style={{ fontSize: '18px' }}>{a.icon}</span>
                         <span style={s.quickLabel}>{a.label}</span>
                       </button>
                     ))}
@@ -337,7 +319,7 @@ export default function Upload({
         </div>
       </div>
 
-      {/* ── Minimized floating pill ── */}
+      {/* Minimized pill */}
       {showAnalysisForm && minimized && (
         <div style={s.minimizedPill} onClick={() => setMinimized(false)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -353,18 +335,96 @@ export default function Upload({
 
       {/* ── Centered Modal ── */}
       {showAnalysisForm && !minimized && (
-        <div
-          style={s.overlay}
-          onClick={(e) => { if (e.target === e.currentTarget) setMinimized(true); }}
-        >
-          <div
-            style={{
-              ...s.modal,
-              width: modalW,
-              maxHeight: modalH,
-              transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)',
-            }}
-          >
+        <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget && !analyzing) setMinimized(true); }}>
+          <div style={{ ...s.modal, width: modalW, maxHeight: modalH, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)' }}>
+
+            {/* ════════════════════════════════════════
+                ANALYZING OVERLAY — covers modal body
+                ════════════════════════════════════════ */}
+            {analyzing && (
+              <div style={s.analyzingOverlay}>
+                {/* Blurred image ghost in background */}
+                {uploadedImage && (
+                  <img src={URL.createObjectURL(uploadedImage)} alt="" style={s.analyzingBgImg} />
+                )}
+
+                <div style={s.analyzingContent}>
+                  {/* Pulsing ring + microscope icon */}
+                  <div style={s.pulseWrapper}>
+                    <div style={s.pulseRingOuter} />
+                    <div style={s.pulseRingInner} />
+                    <div style={s.pulseIconCircle}>
+                      {analyzeStep === 3
+                        ? <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="3.5"/>
+                            <path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z" opacity="0.4"/>
+                            <line x1="7.5" y1="11" x2="2" y2="11"/><line x1="22" y1="11" x2="14.5" y2="11"/>
+                            <line x1="11" y1="7.5" x2="11" y2="2"/><line x1="11" y1="22" x2="11" y2="14.5"/>
+                          </svg>
+                      }
+                    </div>
+                  </div>
+
+                  {/* Main label */}
+                  <div style={s.analyzingLabel}>
+                    {STEP_LABELS[analyzeStep] || 'Processing…'}
+                  </div>
+
+                  {/* Bouncing dots (hidden on done) */}
+                  {analyzeStep < 3 && (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {[0, 1, 2].map(i => (
+                        <div key={i} style={{
+                          width: '7px', height: '7px', borderRadius: '50%',
+                          background: '#1F5330',
+                          animation: `dotBounce 1.1s ease-in-out ${i * 0.18}s infinite`,
+                        }} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Scan preview box */}
+                  <div style={s.scanBox}>
+                    <div style={s.scanGrid}>
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} style={{ background: `rgba(31,83,48,${0.04 + (i % 3) * 0.025})`, borderRadius: '3px' }} />
+                      ))}
+                    </div>
+                    {analyzeStep < 3 && <div style={s.scanLine} />}
+                    {analyzeStep === 3 && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(31,83,48,0.08)', borderRadius: '8px' }}>
+                        <span style={{ fontSize: '22px' }}>✅</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step pills */}
+                  <div style={{ display: 'flex', gap: '7px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {STEP_PILLS.map((st) => (
+                      <div key={st.label} style={{
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                        padding: '4px 13px', borderRadius: '20px',
+                        fontSize: '11px', fontWeight: 600,
+                        background: st.done ? '#1F5330' : 'rgba(31,83,48,0.07)',
+                        color: st.done ? '#fff' : '#8C9A8C',
+                        border: `1px solid ${st.done ? '#1F5330' : '#D8DAD0'}`,
+                        transition: 'all 0.35s ease',
+                      }}>
+                        {st.done && <span style={{ fontSize: '9px' }}>✓</span>}
+                        {st.label}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: '#A4AAA4', marginTop: '2px' }}>
+                    {analyzeStep === 3 ? 'Redirecting to results…' : 'Please wait while the AI processes the sample…'}
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* ════════════════════════════════════════ */}
+
             {/* Modal titlebar */}
             <div style={s.modalHead}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -381,13 +441,11 @@ export default function Upload({
                   </span>
                 )}
               </div>
-
-              {/* Window controls */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button style={s.winBtn} title="Minimize" onClick={() => setMinimized(true)}>
+                <button style={s.winBtn} title="Minimize" onClick={() => !analyzing && setMinimized(true)}>
                   <svg width="10" height="2" viewBox="0 0 10 2"><rect width="10" height="2" rx="1" fill="rgba(255,255,255,0.85)"/></svg>
                 </button>
-                <button style={s.winBtn} title={expanded ? 'Restore size' : 'Expand'} onClick={() => setExpanded(e => !e)}>
+                <button style={s.winBtn} title={expanded ? 'Restore size' : 'Expand'} onClick={() => !analyzing && setExpanded(e => !e)}>
                   {expanded
                     ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="2.5" y="0.5" width="7" height="7" rx="1" stroke="rgba(255,255,255,0.85)" strokeWidth="1.3"/><rect x="0.5" y="2.5" width="7" height="7" rx="1" fill="#1F5330" stroke="rgba(255,255,255,0.85)" strokeWidth="1.3"/></svg>
                     : <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="0.65" y="0.65" width="8.7" height="8.7" rx="1" stroke="rgba(255,255,255,0.85)" strokeWidth="1.3"/></svg>
@@ -402,37 +460,28 @@ export default function Upload({
             {/* Step progress */}
             <div style={s.progressBar}>
               {[
-                { num: '1', label: 'Patient',  done: !!patientId,      active: !patientId },
-                { num: '2', label: 'Image',    done: !!uploadedImage,  active: !!patientId && !uploadedImage },
-                { num: '3', label: 'Analyze',  done: false,            active: !!patientId && !!uploadedImage },
+                { num: '1', label: 'Patient', done: !!patientId,     active: !patientId },
+                { num: '2', label: 'Image',   done: !!uploadedImage, active: !!patientId && !uploadedImage },
+                { num: '3', label: 'Analyze', done: false,           active: !!patientId && !!uploadedImage },
               ].map((step, i) => (
                 <React.Fragment key={step.label}>
                   {i > 0 && <div style={{ flex: 1, height: '2px', background: step.done || (i === 1 && patientId) ? '#1FB505' : '#E0E2D8', margin: '0 6px', marginBottom: '14px' }} />}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                    <div style={{
-                      width: '22px', height: '22px', borderRadius: '50%',
-                      background: step.done ? '#1FB505' : step.active ? '#1F5330' : '#E0E2D8',
-                      color: step.done || step.active ? '#fff' : '#A4AAA4',
-                      fontSize: '10px', fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: step.done ? '#1FB505' : step.active ? '#1F5330' : '#E0E2D8', color: step.done || step.active ? '#fff' : '#A4AAA4', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {step.done ? '✓' : step.num}
                     </div>
-                    <span style={{ fontSize: '10px', fontWeight: 600, color: step.done ? '#1FB505' : step.active ? '#1F5330' : '#A4AAA4' }}>
-                      {step.label}
-                    </span>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: step.done ? '#1FB505' : step.active ? '#1F5330' : '#A4AAA4' }}>{step.label}</span>
                   </div>
                 </React.Fragment>
               ))}
             </div>
 
-            {/* Body — side-by-side when expanded */}
+            {/* Body */}
             <div style={{ ...s.modalBody, flexDirection: expanded ? 'row' : 'column', gap: expanded ? '0' : '20px' }}>
 
               {/* Patient column */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 20px 0 0' : '0' }}>
                 <div style={s.sectionLabel}><span style={s.sectionNum}>01</span> Patient Details</div>
-
                 {tab === 'confirmed' ? (
                   <div style={s.confirmedBanner}>
                     <div style={{ ...s.avatar, background: getAvatarColor(patientName), width: '36px', height: '36px', fontSize: '13px' }}>{getInitials(patientName)}</div>
@@ -449,27 +498,19 @@ export default function Upload({
                       <button style={tab === 'new' ? s.tabActive : s.tab} onClick={() => setTab('new')}>New Patient</button>
                       <button style={tab === 'search' ? s.tabActive : s.tab} onClick={() => setTab('search')}>Search Existing</button>
                     </div>
-
                     {tab === 'new' && (
                       <>
                         <div style={{ ...s.formGrid, gridTemplateColumns: expanded ? '1fr 1fr 1fr' : '1fr 1fr' }}>
                           <div style={s.field}><label style={s.fieldLabel}>Full Name</label><input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={s.fieldInput} /></div>
                           <div style={s.field}><label style={s.fieldLabel}>Age</label><input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} placeholder="e.g. 45" style={s.fieldInput} /></div>
                           <div style={s.field}><label style={s.fieldLabel}>Sex</label><select value={patientSex} onChange={e => setPatientSex(e.target.value)} style={s.fieldInput}><option value="">Select sex</option><option>Male</option><option>Female</option><option>Other</option></select></div>
-                          <div style={s.field}>
-                            <label style={s.fieldLabel}>Date of Birth</label>
-                            <input type="date" value={patientDOB} onChange={e => {
-                              const dob = e.target.value; setPatientDOB(dob);
-                              if (dob) { const t = new Date(); const b = new Date(dob); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; setPatientAge(a); }
-                            }} style={s.fieldInput} />
-                          </div>
+                          <div style={s.field}><label style={s.fieldLabel}>Date of Birth</label><input type="date" value={patientDOB} onChange={e => { const dob = e.target.value; setPatientDOB(dob); if (dob) { const t = new Date(); const b = new Date(dob); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; setPatientAge(a); } }} style={s.fieldInput} /></div>
                           <div style={{ ...s.field, gridColumn: expanded ? 'auto' : '1 / -1' }}><label style={s.fieldLabel}>Address</label><input type="text" value={patientAddress} onChange={e => setPatientAddress(e.target.value)} placeholder="Street address" style={s.fieldInput} /></div>
                           <div style={{ ...s.field, gridColumn: expanded ? 'auto' : '1 / -1' }}><label style={s.fieldLabel}>Contact Number</label><input type="tel" value={patientContact} onChange={e => setPatientContact(e.target.value)} placeholder="09XXXXXXXXX" style={s.fieldInput} /></div>
                         </div>
                         <button onClick={handleAddPatient} style={s.addBtn} disabled={loading}>{loading ? 'Saving...' : '+ Add Patient'}</button>
                       </>
                     )}
-
                     {tab === 'search' && (
                       <div ref={searchRef} style={{ position: 'relative' }}>
                         <div style={s.searchBox}>
@@ -494,14 +535,12 @@ export default function Upload({
                 )}
               </div>
 
-              {/* Vertical divider in expanded mode */}
               {expanded && <div style={{ width: '1px', background: '#E8EAE0', flexShrink: 0, margin: '0 4px' }} />}
 
               {/* Image upload column */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 0 0 20px' : '0' }}>
                 <div style={s.sectionLabel}><span style={s.sectionNum}>02</span> Upload Image</div>
                 <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
-
                 {!uploadedImage ? (
                   <div onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}
                     style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed', flex: expanded ? 1 : 'unset' }}>
@@ -532,31 +571,17 @@ export default function Upload({
               {!patientId && <span style={s.hint}>⚠ Add a patient first</span>}
               {patientId && !uploadedImage && <span style={s.hint}>⚠ Upload an image to continue</span>}
               <div style={{ flex: 1 }} />
-              <button onClick={handleReset} style={s.cancelBtn}>Cancel</button>
+              <button onClick={handleReset} style={s.cancelBtn} disabled={analyzing}>Cancel</button>
               <button
                 onClick={handleAnalyze}
-                style={{
-                  ...s.analyzeBtn,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  opacity: (!uploadedImage || !patientId || analyzing) ? 0.5 : 1,
-                  cursor: (!uploadedImage || !patientId || analyzing) ? 'not-allowed' : 'pointer',
-                }}
+                style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!uploadedImage || !patientId || analyzing) ? 0.55 : 1, cursor: (!uploadedImage || !patientId || analyzing) ? 'not-allowed' : 'pointer' }}
                 disabled={!uploadedImage || !patientId || analyzing}
               >
-                {analyzing ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}>
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <circle cx="11" cy="11" r="8"/>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                )}
-                <span>{analyzing ? 'Analyzing…' : 'Analyze Image'}</span>
+                {analyzing
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                }
+                {analyzing ? 'Analyzing…' : 'Analyze Image'}
               </button>
             </div>
 
@@ -609,9 +634,79 @@ const s = {
   quickBtn:   { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: '#F5F6F0', border: '1px solid #E8EAE0', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
   quickLabel: { fontSize: '12px', fontWeight: 600, color: '#141514' },
 
-  // ── Centered Modal ──
   overlay: { position: 'fixed', inset: 0, background: 'rgba(8,18,10,0.58)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  modal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.24), 0 4px 20px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', overflow: 'hidden', maxWidth: '95vw' },
+  modal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.24), 0 4px 20px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', overflow: 'hidden', maxWidth: '95vw', position: 'relative' },
+
+  // ── Analyzing overlay ──
+  analyzingOverlay: {
+    position: 'absolute', inset: 0, zIndex: 20,
+    background: 'rgba(243,245,238,0.97)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '16px',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    animation: 'fadeInScale 0.28s ease',
+  },
+  analyzingBgImg: {
+    position: 'absolute', inset: 0,
+    width: '100%', height: '100%',
+    objectFit: 'cover', opacity: 0.07,
+    borderRadius: '16px',
+    filter: 'blur(14px) saturate(0.4)',
+    pointerEvents: 'none',
+  },
+  analyzingContent: {
+    position: 'relative', zIndex: 1,
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: '16px',
+    padding: '0 40px',
+  },
+  pulseWrapper: {
+    position: 'relative', width: '84px', height: '84px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  pulseRingOuter: {
+    position: 'absolute', inset: '-4px', borderRadius: '50%',
+    border: '2.5px solid rgba(31,83,48,0.3)',
+    animation: 'pulseRing 1.7s ease-in-out infinite',
+  },
+  pulseRingInner: {
+    position: 'absolute', inset: '10px', borderRadius: '50%',
+    border: '2px solid rgba(31,83,48,0.2)',
+    animation: 'pulseRing 1.7s ease-in-out 0.45s infinite',
+  },
+  pulseIconCircle: {
+    width: '60px', height: '60px', borderRadius: '50%',
+    background: '#fff',
+    border: '2px solid #D8DAD0',
+    boxShadow: '0 4px 18px rgba(31,83,48,0.14)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  analyzingLabel: {
+    fontSize: '17px', fontWeight: 700, color: '#141514',
+    letterSpacing: '-0.3px', textAlign: 'center',
+  },
+  // Scan box
+  scanBox: {
+    width: '188px', height: '96px',
+    borderRadius: '10px',
+    border: '1.5px solid #D8DAD0',
+    background: '#fff',
+    position: 'relative', overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  },
+  scanGrid: {
+    display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridTemplateRows: 'repeat(3,1fr)',
+    gap: '3px', padding: '6px',
+    height: '100%', boxSizing: 'border-box',
+  },
+  scanLine: {
+    position: 'absolute', left: '4px', right: '4px', height: '2px',
+    background: 'linear-gradient(90deg, transparent 0%, #1F5330 40%, #6D9922 60%, transparent 100%)',
+    boxShadow: '0 0 10px rgba(31,83,48,0.7)',
+    animation: 'scanLine 1.5s ease-in-out infinite alternate',
+    top: '6%',
+  },
 
   modalHead:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 18px', background: '#1F5330', flexShrink: 0 },
   modalHeadIcon: { width: '26px', height: '26px', borderRadius: '6px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -620,16 +715,15 @@ const s = {
   winBtn:        { width: '26px', height: '26px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 
   progressBar: { display: 'flex', alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #ECEEE6', background: '#F8F9F5', flexShrink: 0 },
-
-  modalBody: { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex' },
-  modalFoot: { padding: '12px 24px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
+  modalBody:   { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex' },
+  modalFoot:   { padding: '12px 24px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
 
   sectionLabel: { display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10px', fontWeight: 700, color: '#8C9A8C', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' },
   sectionNum:   { width: '17px', height: '17px', borderRadius: '50%', background: '#EEF0E8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 800, color: '#1F5330' },
 
   confirmedBanner: { display: 'flex', alignItems: 'center', gap: '10px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '10px 14px' },
-  tabRow:   { display: 'flex', gap: '6px' },
-  tab:      { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #D8DAD0', background: 'transparent', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#4A5240', fontFamily: "'Poppins', sans-serif" },
+  tabRow:    { display: 'flex', gap: '6px' },
+  tab:       { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #D8DAD0', background: 'transparent', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#4A5240', fontFamily: "'Poppins', sans-serif" },
   tabActive: { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #1F5330', background: '#F2FBF0', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#1F5330', fontFamily: "'Poppins', sans-serif" },
   formGrid:  { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
   field:     { display: 'flex', flexDirection: 'column', gap: '4px' },

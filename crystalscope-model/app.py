@@ -426,18 +426,18 @@ MODEL_PATH = os.path.join(
 )
 
 CLASS_NAMES = {
-    1:  'Ammonium Biurate',
-    2:  'CaOx Dihydrate',
-    3:  'CaOx Monohydrate Ovoid',
-    4:  'Casts',
-    5:  'Epithelial Cells',
-    6:  'Lipids',
-    7:  'Microorganisms',
-    8:  'Misc',
-    9:  'Red Blood Cells',
-    10: 'Triple Phosphate',
-    11: 'Uric Acid',
-    12: 'White Blood Cells',
+    0:  'Ammonium Biurate',
+    1:  'CaOx Dihydrate',
+    2:  'CaOx Monohydrate Ovoid',
+    3:  'Casts',
+    4:  'Epithelial Cells',
+    5:  'Lipids',
+    6:  'Microorganisms',
+    7:  'Misc',
+    8:  'Red Blood Cells',
+    9:  'Triple Phosphate',
+    10: 'Uric Acid',
+    11: 'White Blood Cells',
 }
 
 RISK_MAP = {

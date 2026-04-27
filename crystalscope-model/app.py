@@ -422,23 +422,37 @@ CORS(app)
 
 # ─── Paths & constants ────────────────────────────────────────────────────────
 MODEL_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_DF-DETRl.pt'
+    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_particlesDETRL.pt'
 )
 
 CLASS_NAMES = {
-    1: 'Ammonium Biurate',
-    2: 'CaOx Dihydrate',
-    3: 'CaOx Monohydrate Ovoid',
-    4: 'Triple Phosphate',
-    5: 'Uric Acid',
+    1:  'Ammonium Biurate',
+    2:  'CaOx Dihydrate',
+    3:  'CaOx Monohydrate Ovoid',
+    4:  'Casts',
+    5:  'Epithelial Cells',
+    6:  'Lipids',
+    7:  'Microorganisms',
+    8:  'Misc',
+    9:  'Red Blood Cells',
+    10: 'Triple Phosphate',
+    11: 'Uric Acid',
+    12: 'White Blood Cells',
 }
 
 RISK_MAP = {
     'Ammonium Biurate':       'Moderate',
     'CaOx Dihydrate':         'High',
     'CaOx Monohydrate Ovoid': 'High',
+    'Casts':                  'High',
+    'Epithelial Cells':       'Low',
+    'Lipids':                 'Moderate',
+    'Microorganisms':         'High',
+    'Misc':                   'Low',
+    'Red Blood Cells':        'High',
     'Triple Phosphate':       'Moderate',
     'Uric Acid':              'High',
+    'White Blood Cells':      'High',
 }
 
 UPLOAD_FOLDER = 'temp_uploads'
@@ -532,7 +546,7 @@ def get_threshold_with_retry(pil_image: Image.Image) -> float:
 # ══════════════════════════════════════════════════════════════════════════════
 class RFDETRDetectionModel(DetectionModel):
 
-    def __init__(self, model_path, confidence_threshold=0.35, device="cuda:0", **kwargs):
+    def __init__(self, model_path, confidence_threshold=0.35, device="cpu:0", **kwargs):
         # Do NOT call super().__init__() — it calls load_model() too early
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
@@ -545,7 +559,7 @@ class RFDETRDetectionModel(DetectionModel):
         """Load RF-DETR XL weights."""
         self.model = RFDETRLarge(
         pretrain_weights=self.model_path,
-        num_classes=5,
+        num_classes=11,
     )
         self.set_model(self.model)
 
@@ -622,8 +636,8 @@ class RFDETRDetectionModel(DetectionModel):
 # ─── Instantiate once at startup ─────────────────────────────────────────────
 detection_model = RFDETRDetectionModel(
     model_path=MODEL_PATH,
-    confidence_threshold=0.35,  # default — overridden per-request by adaptive
-    device="cuda:0",
+    confidence_threshold=0.2,  # default — overridden per-request by adaptive
+    device="cpu:0",
 )
 # ──────────────────────────────────────────────────────────────────────────────
 

@@ -6,8 +6,8 @@
 
 export const PARTICLE_TYPES = [
   // Cells
-  { key: 'rbc',            label: 'RBC',                    group: 'Cells',          color: '#E24B4A', risk: 'High'     },
-  { key: 'wbc',            label: 'WBC',                    group: 'Cells',          color: '#F5A623', risk: 'Moderate' },
+  { key: 'rbc',            label: 'Red Blood Cells',                    group: 'Cells',          color: '#E24B4A', risk: 'High'     },
+  { key: 'wbc',            label: 'White Blood Cells',                    group: 'Cells',          color: '#F5A623', risk: 'Moderate' },
   { key: 'epithelial',     label: 'Epithelial Cells',       group: 'Cells',          color: '#4A90D9', risk: 'Low'      },
   // Casts
   { key: 'cast',           label: 'Cast',                   group: 'Casts',          color: '#7B5EA7', risk: 'Moderate' },

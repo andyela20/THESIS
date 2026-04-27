@@ -20,6 +20,49 @@ function injectStyles() {
   document.head.appendChild(el);
 }
 
+/**
+ * Resizes any image File to exactly 704×704 (cover crop, centered)
+ * and returns a new File object with the same name but as image/jpeg.
+ */
+function resizeTo704(file) {
+  return new Promise((resolve, reject) => {
+    const TARGET = 704;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = TARGET;
+      canvas.height = TARGET;
+      const ctx = canvas.getContext('2d');
+
+      // Cover-crop: scale so the shorter side fills 704, center the longer side
+      const scale = Math.max(TARGET / img.width, TARGET / img.height);
+      const drawW = img.width  * scale;
+      const drawH = img.height * scale;
+      const offsetX = (TARGET - drawW) / 2;
+      const offsetY = (TARGET - drawH) / 2;
+
+      ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
+          // Keep the original filename, swap extension to .jpg
+          const newName = file.name.replace(/\.[^.]+$/, '') + '_704x704.jpg';
+          const resized = new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() });
+          resolve(resized);
+        },
+        'image/jpeg',
+        0.92          // quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
 export default function Upload({
   goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
   currentPatient, setCurrentPatient, clearCurrentPatient,
@@ -52,9 +95,10 @@ export default function Upload({
   const [searchLoading, setSearchLoading]   = useState(false);
   const [showDropdown, setShowDropdown]     = useState(false);
   const [uploadedImage, setUploadedImage]   = useState(null);
+  const [resizing, setResizing]             = useState(false);   // ← NEW
   const [loading, setLoading]               = useState(false);
   const [analyzing, setAnalyzing]           = useState(false);
-  const [analyzeStep, setAnalyzeStep]       = useState(0); // 0=idle 1=uploading 2=analyzing 3=done
+  const [analyzeStep, setAnalyzeStep]       = useState(0);
   const [showAnalysisForm, setShowAnalysisForm] = useState(false);
   const [minimized, setMinimized]           = useState(false);
   const [expanded, setExpanded]             = useState(false);
@@ -150,16 +194,32 @@ export default function Upload({
     setPatientAge(''); setPatientSex(''); setPatientContact('');
     setUploadedImage(null); setSearchQuery(''); setTab('new');
     setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
-    setAnalyzing(false); setAnalyzeStep(0);
+    setAnalyzing(false); setAnalyzeStep(0); setResizing(false);
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
   const openModal = () => { setShowAnalysisForm(true); setMinimized(false); setExpanded(false); };
-  const handleFileChange    = (e) => { const f = e.target.files[0]; if (f) setUploadedImage(f); };
+
+  // ── Core image handler: auto-resize to 704×704 ──────────────────────────
+  const applyImageFile = async (file) => {
+    if (!file) return;
+    setResizing(true);
+    try {
+      const resized = await resizeTo704(file);
+      setUploadedImage(resized);
+    } catch (err) {
+      console.error('Resize failed, using original:', err);
+      setUploadedImage(file);   // fallback: use original if canvas fails
+    } finally {
+      setResizing(false);
+    }
+  };
+
+  const handleFileChange    = (e) => { const f = e.target.files[0]; if (f) applyImageFile(f); };
   const handleDropzoneClick = () => { if (!patientId) return; fileInputRef.current.click(); };
-  const handleDrop          = (e) => { e.preventDefault(); if (!patientId) return; const f = e.dataTransfer.files[0]; if (f) setUploadedImage(f); };
+  const handleDrop          = (e) => { e.preventDefault(); if (!patientId) return; const f = e.dataTransfer.files[0]; if (f) applyImageFile(f); };
   const handleDragOver      = (e) => e.preventDefault();
-  const handleRemoveImage   = () => { setUploadedImage(null); fileInputRef.current.value = ''; };
+  const handleRemoveImage   = () => { setUploadedImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; };
 
   const handleAnalyze = async () => {
     if (!uploadedImage || !patientId) return;
@@ -191,7 +251,6 @@ export default function Upload({
   const modalW = expanded ? 'min(92vw, 1100px)' : '660px';
   const modalH = expanded ? '90vh' : '640px';
 
-  // Step labels shown in the overlay
   const STEP_LABELS = ['', 'Uploading image…', 'AI detecting crystals…', 'Analysis complete!'];
   const STEP_PILLS  = [
     { label: 'Upload',   done: analyzeStep >= 2 },
@@ -338,18 +397,13 @@ export default function Upload({
         <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget && !analyzing) setMinimized(true); }}>
           <div style={{ ...s.modal, width: modalW, maxHeight: modalH, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)' }}>
 
-            {/* ════════════════════════════════════════
-                ANALYZING OVERLAY — covers modal body
-                ════════════════════════════════════════ */}
+            {/* ANALYZING OVERLAY */}
             {analyzing && (
               <div style={s.analyzingOverlay}>
-                {/* Blurred image ghost in background */}
                 {uploadedImage && (
                   <img src={URL.createObjectURL(uploadedImage)} alt="" style={s.analyzingBgImg} />
                 )}
-
                 <div style={s.analyzingContent}>
-                  {/* Pulsing ring + microscope icon */}
                   <div style={s.pulseWrapper}>
                     <div style={s.pulseRingOuter} />
                     <div style={s.pulseRingInner} />
@@ -365,26 +419,14 @@ export default function Upload({
                       }
                     </div>
                   </div>
-
-                  {/* Main label */}
-                  <div style={s.analyzingLabel}>
-                    {STEP_LABELS[analyzeStep] || 'Processing…'}
-                  </div>
-
-                  {/* Bouncing dots (hidden on done) */}
+                  <div style={s.analyzingLabel}>{STEP_LABELS[analyzeStep] || 'Processing…'}</div>
                   {analyzeStep < 3 && (
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {[0, 1, 2].map(i => (
-                        <div key={i} style={{
-                          width: '7px', height: '7px', borderRadius: '50%',
-                          background: '#1F5330',
-                          animation: `dotBounce 1.1s ease-in-out ${i * 0.18}s infinite`,
-                        }} />
+                        <div key={i} style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#1F5330', animation: `dotBounce 1.1s ease-in-out ${i * 0.18}s infinite` }} />
                       ))}
                     </div>
                   )}
-
-                  {/* Scan preview box */}
                   <div style={s.scanBox}>
                     <div style={s.scanGrid}>
                       {Array.from({ length: 9 }).map((_, i) => (
@@ -398,32 +440,20 @@ export default function Upload({
                       </div>
                     )}
                   </div>
-
-                  {/* Step pills */}
                   <div style={{ display: 'flex', gap: '7px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     {STEP_PILLS.map((st) => (
-                      <div key={st.label} style={{
-                        display: 'flex', alignItems: 'center', gap: '4px',
-                        padding: '4px 13px', borderRadius: '20px',
-                        fontSize: '11px', fontWeight: 600,
-                        background: st.done ? '#1F5330' : 'rgba(31,83,48,0.07)',
-                        color: st.done ? '#fff' : '#8C9A8C',
-                        border: `1px solid ${st.done ? '#1F5330' : '#D8DAD0'}`,
-                        transition: 'all 0.35s ease',
-                      }}>
+                      <div key={st.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 13px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: st.done ? '#1F5330' : 'rgba(31,83,48,0.07)', color: st.done ? '#fff' : '#8C9A8C', border: `1px solid ${st.done ? '#1F5330' : '#D8DAD0'}`, transition: 'all 0.35s ease' }}>
                         {st.done && <span style={{ fontSize: '9px' }}>✓</span>}
                         {st.label}
                       </div>
                     ))}
                   </div>
-
                   <div style={{ fontSize: '11px', color: '#A4AAA4', marginTop: '2px' }}>
                     {analyzeStep === 3 ? 'Redirecting to results…' : 'Please wait while the AI processes the sample…'}
                   </div>
                 </div>
               </div>
             )}
-            {/* ════════════════════════════════════════ */}
 
             {/* Modal titlebar */}
             <div style={s.modalHead}>
@@ -541,14 +571,22 @@ export default function Upload({
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 0 0 20px' : '0' }}>
                 <div style={s.sectionLabel}><span style={s.sectionNum}>02</span> Upload Image</div>
                 <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
-                {!uploadedImage ? (
+
+                {/* ── Resizing spinner state ── */}
+                {resizing ? (
+                  <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Resizing to 704 × 704…</div>
+                    <div style={{ fontSize: '10px', color: '#A4AAA4' }}>Optimizing image for the detection model</div>
+                  </div>
+                ) : !uploadedImage ? (
                   <div onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}
                     style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed', flex: expanded ? 1 : 'unset' }}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={patientId ? '#1F5330' : '#C9CAC0'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>{patientId ? 'Drop image here or click to upload' : 'Add patient first'}</div>
-                    <div style={{ fontSize: '11px', color: '#A4AAA4' }}>JPEG, PNG · Max 10 MB</div>
+                    <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG · Max 10 MB</div>
                     <div style={{ display: 'flex', gap: '6px' }}>{['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}</div>
                   </div>
                 ) : (
@@ -558,7 +596,10 @@ export default function Upload({
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514' }}>{uploadedImage.name}</div>
-                      <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>{(uploadedImage.size / 1024).toFixed(1)} KB · Ready to analyze</div>
+                      {/* Show resized size badge */}
+                      <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>
+                        {(uploadedImage.size / 1024).toFixed(1)} KB · 704 × 704 · Ready to analyze
+                      </div>
                     </div>
                     <button onClick={handleRemoveImage} style={{ ...s.editBtn, color: '#E24B4A' }}>✕ Remove</button>
                   </div>
@@ -569,13 +610,14 @@ export default function Upload({
             {/* Footer */}
             <div style={s.modalFoot}>
               {!patientId && <span style={s.hint}>⚠ Add a patient first</span>}
-              {patientId && !uploadedImage && <span style={s.hint}>⚠ Upload an image to continue</span>}
+              {patientId && !uploadedImage && !resizing && <span style={s.hint}>⚠ Upload an image to continue</span>}
+              {resizing && <span style={{ ...s.hint, color: '#1F5330' }}>⏳ Resizing image…</span>}
               <div style={{ flex: 1 }} />
-              <button onClick={handleReset} style={s.cancelBtn} disabled={analyzing}>Cancel</button>
+              <button onClick={handleReset} style={s.cancelBtn} disabled={analyzing || resizing}>Cancel</button>
               <button
                 onClick={handleAnalyze}
-                style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!uploadedImage || !patientId || analyzing) ? 0.55 : 1, cursor: (!uploadedImage || !patientId || analyzing) ? 'not-allowed' : 'pointer' }}
-                disabled={!uploadedImage || !patientId || analyzing}
+                style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!uploadedImage || !patientId || analyzing || resizing) ? 0.55 : 1, cursor: (!uploadedImage || !patientId || analyzing || resizing) ? 'not-allowed' : 'pointer' }}
+                disabled={!uploadedImage || !patientId || analyzing || resizing}
               >
                 {analyzing
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -637,76 +679,17 @@ const s = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(8,18,10,0.58)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   modal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.24), 0 4px 20px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', overflow: 'hidden', maxWidth: '95vw', position: 'relative' },
 
-  // ── Analyzing overlay ──
-  analyzingOverlay: {
-    position: 'absolute', inset: 0, zIndex: 20,
-    background: 'rgba(243,245,238,0.97)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '16px',
-    display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center',
-    animation: 'fadeInScale 0.28s ease',
-  },
-  analyzingBgImg: {
-    position: 'absolute', inset: 0,
-    width: '100%', height: '100%',
-    objectFit: 'cover', opacity: 0.07,
-    borderRadius: '16px',
-    filter: 'blur(14px) saturate(0.4)',
-    pointerEvents: 'none',
-  },
-  analyzingContent: {
-    position: 'relative', zIndex: 1,
-    display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '16px',
-    padding: '0 40px',
-  },
-  pulseWrapper: {
-    position: 'relative', width: '84px', height: '84px',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  pulseRingOuter: {
-    position: 'absolute', inset: '-4px', borderRadius: '50%',
-    border: '2.5px solid rgba(31,83,48,0.3)',
-    animation: 'pulseRing 1.7s ease-in-out infinite',
-  },
-  pulseRingInner: {
-    position: 'absolute', inset: '10px', borderRadius: '50%',
-    border: '2px solid rgba(31,83,48,0.2)',
-    animation: 'pulseRing 1.7s ease-in-out 0.45s infinite',
-  },
-  pulseIconCircle: {
-    width: '60px', height: '60px', borderRadius: '50%',
-    background: '#fff',
-    border: '2px solid #D8DAD0',
-    boxShadow: '0 4px 18px rgba(31,83,48,0.14)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  analyzingLabel: {
-    fontSize: '17px', fontWeight: 700, color: '#141514',
-    letterSpacing: '-0.3px', textAlign: 'center',
-  },
-  // Scan box
-  scanBox: {
-    width: '188px', height: '96px',
-    borderRadius: '10px',
-    border: '1.5px solid #D8DAD0',
-    background: '#fff',
-    position: 'relative', overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-  },
-  scanGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridTemplateRows: 'repeat(3,1fr)',
-    gap: '3px', padding: '6px',
-    height: '100%', boxSizing: 'border-box',
-  },
-  scanLine: {
-    position: 'absolute', left: '4px', right: '4px', height: '2px',
-    background: 'linear-gradient(90deg, transparent 0%, #1F5330 40%, #6D9922 60%, transparent 100%)',
-    boxShadow: '0 0 10px rgba(31,83,48,0.7)',
-    animation: 'scanLine 1.5s ease-in-out infinite alternate',
-    top: '6%',
-  },
+  analyzingOverlay: { position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(243,245,238,0.97)', backdropFilter: 'blur(10px)', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'fadeInScale 0.28s ease' },
+  analyzingBgImg:   { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.07, borderRadius: '16px', filter: 'blur(14px) saturate(0.4)', pointerEvents: 'none' },
+  analyzingContent: { position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '0 40px' },
+  pulseWrapper:     { position: 'relative', width: '84px', height: '84px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pulseRingOuter:   { position: 'absolute', inset: '-4px', borderRadius: '50%', border: '2.5px solid rgba(31,83,48,0.3)', animation: 'pulseRing 1.7s ease-in-out infinite' },
+  pulseRingInner:   { position: 'absolute', inset: '10px', borderRadius: '50%', border: '2px solid rgba(31,83,48,0.2)', animation: 'pulseRing 1.7s ease-in-out 0.45s infinite' },
+  pulseIconCircle:  { width: '60px', height: '60px', borderRadius: '50%', background: '#fff', border: '2px solid #D8DAD0', boxShadow: '0 4px 18px rgba(31,83,48,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  analyzingLabel:   { fontSize: '17px', fontWeight: 700, color: '#141514', letterSpacing: '-0.3px', textAlign: 'center' },
+  scanBox:  { width: '188px', height: '96px', borderRadius: '10px', border: '1.5px solid #D8DAD0', background: '#fff', position: 'relative', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  scanGrid: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridTemplateRows: 'repeat(3,1fr)', gap: '3px', padding: '6px', height: '100%', boxSizing: 'border-box' },
+  scanLine: { position: 'absolute', left: '4px', right: '4px', height: '2px', background: 'linear-gradient(90deg, transparent 0%, #1F5330 40%, #6D9922 60%, transparent 100%)', boxShadow: '0 0 10px rgba(31,83,48,0.7)', animation: 'scanLine 1.5s ease-in-out infinite alternate', top: '6%' },
 
   modalHead:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 18px', background: '#1F5330', flexShrink: 0 },
   modalHeadIcon: { width: '26px', height: '26px', borderRadius: '6px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' },

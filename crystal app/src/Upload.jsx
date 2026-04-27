@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, getAnalyses } from './api';
@@ -49,13 +49,47 @@ function resizeTo704(file) {
       canvas.toBlob(
         (blob) => {
           if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
-          // Keep the original filename, swap extension to .jpg
           const newName = file.name.replace(/\.[^.]+$/, '') + '_704x704.jpg';
           const resized = new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() });
           resolve(resized);
         },
         'image/jpeg',
-        0.92          // quality
+        0.92
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
+/**
+ * Resizes a canvas snapshot (blob) to 704×704 and returns a File.
+ */
+function resizeBlobTo704(blob, filename) {
+  return new Promise((resolve, reject) => {
+    const TARGET = 704;
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width = TARGET;
+      canvas.height = TARGET;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(TARGET / img.width, TARGET / img.height);
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const offsetX = (TARGET - drawW) / 2;
+      const offsetY = (TARGET - drawH) / 2;
+      ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+      canvas.toBlob(
+        (resizedBlob) => {
+          if (!resizedBlob) { reject(new Error('Canvas toBlob failed')); return; }
+          const file = new File([resizedBlob], filename, { type: 'image/jpeg', lastModified: Date.now() });
+          resolve(file);
+        },
+        'image/jpeg',
+        0.92
       );
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
@@ -95,7 +129,7 @@ export default function Upload({
   const [searchLoading, setSearchLoading]   = useState(false);
   const [showDropdown, setShowDropdown]     = useState(false);
   const [uploadedImage, setUploadedImage]   = useState(null);
-  const [resizing, setResizing]             = useState(false);   // ← NEW
+  const [resizing, setResizing]             = useState(false);
   const [loading, setLoading]               = useState(false);
   const [analyzing, setAnalyzing]           = useState(false);
   const [analyzeStep, setAnalyzeStep]       = useState(0);
@@ -103,8 +137,28 @@ export default function Upload({
   const [minimized, setMinimized]           = useState(false);
   const [expanded, setExpanded]             = useState(false);
 
+  // ── Camera state ─────────────────────────────────────────────────────────
+  const [showCamera, setShowCamera]         = useState(false);
+  const [cameraStream, setCameraStream]     = useState(null);
+  const [cameraError, setCameraError]       = useState('');
+  const [capturing, setCapturing]           = useState(false);
+  const [facingMode, setFacingMode]         = useState('environment'); // 'environment' = back cam
+  // ─────────────────────────────────────────────────────────────────────────
+
   const searchRef    = useRef(null);
   const fileInputRef = useRef(null);
+  const videoRef     = useRef(null);   // ← camera video element
+  const canvasRef    = useRef(null);   // ← hidden canvas for snapshot
+
+  // ── Camera helpers ───────────────────────────────────────────────────────
+  const stopCamera = useCallback(() => {
+    setCameraStream((stream) => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      return null;
+    });
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -161,6 +215,19 @@ export default function Upload({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // ── Attach camera stream to video element when stream is set ─────────────
+  useEffect(() => {
+    if (cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream, showCamera]);
+
+  // ── Clean up camera stream on unmount ────────────────────────────────────
+  useEffect(() => {
+    return () => { stopCamera(); };
+  }, [stopCamera]);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const handleSelectSearchResult = (patient) => {
     setPatientName(patient.name || ''); setPatientDOB(patient.dob || '');
     setPatientAddress(patient.address || ''); setPatientAge(patient.age || '');
@@ -190,11 +257,13 @@ export default function Upload({
   };
 
   const handleReset = () => {
+    stopCamera();
     setPatientName(''); setPatientId(null); setPatientDOB(''); setPatientAddress('');
     setPatientAge(''); setPatientSex(''); setPatientContact('');
     setUploadedImage(null); setSearchQuery(''); setTab('new');
     setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
     setAnalyzing(false); setAnalyzeStep(0); setResizing(false);
+    setShowCamera(false); setCameraError('');
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
@@ -209,7 +278,7 @@ export default function Upload({
       setUploadedImage(resized);
     } catch (err) {
       console.error('Resize failed, using original:', err);
-      setUploadedImage(file);   // fallback: use original if canvas fails
+      setUploadedImage(file);
     } finally {
       setResizing(false);
     }
@@ -220,6 +289,78 @@ export default function Upload({
   const handleDrop          = (e) => { e.preventDefault(); if (!patientId) return; const f = e.dataTransfer.files[0]; if (f) applyImageFile(f); };
   const handleDragOver      = (e) => e.preventDefault();
   const handleRemoveImage   = () => { setUploadedImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; };
+
+  // ── Camera helpers ───────────────────────────────────────────────────────
+  const openCamera = async () => {
+    if (!patientId) return;
+    setCameraError('');
+    setShowCamera(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+    } catch (err) {
+      console.error('Camera error:', err);
+      if (err.name === 'NotAllowedError') {
+        setCameraError('Camera permission denied. Please allow camera access in your browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        setCameraError('No camera found on this device.');
+      } else {
+        setCameraError('Could not access camera: ' + err.message);
+      }
+    }
+  };
+
+  const closeCamera = () => {
+    stopCamera();
+    setShowCamera(false);
+    setCameraError('');
+  };
+
+  const switchCamera = async () => {
+    stopCamera();
+    const next = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(next);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: next, width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+    } catch (err) {
+      setCameraError('Could not switch camera: ' + err.message);
+    }
+  };
+
+  const handleCapture = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    setCapturing(true);
+    try {
+      const video  = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width  = video.videoWidth  || 1280;
+      canvas.height = video.videoHeight || 1280;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename  = `capture_${timestamp}_704x704.jpg`;
+
+      setResizing(true);
+      const resizedFile = await resizeBlobTo704(blob, filename);
+      setUploadedImage(resizedFile);
+      closeCamera();
+    } catch (err) {
+      console.error('Capture error:', err);
+      setCameraError('Failed to capture image. Please try again.');
+    } finally {
+      setCapturing(false);
+      setResizing(false);
+    }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const handleAnalyze = async () => {
     if (!uploadedImage || !patientId) return;
@@ -359,56 +500,56 @@ export default function Upload({
                   <div style={s.cardHead}><span style={s.cardTitle}>Quick Actions</span></div>
                   <div style={s.quickGrid}>
                     {[
-                      { 
-  label: 'New Analysis', 
-  icon: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="17 8 12 3 7 8"/>
-      <line x1="12" y1="3" x2="12" y2="15"/>
-    </svg>
-  ), 
-  onClick: openModal 
-},
-{ 
-  label: 'Patients', 
-  icon: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ), 
-  onClick: goToPatients 
-},
-{ 
-  label: 'Library', 
-  icon: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="3"/>
-      <path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z"/>
-      <path d="M2 2l4 4"/>
-      <path d="M22 22l-4-4"/>
-      <line x1="8" y1="11" x2="2" y2="11"/>
-      <line x1="22" y1="11" x2="14" y2="11"/>
-    </svg>
-  ), 
-  onClick: goToLibrary 
-},
-{ 
-  label: 'Reports', 
-  icon: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="16" y1="13" x2="8" y2="13"/>
-      <line x1="16" y1="17" x2="8" y2="17"/>
-      <polyline points="10 9 9 9 8 9"/>
-    </svg>
-  ), 
-  onClick: goToExport 
-},
+                      {
+                        label: 'New Analysis',
+                        icon: (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                          </svg>
+                        ),
+                        onClick: openModal
+                      },
+                      {
+                        label: 'Patients',
+                        icon: (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                          </svg>
+                        ),
+                        onClick: goToPatients
+                      },
+                      {
+                        label: 'Library',
+                        icon: (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="3"/>
+                            <path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z"/>
+                            <path d="M2 2l4 4"/>
+                            <path d="M22 22l-4-4"/>
+                            <line x1="8" y1="11" x2="2" y2="11"/>
+                            <line x1="22" y1="11" x2="14" y2="11"/>
+                          </svg>
+                        ),
+                        onClick: goToLibrary
+                      },
+                      {
+                        label: 'Reports',
+                        icon: (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                          </svg>
+                        ),
+                        onClick: goToExport
+                      },
                     ].map((a, i) => (
                       <button key={i} onClick={a.onClick} style={s.quickBtn}>
                         <span style={{ fontSize: '18px' }}>{a.icon}</span>
@@ -616,33 +757,86 @@ export default function Upload({
               {/* Image upload column */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 0 0 20px' : '0' }}>
                 <div style={s.sectionLabel}><span style={s.sectionNum}>02</span> Upload Image</div>
+                {/* Hidden file input & canvas */}
                 <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-                {/* ── Resizing spinner state ── */}
+                {/* ── Resizing spinner ── */}
                 {resizing ? (
                   <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Resizing to 704 × 704…</div>
                     <div style={{ fontSize: '10px', color: '#A4AAA4' }}>Optimizing image for the detection model</div>
                   </div>
+
                 ) : !uploadedImage ? (
-                  <div onClick={handleDropzoneClick} onDrop={handleDrop} onDragOver={handleDragOver}
-                    style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, cursor: patientId ? 'pointer' : 'not-allowed', flex: expanded ? 1 : 'unset' }}>
+                  /* ── Dropzone with Upload + Camera buttons ── */
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, flex: expanded ? 1 : 'unset', cursor: 'default' }}
+                  >
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={patientId ? '#1F5330' : '#C9CAC0'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>{patientId ? 'Drop image here or click to upload' : 'Add patient first'}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>
+                      {patientId ? 'Drop image here or choose an option below' : 'Add patient first'}
+                    </div>
                     <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG · Max 10 MB</div>
-                    <div style={{ display: 'flex', gap: '6px' }}>{['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}</div>
+
+                    {/* Two action buttons */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      {/* Upload from file */}
+                      <button
+                        onClick={handleDropzoneClick}
+                        disabled={!patientId}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #D8DAD0',
+                          background: '#fff', fontSize: '12px', fontWeight: 600, color: '#1F5330',
+                          cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif",
+                          opacity: patientId ? 1 : 0.5,
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Browse File
+                      </button>
+
+                      {/* Open Camera */}
+                      <button
+                        onClick={openCamera}
+                        disabled={!patientId}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #1F5330',
+                          background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff',
+                          cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif",
+                          opacity: patientId ? 1 : 0.5,
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                          <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                        Use Camera
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                      {['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}
+                    </div>
                   </div>
+
                 ) : (
+                  /* ── Uploaded image banner ── */
                   <div style={s.uploadedBox}>
                     <div style={s.fileIconWrap}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514' }}>{uploadedImage.name}</div>
-                      {/* Show resized size badge */}
                       <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>
                         {(uploadedImage.size / 1024).toFixed(1)} KB · 704 × 704 · Ready to analyze
                       </div>
@@ -676,6 +870,113 @@ export default function Upload({
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          CAMERA MODAL
+      ══════════════════════════════════════════════════════════════════ */}
+      {showCamera && (
+        <div style={s.cameraOverlay}>
+          <div style={s.cameraModal}>
+
+            {/* Camera header */}
+            <div style={s.cameraHead}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Capture Image</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Switch camera button */}
+                {cameraStream && (
+                  <button onClick={switchCamera} title="Switch camera" style={s.camCtrlBtn}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 7h-9"/><path d="M14 17H5"/><polyline points="17 4 20 7 17 10"/><polyline points="8 14 5 17 8 20"/>
+                    </svg>
+                  </button>
+                )}
+                <button onClick={closeCamera} style={{ ...s.camCtrlBtn, background: 'rgba(226,75,74,0.35)', borderColor: 'rgba(226,75,74,0.5)' }}>
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1 1l7 7M8 1l-7 7" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Camera body */}
+            <div style={s.cameraBody}>
+              {cameraError ? (
+                /* Error state */
+                <div style={s.cameraError}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#A32D2D', textAlign: 'center', maxWidth: '280px' }}>{cameraError}</div>
+                  <button onClick={closeCamera} style={s.addBtn}>Close</button>
+                </div>
+              ) : !cameraStream ? (
+                /* Loading state */
+                <div style={s.cameraError}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Starting camera…</div>
+                </div>
+              ) : (
+                /* Live video */
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={s.cameraVideo}
+                />
+              )}
+
+              {/* Corner guides overlay */}
+              {cameraStream && !cameraError && (
+                <div style={s.cameraGuide}>
+                  {/* top-left */}
+                  <div style={{ position: 'absolute', top: 16, left: 16, width: 28, height: 28, borderTop: '2.5px solid rgba(255,255,255,0.8)', borderLeft: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '3px 0 0 0' }} />
+                  {/* top-right */}
+                  <div style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderTop: '2.5px solid rgba(255,255,255,0.8)', borderRight: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '0 3px 0 0' }} />
+                  {/* bottom-left */}
+                  <div style={{ position: 'absolute', bottom: 16, left: 16, width: 28, height: 28, borderBottom: '2.5px solid rgba(255,255,255,0.8)', borderLeft: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '0 0 0 3px' }} />
+                  {/* bottom-right */}
+                  <div style={{ position: 'absolute', bottom: 16, right: 16, width: 28, height: 28, borderBottom: '2.5px solid rgba(255,255,255,0.8)', borderRight: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '0 0 3px 0' }} />
+                </div>
+              )}
+            </div>
+
+            {/* Camera footer */}
+            <div style={s.cameraFoot}>
+              <div style={{ fontSize: '11px', color: '#A4AAA4' }}>
+                {cameraStream ? 'Position sample in frame, then capture' : ''}
+              </div>
+              <div style={{ flex: 1 }} />
+              <button onClick={closeCamera} style={s.cancelBtn}>Cancel</button>
+              <button
+                onClick={handleCapture}
+                disabled={!cameraStream || capturing || !!cameraError}
+                style={{
+                  ...s.analyzeBtn,
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  opacity: (!cameraStream || capturing || !!cameraError) ? 0.55 : 1,
+                  cursor: (!cameraStream || capturing || !!cameraError) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {capturing
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <circle cx="12" cy="12" r="10"/>
+                      <circle cx="12" cy="12" r="4"/>
+                    </svg>
+                }
+                {capturing ? 'Capturing…' : 'Capture'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -778,6 +1079,15 @@ const s = {
   pillBadge:  { background: 'rgba(255,255,255,0.2)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', fontWeight: 600, color: '#fff' },
   pillBadge2: { background: 'rgba(31,181,5,0.25)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', fontWeight: 600, color: '#9fff85' },
   pillClose:  { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', width: '20px', height: '20px', borderRadius: '50%', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '2px' },
-};  
 
-
+  // ── Camera modal styles ────────────────────────────────────────────────────
+  cameraOverlay: { position: 'fixed', inset: 0, background: 'rgba(8,18,10,0.72)', backdropFilter: 'blur(6px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  cameraModal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '560px', maxWidth: '95vw', maxHeight: '90vh' },
+  cameraHead:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 18px', background: '#141514', flexShrink: 0 },
+  camCtrlBtn:    { width: '28px', height: '28px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  cameraBody:    { flex: 1, background: '#0A0A0A', position: 'relative', minHeight: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  cameraVideo:   { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  cameraGuide:   { position: 'absolute', inset: 0, pointerEvents: 'none' },
+  cameraError:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '40px 24px' },
+  cameraFoot:    { padding: '12px 18px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
+};

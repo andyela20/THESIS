@@ -251,7 +251,7 @@ export default function Upload({
   const modalW = expanded ? 'min(92vw, 1100px)' : '660px';
   const modalH = expanded ? '90vh' : '640px';
 
-  const STEP_LABELS = ['', 'Uploading image…', 'AI detecting crystals…', 'Analysis complete!'];
+  const STEP_LABELS = ['', 'Uploading image…', 'AI detecting particles…', 'Analysis complete!'];
   const STEP_PILLS  = [
     { label: 'Upload',   done: analyzeStep >= 2 },
     { label: 'Analyze',  done: analyzeStep >= 3 },

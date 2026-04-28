@@ -15,8 +15,6 @@ export const PARTICLE_TYPES = [
   { key: 'misc',           label: 'Misc',                   group: 'Misc',           color: '#A0845C', risk: 'Low'      },
   // Microorganisms
   { key: 'microorganisms', label: 'Microorganisms',         group: 'Microorganisms', color: '#D4A017', risk: 'High'     },
-  // Lipids
-  { key: 'lipids',         label: 'Lipids',                 group: 'Lipids',         color: '#F0C040', risk: 'Moderate' },
   // Crystals — detected by RF-DETR
   { key: 'caox_di',        label: 'CaOx Dihydrate',         group: 'Crystals',       color: '#E8735A', risk: 'High'     },
   { key: 'caox_mono',      label: 'CaOx Monohydrate Ovoid', group: 'Crystals',       color: '#C0392B', risk: 'High'     },

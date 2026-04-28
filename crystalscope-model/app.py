@@ -27,12 +27,11 @@ MODEL_PATH = os.path.join(
 )
 
 CLASS_NAMES = {
-    0:  'Ammonium Biurate',
-    1:  'CaOx Dihydrate',
-    2:  'CaOx Monohydrate Ovoid',
-    3:  'Casts',
-    4:  'Epithelial Cells',
-    5:  'Lipids',
+    1:  'Ammonium Biurate',
+    2:  'CaOx Dihydrate',
+    3:  'CaOx Monohydrate Ovoid',
+    4:  'Casts',
+    5:  'Epithelial Cells',
     6:  'Microorganisms',
     7:  'Misc',
     8:  'Red Blood Cells',

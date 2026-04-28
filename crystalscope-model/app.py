@@ -71,26 +71,34 @@ def encode_image_to_base64(image_path: str) -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 #  Adaptive Confidence Threshold
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+#  More Sensitive Adaptive Confidence Threshold
+#  Goal: detect more particles
+# ══════════════════════════════════════════════════════════════════════════════
 def get_adaptive_threshold(pil_image: Image.Image) -> float:
-    gray       = np.array(pil_image.convert("L"))
+    gray = np.array(pil_image.convert("L"))
+
     brightness = float(gray.mean())
-    contrast   = float(gray.std())
+    contrast = float(gray.std())
     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
 
-    print(f"[ADAPTIVE] brightness={brightness:.1f} | contrast={contrast:.1f} | blur={blur_score:.1f}")
+    print(
+        f"[ADAPTIVE] brightness={brightness:.1f} | "
+        f"contrast={contrast:.1f} | blur={blur_score:.1f}"
+    )
 
     if blur_score < 40:
-        threshold, reason = 0.52, "very blurry"
+        threshold, reason = 0.30, "very blurry"
     elif brightness < 70 or contrast < 25:
-        threshold, reason = 0.52, "very dark / very low contrast"
+        threshold, reason = 0.28, "dark / low contrast"
     elif brightness > 210 and contrast < 35:
-        threshold, reason = 0.57, "overexposed"
+        threshold, reason = 0.32, "overexposed"
     elif blur_score >= 120 and 90 <= brightness <= 180:
-        threshold, reason = 0.44, "clean, well-balanced image"
+        threshold, reason = 0.25, "clean image"
     elif blur_score >= 80:
-        threshold, reason = 0.47, "moderate quality"
+        threshold, reason = 0.27, "moderate quality"
     else:
-        threshold, reason = 0.48, "default fallback"
+        threshold, reason = 0.30, "fallback"
 
     print(f"[ADAPTIVE] threshold={threshold} ({reason})")
     return threshold
@@ -98,26 +106,32 @@ def get_adaptive_threshold(pil_image: Image.Image) -> float:
 
 def get_threshold_with_retry(pil_image: Image.Image) -> float:
     base_threshold = get_adaptive_threshold(pil_image)
-    test_detections = detection_model.model.predict(pil_image, threshold=base_threshold)
+
+    test_detections = detection_model.model.predict(
+        pil_image,
+        threshold=base_threshold
+    )
+
     count = len(test_detections) if test_detections.class_id is not None else 0
+
     print(f"[RETRY CHECK] detections at {base_threshold}: {count}")
 
     if count == 0:
-        lowered = max(base_threshold - 0.08, 0.40)
+        lowered = 0.18
         print(f"[RETRY] no detections → {base_threshold} → {lowered}")
         return lowered
+
     elif count < 3:
-        lowered = max(base_threshold - 0.04, 0.40)
+        lowered = 0.20
         print(f"[RETRY] few detections → {base_threshold} → {lowered}")
         return lowered
-    elif count > 20:
-        raised = min(base_threshold + 0.05, 0.60)
-        print(f"[RETRY] too many detections → {base_threshold} → {raised}")
-        return raised
+
+    elif count < 8:
+        lowered = 0.22
+        print(f"[RETRY] low detections → {base_threshold} → {lowered}")
+        return lowered
 
     return base_threshold
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  Custom SAHI wrapper for RF-DETR Large
 # ══════════════════════════════════════════════════════════════════════════════

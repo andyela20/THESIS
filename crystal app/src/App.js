@@ -72,88 +72,102 @@ export default function App() {
   return (
     <div>
       {currentPage === 'login' && (
-        <Login onLogin={goToUpload} />
+        <div key="login" className="page-enter-fade">
+          <Login onLogin={goToUpload} />
+        </div>
       )}
       {currentPage === 'upload' && (
-        <Upload
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          currentPatient={currentPatient}
-          setCurrentPatient={addNewPatient}
-          clearCurrentPatient={clearCurrentPatient}
-          badges={badges}
-        />
+        <div key="upload" className="page-enter">
+          <Upload
+            goToResults={goToResults}
+            goToAnalysis={goToAnalysis}
+            goToExport={goToExport}
+            goToPatients={goToPatients}
+            goToLibrary={goToLibrary}
+            goToLogin={goToLogin}
+            currentPatient={currentPatient}
+            setCurrentPatient={addNewPatient}
+            clearCurrentPatient={clearCurrentPatient}
+            badges={badges}
+          />
+        </div>
       )}
       {currentPage === 'results' && (
-        <Results
-          goToUpload={goToUpload}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          addCrystalRecords={addCrystalRecords}
-          analysisData={analysisData}
-          markResultsViewed={markResultsViewed}
-          badges={badges}
-        />
+        <div key="results" className="page-enter">
+          <Results
+            goToUpload={goToUpload}
+            goToAnalysis={goToAnalysis}
+            goToExport={goToExport}
+            goToPatients={goToPatients}
+            goToLibrary={goToLibrary}
+            goToLogin={goToLogin}
+            addCrystalRecords={addCrystalRecords}
+            analysisData={analysisData}
+            markResultsViewed={markResultsViewed}
+            badges={badges}
+          />
+        </div>
       )}
       {currentPage === 'analysis' && (
-        <Analysis
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          analysisData={analysisData}
-          clearAnalysisData={clearAnalysisData}
-          badges={badges}
-        />
+        <div key="analysis" className="page-enter">
+          <Analysis
+            goToUpload={goToUpload}
+            goToResults={goToResults}
+            goToExport={goToExport}
+            goToPatients={goToPatients}
+            goToLibrary={goToLibrary}
+            goToLogin={goToLogin}
+            analysisData={analysisData}
+            clearAnalysisData={clearAnalysisData}
+            badges={badges}
+          />
+        </div>
       )}
       {currentPage === 'export' && (
-        <Export
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          markReportsViewed={markReportsViewed}
-          analysisData={analysisData}
-          clearAnalysisData={clearAnalysisData}
-          badges={badges}
-        />
+        <div key="export" className="page-enter">
+          <Export
+            goToUpload={goToUpload}
+            goToResults={goToResults}
+            goToAnalysis={goToAnalysis}
+            goToPatients={goToPatients}
+            goToLibrary={goToLibrary}
+            goToLogin={goToLogin}
+            markReportsViewed={markReportsViewed}
+            analysisData={analysisData}
+            clearAnalysisData={clearAnalysisData}
+            badges={badges}
+          />
+        </div>
       )}
       {currentPage === 'patients' && (
-        <Patients
-          goToLogin={goToLogin}
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          crystalRecords={crystalRecords}
-          badges={badges}
-        />
+        <div key="patients" className="page-enter">
+          <Patients
+            goToLogin={goToLogin}
+            goToUpload={goToUpload}
+            goToResults={goToResults}
+            goToAnalysis={goToAnalysis}
+            goToExport={goToExport}
+            goToPatients={goToPatients}
+            goToLibrary={goToLibrary}
+            crystalRecords={crystalRecords}
+            badges={badges}
+          />
+        </div>
       )}
       {currentPage === 'library' && (
-        <ParticleLibrary
-          goToLogin={goToLogin}
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          crystalRecords={crystalRecords}
-          badges={badges}
-        />
+        <div key="library" className="page-enter">
+          <ParticleLibrary
+            goToLogin={goToLogin}
+            goToUpload={goToUpload}
+            goToResults={goToResults}
+            goToAnalysis={goToAnalysis}
+            goToExport={goToExport}
+            goToPatients={goToPatients}
+            goToLibrary={goToLibrary}
+            crystalRecords={crystalRecords}
+            badges={badges}
+          />
+        </div>
       )}
     </div>
   );

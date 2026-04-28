@@ -10,46 +10,6 @@ code {
 }
 
 /* ════════════════════════════════════════════════════════
-   iOS-STYLE GLOBAL BUTTON PRESS EFFECT
-   Uses .btn-press class to override inline styles
-   ════════════════════════════════════════════════════════ */
-
-/* Base reset — applies to ALL buttons */
-button {
-  -webkit-tap-highlight-color: transparent;
-  will-change: transform, opacity;
-}
-
-/* .btn-press — add this className to any button with inline styles
-   so the transition isn't blocked by the inline style object      */
-.btn-press {
-  transition: transform 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              opacity 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              box-shadow 0.18s ease,
-              filter 0.15s ease !important;
-}
-
-/* iOS press-down — scale + opacity drop */
-.btn-press:active:not(:disabled) {
-  transform: scale(0.94) !important;
-  opacity: 0.80 !important;
-}
-
-/* Disabled — no press effect */
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-  transform: none !important;
-}
-
-/* Also catch buttons that already have CSS classes (btn-solid etc.)
-   in case they don't have btn-press */
-button:active:not(:disabled):not([style]) {
-  transform: scale(0.94) !important;
-  opacity: 0.82 !important;
-}
-
-/* ════════════════════════════════════════════════════════
    iOS-STYLE PAGE TRANSITIONS
    Apple easing: cubic-bezier(0.25, 0.46, 0.45, 0.94)
    Spring easing: cubic-bezier(0.22, 1, 0.36, 1)
@@ -59,6 +19,9 @@ button:active:not(:disabled):not([style]) {
 @keyframes pageSlideIn {
   from { opacity: 0; transform: translateX(32px); }
   to   { opacity: 1; transform: translateX(0); }
+}
+.page-enter {
+  animation: pageSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ── Page slide in from bottom (modal/drawer style) ── */
@@ -76,15 +39,10 @@ button:active:not(:disabled):not([style]) {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .page-enter-fade {
-  animation: pageFadeIn 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-  opacity: 1;
+  animation: pageFadeIn 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
-/* ── Page enter (slide from right) ── */
-.page-enter {
-  animation: pageSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  opacity: 1;
-}
+/* ── Login box entrance ── */
 @keyframes loginEntrance {
   from { opacity: 0; transform: scale(0.94) translateY(24px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
@@ -93,7 +51,8 @@ button:active:not(:disabled):not([style]) {
   animation: loginEntrance 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* ── Staggered card entrance (for stat cards, list items) ── */
+/* ── Staggered card entrance (for stat cards, list items) ──
+   Usage: add .card-enter and --delay-1 through --delay-4    */
 @keyframes cardEntrance {
   from { opacity: 0; transform: translateY(20px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -204,7 +163,7 @@ button:active:not(:disabled):not([style]) {
 }
 
 /* ════════════════════════════════════════════════════════
-   BUTTON & COMPONENT STYLES
+   EXISTING BUTTON & COMPONENT STYLES (unchanged)
    ════════════════════════════════════════════════════════ */
 
 /* ── Solid button (dark green) ── */
@@ -218,27 +177,22 @@ button:active:not(:disabled):not([style]) {
   color: #fff;
   cursor: pointer;
   font-family: 'Poppins', sans-serif;
-  transition: background 0.18s,
-              transform 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              box-shadow 0.18s,
-              opacity 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  -webkit-tap-highlight-color: transparent;
+  transition: background 0.18s, transform 0.13s, box-shadow 0.18s;
 }
-.btn-solid:hover:not(:disabled) {
+.btn-solid:hover {
   background: #27683e;
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(31,83,48,0.28);
 }
-.btn-solid:active:not(:disabled) {
-  transform: scale(0.94) !important;
-  opacity: 0.82 !important;
-  box-shadow: none !important;
+.btn-solid:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: none;
 }
 .btn-solid:disabled {
   background: #C4C9B8;
   color: #8A8E80;
   cursor: not-allowed;
-  transform: none !important;
+  transform: none;
   box-shadow: none;
   opacity: 0.5;
 }
@@ -254,23 +208,17 @@ button:active:not(:disabled):not([style]) {
   color: #306A33;
   cursor: pointer;
   font-family: 'Poppins', sans-serif;
-  transition: border-color 0.18s,
-              background 0.18s,
-              transform 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              box-shadow 0.18s,
-              opacity 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.18s, background 0.18s, transform 0.13s, box-shadow 0.18s;
 }
-.btn-ghost:hover:not(:disabled) {
+.btn-ghost:hover {
   border-color: #1F5330;
   background: #f2f7f2;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(31,83,48,0.12);
 }
-.btn-ghost:active:not(:disabled) {
-  transform: scale(0.94) !important;
-  opacity: 0.82 !important;
-  box-shadow: none !important;
+.btn-ghost:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: none;
 }
 
 /* ── Logout button ── */
@@ -292,7 +240,7 @@ button:active:not(:disabled):not([style]) {
   box-shadow: 0 5px 14px rgba(226,75,74,0.3);
 }
 .btn-logout:active {
-  transform: scale(0.94) !important;
+  transform: translateY(0) scale(0.97);
   box-shadow: none;
 }
 
@@ -315,7 +263,7 @@ button:active:not(:disabled):not([style]) {
   box-shadow: 0 4px 12px rgba(31,83,48,0.25);
 }
 .btn-small:active {
-  transform: scale(0.94) !important;
+  transform: scale(0.97);
   box-shadow: none;
 }
 
@@ -341,9 +289,8 @@ button:active:not(:disabled):not([style]) {
   filter: brightness(1.06);
 }
 .btn-login-submit:active {
-  transform: scale(0.94) !important;
+  transform: translateY(0) scale(0.98);
   box-shadow: none;
-  filter: brightness(0.97);
 }
 
 /* ── Export PDF button ── */
@@ -366,8 +313,7 @@ button:active:not(:disabled):not([style]) {
   box-shadow: 0 4px 12px rgba(31,83,48,0.12);
 }
 .btn-export:active {
-  transform: scale(0.94) !important;
-  box-shadow: none;
+  transform: scale(0.97);
 }
 
 /* ── Remove image button ── */
@@ -390,8 +336,7 @@ button:active:not(:disabled):not([style]) {
   box-shadow: 0 4px 12px rgba(226,75,74,0.25);
 }
 .btn-remove:active {
-  transform: scale(0.94) !important;
-  box-shadow: none;
+  transform: scale(0.97);
 }
 
 /* ── Sidebar item ── */
@@ -412,7 +357,7 @@ button:active:not(:disabled):not([style]) {
   transform: translateX(3px);
 }
 .sidebar-item:active {
-  transform: scale(0.95) translateX(2px) !important;
+  transform: scale(0.97) translateX(2px);
 }
 .sidebar-item--active {
   background: #1F5330 !important;
@@ -428,30 +373,12 @@ button:active:not(:disabled):not([style]) {
   padding: 12px 14px;
   text-align: center;
   cursor: pointer;
-  transition: transform 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              box-shadow 0.16s,
-              border-color 0.16s,
-              opacity 0.13s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
 }
 .ctype-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 22px rgba(0,0,0,0.09);
   border-color: #b0b8a8;
-}
-.ctype-card:active {
-  transform: scale(0.94) !important;
-  opacity: 0.82 !important;
-  box-shadow: none !important;
-}
-.ctype-card.selected {
-  border-color: #1F5330;
-  background: #F2FBF0;
-  box-shadow: 0 0 0 2px rgba(31,83,48,0.15);
-}
-.ctype-card.dimmed {
-  opacity: 0.35;
-  transform: none;
 }
 
 /* ── Dropzone hover ── */
@@ -494,6 +421,6 @@ button:active:not(:disabled):not([style]) {
   box-shadow: 0 5px 14px rgba(226,75,74,0.3);
 }
 .topbar-logout:active {
-  transform: scale(0.94) !important;
+  transform: translateY(0) scale(0.97);
   box-shadow: none;
 }

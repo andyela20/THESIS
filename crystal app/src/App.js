@@ -5,7 +5,12 @@ import Results from './Results';
 import Analysis from './Analysis';
 import Export from './Export';
 import Patients from './Patients';
-import ParticleLibrary from './ParticleLibrary';  // renamed from CrystalLibrary
+import ParticleLibrary from './ParticleLibrary';
+
+// key must be on <PageTransition> itself (in the switch), not on an inner div
+function PageTransition({ children }) {
+  return <div className="page-enter" style={{ height: '100%' }}>{children}</div>;
+}
 
 export default function App() {
   const [currentPage, setCurrentPage]       = useState('login');
@@ -69,92 +74,117 @@ export default function App() {
     export:   unseenReports  > 0 ? String(unseenReports)  : null,
   };
 
-  return (
-    <div>
-      {currentPage === 'login' && (
-        <Login onLogin={goToUpload} />
-      )}
-      {currentPage === 'upload' && (
-        <Upload
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          currentPatient={currentPatient}
-          setCurrentPatient={addNewPatient}
-          clearCurrentPatient={clearCurrentPatient}
-          badges={badges}
-        />
-      )}
-      {currentPage === 'results' && (
-        <Results
-          goToUpload={goToUpload}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          addCrystalRecords={addCrystalRecords}
-          analysisData={analysisData}
-          markResultsViewed={markResultsViewed}
-          badges={badges}
-        />
-      )}
-      {currentPage === 'analysis' && (
-        <Analysis
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          analysisData={analysisData}
-          clearAnalysisData={clearAnalysisData}
-          badges={badges}
-        />
-      )}
-      {currentPage === 'export' && (
-        <Export
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          goToLogin={goToLogin}
-          markReportsViewed={markReportsViewed}
-          analysisData={analysisData}
-          clearAnalysisData={clearAnalysisData}
-          badges={badges}
-        />
-      )}
-      {currentPage === 'patients' && (
-        <Patients
-          goToLogin={goToLogin}
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          crystalRecords={crystalRecords}
-          badges={badges}
-        />
-      )}
-      {currentPage === 'library' && (
-        <ParticleLibrary
-          goToLogin={goToLogin}
-          goToUpload={goToUpload}
-          goToResults={goToResults}
-          goToAnalysis={goToAnalysis}
-          goToExport={goToExport}
-          goToPatients={goToPatients}
-          goToLibrary={goToLibrary}
-          crystalRecords={crystalRecords}
-          badges={badges}
-        />
-      )}
-    </div>
-  );
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'login':
+        return (
+          <PageTransition key="login">
+            <Login onLogin={goToUpload} />
+          </PageTransition>
+        );
+      case 'upload':
+        return (
+          <PageTransition key="upload">
+            <Upload
+              goToResults={goToResults}
+              goToAnalysis={goToAnalysis}
+              goToExport={goToExport}
+              goToPatients={goToPatients}
+              goToLibrary={goToLibrary}
+              goToLogin={goToLogin}
+              currentPatient={currentPatient}
+              setCurrentPatient={addNewPatient}
+              clearCurrentPatient={clearCurrentPatient}
+              badges={badges}
+            />
+          </PageTransition>
+        );
+      case 'results':
+        return (
+          <PageTransition key="results">
+            <Results
+              goToUpload={goToUpload}
+              goToAnalysis={goToAnalysis}
+              goToExport={goToExport}
+              goToPatients={goToPatients}
+              goToLibrary={goToLibrary}
+              goToLogin={goToLogin}
+              addCrystalRecords={addCrystalRecords}
+              analysisData={analysisData}
+              markResultsViewed={markResultsViewed}
+              badges={badges}
+            />
+          </PageTransition>
+        );
+      case 'analysis':
+        return (
+          <PageTransition key="analysis">
+            <Analysis
+              goToUpload={goToUpload}
+              goToResults={goToResults}
+              goToExport={goToExport}
+              goToPatients={goToPatients}
+              goToLibrary={goToLibrary}
+              goToLogin={goToLogin}
+              analysisData={analysisData}
+              clearAnalysisData={clearAnalysisData}
+              badges={badges}
+            />
+          </PageTransition>
+        );
+      case 'export':
+        return (
+          <PageTransition key="export">
+            <Export
+              goToUpload={goToUpload}
+              goToResults={goToResults}
+              goToAnalysis={goToAnalysis}
+              goToPatients={goToPatients}
+              goToLibrary={goToLibrary}
+              goToLogin={goToLogin}
+              markReportsViewed={markReportsViewed}
+              analysisData={analysisData}
+              clearAnalysisData={clearAnalysisData}
+              badges={badges}
+            />
+          </PageTransition>
+        );
+      case 'patients':
+        return (
+          <PageTransition key="patients">
+            <Patients
+              goToLogin={goToLogin}
+              goToUpload={goToUpload}
+              goToResults={goToResults}
+              goToAnalysis={goToAnalysis}
+              goToExport={goToExport}
+              goToPatients={goToPatients}
+              goToLibrary={goToLibrary}
+              crystalRecords={crystalRecords}
+              badges={badges}
+            />
+          </PageTransition>
+        );
+      case 'library':
+        return (
+          <PageTransition key="library">
+            <ParticleLibrary
+              goToLogin={goToLogin}
+              goToUpload={goToUpload}
+              goToResults={goToResults}
+              goToAnalysis={goToAnalysis}
+              goToExport={goToExport}
+              goToPatients={goToPatients}
+              goToLibrary={goToLibrary}
+              crystalRecords={crystalRecords}
+              badges={badges}
+            />
+          </PageTransition>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return <div style={{ height: '100vh', overflow: 'hidden' }}>{renderPage()}</div>;
 }

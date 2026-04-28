@@ -378,7 +378,15 @@ export default function Upload({
       setAnalyzeStep(3);
       if (!analysisResult.success) { alert('Error analyzing image: ' + analysisResult.error); return; }
       await new Promise(r => setTimeout(r, 700));
-      goToResults({ patientId, patientName, sampleId, results: analysisResult.summary, annotatedImage: analysisResult.annotatedImage });
+      goToResults({
+        patientId,
+        patientName,
+        sampleId,
+        results:        analysisResult.summary,
+        detections:     analysisResult.detections || [],
+        annotatedImage: analysisResult.annotatedImage,
+        rawImage:       URL.createObjectURL(uploadedImage),
+      });
     } catch { alert('Error. Make sure the model server is running on port 5001.'); }
     finally { setAnalyzing(false); setAnalyzeStep(0); }
   };

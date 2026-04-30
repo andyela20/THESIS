@@ -20,10 +20,6 @@ function injectStyles() {
   document.head.appendChild(el);
 }
 
-/**
- * Resizes any image File to exactly 704×704 (cover crop, centered)
- * and returns a new File object with the same name but as image/jpeg.
- */
 function resizeTo704(file) {
   return new Promise((resolve, reject) => {
     const TARGET = 704;
@@ -31,21 +27,16 @@ function resizeTo704(file) {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-
       const canvas = document.createElement('canvas');
       canvas.width  = TARGET;
       canvas.height = TARGET;
       const ctx = canvas.getContext('2d');
-
-      // Cover-crop: scale so the shorter side fills 704, center the longer side
       const scale = Math.max(TARGET / img.width, TARGET / img.height);
       const drawW = img.width  * scale;
       const drawH = img.height * scale;
       const offsetX = (TARGET - drawW) / 2;
       const offsetY = (TARGET - drawH) / 2;
-
       ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-
       canvas.toBlob(
         (blob) => {
           if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
@@ -62,9 +53,6 @@ function resizeTo704(file) {
   });
 }
 
-/**
- * Resizes a canvas snapshot (blob) to 704×704 and returns a File.
- */
 function resizeBlobTo704(blob, filename) {
   return new Promise((resolve, reject) => {
     const TARGET = 704;
@@ -142,13 +130,23 @@ export default function Upload({
   const [cameraStream, setCameraStream]     = useState(null);
   const [cameraError, setCameraError]       = useState('');
   const [capturing, setCapturing]           = useState(false);
-  const [facingMode, setFacingMode]         = useState('environment'); // 'environment' = back cam
+  const [facingMode, setFacingMode]         = useState('environment');
   // ─────────────────────────────────────────────────────────────────────────
+
+  // ===== MOBILE CAPTURE STATE =====
+  const [captureSessionId, setCaptureSessionId]             = useState('');
+  const [mobileCaptureStatus, setMobileCaptureStatus]       = useState('');
+  const [mobileCapturedImageUrl, setMobileCapturedImageUrl] = useState('');
+  const [mobileCaptureLoading, setMobileCaptureLoading]     = useState(false);
+  const [mobileLink, setMobileLink]                         = useState('');
+  const [showQRModal, setShowQRModal]                       = useState(false);
+  // =================================
 
   const searchRef    = useRef(null);
   const fileInputRef = useRef(null);
-  const videoRef     = useRef(null);   // ← camera video element
-  const canvasRef    = useRef(null);   // ← hidden canvas for snapshot
+  const videoRef     = useRef(null);
+  const canvasRef    = useRef(null);
+  const qrCanvasRef  = useRef(null);
 
   // ── Camera helpers ───────────────────────────────────────────────────────
   const stopCamera = useCallback(() => {
@@ -215,17 +213,44 @@ export default function Upload({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // ── Attach camera stream to video element when stream is set ─────────────
   useEffect(() => {
     if (cameraStream && videoRef.current) {
       videoRef.current.srcObject = cameraStream;
     }
   }, [cameraStream, showCamera]);
 
-  // ── Clean up camera stream on unmount ────────────────────────────────────
   useEffect(() => {
     return () => { stopCamera(); };
   }, [stopCamera]);
+
+  // ── QR Code generation ───────────────────────────────────────────────────
+  useEffect(() => {
+  if (!showQRModal || !mobileLink) return;
+
+  const generate = () => {
+    if (!qrCanvasRef.current) return;
+    // Clear any previous QR
+    qrCanvasRef.current.innerHTML = '';
+    new window.QRCode(qrCanvasRef.current, {
+      text: mobileLink,
+      width: 220,
+      height: 220,
+      colorDark: '#1F5330',
+      colorLight: '#ffffff',
+      correctLevel: window.QRCode.CorrectLevel.H,
+    });
+  };
+
+  if (window.QRCode) {
+    generate();
+  } else {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    script.onload = generate;
+    script.onerror = () => console.error('Failed to load QRCode library');
+    document.head.appendChild(script);
+  }
+}, [showQRModal, mobileLink]);
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleSelectSearchResult = (patient) => {
@@ -264,12 +289,18 @@ export default function Upload({
     setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
     setAnalyzing(false); setAnalyzeStep(0); setResizing(false);
     setShowCamera(false); setCameraError('');
+    // reset mobile capture
+    setCaptureSessionId('');
+    setMobileCaptureStatus('');
+    setMobileCapturedImageUrl('');
+    setMobileCaptureLoading(false);
+    setMobileLink('');
+    setShowQRModal(false);
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
   const openModal = () => { setShowAnalysisForm(true); setMinimized(false); setExpanded(false); };
 
-  // ── Core image handler: auto-resize to 704×704 ──────────────────────────
   const applyImageFile = async (file) => {
     if (!file) return;
     setResizing(true);
@@ -343,11 +374,9 @@ export default function Upload({
       canvas.width  = video.videoWidth  || 1280;
       canvas.height = video.videoHeight || 1280;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-
       const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename  = `capture_${timestamp}_704x704.jpg`;
-
       setResizing(true);
       const resizedFile = await resizeBlobTo704(blob, filename);
       setUploadedImage(resizedFile);
@@ -360,7 +389,84 @@ export default function Upload({
       setResizing(false);
     }
   };
-  // ─────────────────────────────────────────────────────────────────────────
+
+  // ===== MOBILE CAPTURE FUNCTIONS =====
+
+  const startMobileCapture = async () => {
+    if (!patientId) {
+      alert('Add/select patient first');
+      return;
+    }
+    setMobileCaptureLoading(true);
+    try {
+      const res = await fetch('http://192.168.1.6:5001/create-capture-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert('Failed to create session');
+        return;
+      }
+      const link = `exp://192.168.1.6:8081/--/?sessionId=${data.sessionId}`;
+      setCaptureSessionId(data.sessionId);
+      setMobileCaptureStatus('waiting');
+      setMobileCapturedImageUrl('');
+      setMobileLink(link);
+      setShowQRModal(true); // ← Show QR modal instead of alert
+    } catch (err) {
+      console.error(err);
+      alert('Server error');
+    } finally {
+      setMobileCaptureLoading(false);
+    }
+  };
+
+  const checkMobileCapture = async () => {
+    if (!captureSessionId) return;
+    const res = await fetch(`http://192.168.1.6:5001/check-capture/${captureSessionId}`);
+    const data = await res.json();
+    if (data.status === 'uploaded') {
+      setMobileCaptureStatus('uploaded');
+      setMobileCapturedImageUrl(data.imageUrl);
+      alert('Image received from mobile');
+    } else {
+      alert('Still waiting...');
+    }
+  };
+
+  const analyzeMobileCapturedImage = async () => {
+    if (!captureSessionId) return;
+    setAnalyzing(true);
+    try {
+      const res = await fetch(
+        `http://192.168.1.6:5001/analyze-captured/${captureSessionId}`,
+        { method: 'POST' }
+      );
+      const data = await res.json();
+      if (!data.success) {
+        alert('Analysis failed');
+        return;
+      }
+      goToResults({
+        patientId,
+        patientName,
+        sampleId: `SMPL-${Date.now()}`,
+        results: data.summary,
+        detections: data.detections,
+        annotatedImage: data.annotatedImage,
+        rawImage: data.rawImage,
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Analyze error');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // =====================================
 
   const handleAnalyze = async () => {
     if (!uploadedImage || !patientId) return;
@@ -765,11 +871,9 @@ export default function Upload({
               {/* Image upload column */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 0 0 20px' : '0' }}>
                 <div style={s.sectionLabel}><span style={s.sectionNum}>02</span> Upload Image</div>
-                {/* Hidden file input & canvas */}
                 <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-                {/* ── Resizing spinner ── */}
                 {resizing ? (
                   <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -778,7 +882,6 @@ export default function Upload({
                   </div>
 
                 ) : !uploadedImage ? (
-                  /* ── Dropzone with Upload + Camera buttons ── */
                   <div
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
@@ -792,9 +895,9 @@ export default function Upload({
                     </div>
                     <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG · Max 10 MB</div>
 
-                    {/* Two action buttons */}
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      {/* Upload from file */}
+                    {/* Three action buttons */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {/* Browse File */}
                       <button
                         onClick={handleDropzoneClick}
                         disabled={!patientId}
@@ -812,7 +915,7 @@ export default function Upload({
                         Browse File
                       </button>
 
-                      {/* Open Camera */}
+                      {/* Use Camera */}
                       <button
                         onClick={openCamera}
                         disabled={!patientId}
@@ -830,7 +933,111 @@ export default function Upload({
                         </svg>
                         Use Camera
                       </button>
+
+                      {/* Mobile Capture */}
+                      <button
+                        onClick={startMobileCapture}
+                        disabled={!patientId || mobileCaptureLoading}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #4A7A9B',
+                          background: '#4A7A9B', fontSize: '12px', fontWeight: 600, color: '#fff',
+                          cursor: patientId && !mobileCaptureLoading ? 'pointer' : 'not-allowed',
+                          fontFamily: "'Poppins', sans-serif",
+                          opacity: patientId && !mobileCaptureLoading ? 1 : 0.5,
+                        }}
+                      >
+                        {mobileCaptureLoading
+                          ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                          : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                              <line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
+                        }
+                        {mobileCaptureLoading ? 'Creating…' : 'Mobile Capture'}
+                      </button>
                     </div>
+
+                    {/* Mobile capture status panel */}
+                    {captureSessionId && (
+                      <div style={{
+                        marginTop: '10px', width: '100%',
+                        background: '#F0F4FF', border: '1.5px solid #B8CCE8',
+                        borderRadius: '10px', padding: '12px 14px',
+                        display: 'flex', flexDirection: 'column', gap: '8px',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#4A7A9B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mobile Session Active</div>
+                            <div style={{ fontSize: '11px', color: '#141514', fontWeight: 600, marginTop: '2px', fontFamily: 'monospace' }}>{captureSessionId}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {/* Re-open QR button */}
+                            <button
+                              onClick={() => setShowQRModal(true)}
+                              title="Show QR Code"
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '4px',
+                                padding: '3px 9px', borderRadius: '20px',
+                                background: '#4A7A9B', color: '#fff',
+                                border: 'none', fontSize: '10px', fontWeight: 600,
+                                cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+                              }}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                              </svg>
+                              QR
+                            </button>
+                            <div style={{
+                              fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px',
+                              background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED',
+                              color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320',
+                              border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}`,
+                            }}>
+                              {mobileCaptureStatus === 'uploaded' ? '✓ Uploaded' : '⏳ Waiting'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            onClick={checkMobileCapture}
+                            style={{
+                              flex: 1, padding: '7px', borderRadius: '7px',
+                              border: '1.5px solid #4A7A9B', background: '#fff',
+                              fontSize: '11px', fontWeight: 600, color: '#4A7A9B',
+                              cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+                            }}
+                          >
+                            Check Upload
+                          </button>
+                          <button
+                            onClick={analyzeMobileCapturedImage}
+                            disabled={mobileCaptureStatus !== 'uploaded'}
+                            style={{
+                              flex: 1, padding: '7px', borderRadius: '7px',
+                              border: 'none', background: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#D8DAD0',
+                              fontSize: '11px', fontWeight: 600,
+                              color: mobileCaptureStatus === 'uploaded' ? '#fff' : '#A4AAA4',
+                              cursor: mobileCaptureStatus === 'uploaded' ? 'pointer' : 'not-allowed',
+                              fontFamily: "'Poppins', sans-serif",
+                            }}
+                          >
+                            Analyze Image
+                          </button>
+                        </div>
+
+                        {mobileCapturedImageUrl && (
+                          <img
+                            src={mobileCapturedImageUrl}
+                            alt="Mobile capture preview"
+                            style={{ width: '100%', borderRadius: '8px', border: '1px solid #D8DAD0', marginTop: '2px' }}
+                          />
+                        )}
+                      </div>
+                    )}
 
                     <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
                       {['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}
@@ -838,7 +1045,6 @@ export default function Upload({
                   </div>
 
                 ) : (
-                  /* ── Uploaded image banner ── */
                   <div style={s.uploadedBox}>
                     <div style={s.fileIconWrap}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -886,7 +1092,6 @@ export default function Upload({
         <div style={s.cameraOverlay}>
           <div style={s.cameraModal}>
 
-            {/* Camera header */}
             <div style={s.cameraHead}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -896,7 +1101,6 @@ export default function Upload({
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Capture Image</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {/* Switch camera button */}
                 {cameraStream && (
                   <button onClick={switchCamera} title="Switch camera" style={s.camCtrlBtn}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -910,10 +1114,8 @@ export default function Upload({
               </div>
             </div>
 
-            {/* Camera body */}
             <div style={s.cameraBody}>
               {cameraError ? (
-                /* Error state */
                 <div style={s.cameraError}>
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -922,38 +1124,24 @@ export default function Upload({
                   <button onClick={closeCamera} style={s.addBtn}>Close</button>
                 </div>
               ) : !cameraStream ? (
-                /* Loading state */
                 <div style={s.cameraError}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                   <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Starting camera…</div>
                 </div>
               ) : (
-                /* Live video */
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={s.cameraVideo}
-                />
+                <video ref={videoRef} autoPlay playsInline muted style={s.cameraVideo} />
               )}
 
-              {/* Corner guides overlay */}
               {cameraStream && !cameraError && (
                 <div style={s.cameraGuide}>
-                  {/* top-left */}
                   <div style={{ position: 'absolute', top: 16, left: 16, width: 28, height: 28, borderTop: '2.5px solid rgba(255,255,255,0.8)', borderLeft: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '3px 0 0 0' }} />
-                  {/* top-right */}
                   <div style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderTop: '2.5px solid rgba(255,255,255,0.8)', borderRight: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '0 3px 0 0' }} />
-                  {/* bottom-left */}
                   <div style={{ position: 'absolute', bottom: 16, left: 16, width: 28, height: 28, borderBottom: '2.5px solid rgba(255,255,255,0.8)', borderLeft: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '0 0 0 3px' }} />
-                  {/* bottom-right */}
                   <div style={{ position: 'absolute', bottom: 16, right: 16, width: 28, height: 28, borderBottom: '2.5px solid rgba(255,255,255,0.8)', borderRight: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '0 0 3px 0' }} />
                 </div>
               )}
             </div>
 
-            {/* Camera footer */}
             <div style={s.cameraFoot}>
               <div style={{ fontSize: '11px', color: '#A4AAA4' }}>
                 {cameraStream ? 'Position sample in frame, then capture' : ''}
@@ -978,6 +1166,161 @@ export default function Upload({
                     </svg>
                 }
                 {capturing ? 'Capturing…' : 'Capture'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          QR CODE MODAL
+      ══════════════════════════════════════════════════════════════════ */}
+      {showQRModal && (
+        <div
+          style={{ ...s.overlay, zIndex: 1200 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowQRModal(false); }}
+        >
+          <div style={{
+            background: '#fff',
+            borderRadius: '18px',
+            boxShadow: '0 28px 72px rgba(0,0,0,0.28), 0 4px 20px rgba(0,0,0,0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            width: '360px',
+            maxWidth: '95vw',
+            animation: 'fadeInScale 0.22s ease',
+          }}>
+
+            {/* Header */}
+            <div style={{ background: '#4A7A9B', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Mobile Capture</div>
+                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.65)' }}>Scan to open on your phone</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowQRModal(false)}
+                style={{
+                  width: '28px', height: '28px', borderRadius: '6px',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  background: 'rgba(226,75,74,0.35)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                  <path d="M1 1l7 7M8 1l-7 7" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+
+              {/* Instructions */}
+              <div style={{ fontSize: '12px', color: '#8C9A8C', textAlign: 'center', lineHeight: 1.6 }}>
+                Point your phone's camera at the QR code to open the capture session instantly.
+              </div>
+
+              {/* QR Code box */}
+              <div style={{
+                padding: '16px',
+                background: '#fff',
+                border: '2px solid #E8EAE0',
+                borderRadius: '16px',
+                boxShadow: '0 6px 24px rgba(31,83,48,0.10)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+              }}>
+                {/* Corner decorations */}
+                <div style={{ position: 'absolute', top: 8, left: 8, width: 16, height: 16, borderTop: '2.5px solid #1F5330', borderLeft: '2.5px solid #1F5330', borderRadius: '3px 0 0 0' }} />
+                <div style={{ position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderTop: '2.5px solid #1F5330', borderRight: '2.5px solid #1F5330', borderRadius: '0 3px 0 0' }} />
+                <div style={{ position: 'absolute', bottom: 8, left: 8, width: 16, height: 16, borderBottom: '2.5px solid #1F5330', borderLeft: '2.5px solid #1F5330', borderRadius: '0 0 0 3px' }} />
+                <div style={{ position: 'absolute', bottom: 8, right: 8, width: 16, height: 16, borderBottom: '2.5px solid #1F5330', borderRight: '2.5px solid #1F5330', borderRadius: '0 0 3px 0' }} />
+                <div ref={qrCanvasRef} style={{ display: 'block' }} />
+              </div>
+
+              {/* Session info pill */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                background: '#F0F6FF', border: '1px solid #C4D8EE',
+                borderRadius: '10px', padding: '8px 14px', width: '100%',
+                boxSizing: 'border-box',
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F5A623', flexShrink: 0, boxShadow: '0 0 0 3px rgba(245,166,35,0.2)' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: '#4A7A9B', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Session ID</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#141514', fontFamily: 'monospace', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{captureSessionId}</div>
+                </div>
+                <div style={{
+                  fontSize: '10px', fontWeight: 600, padding: '3px 9px', borderRadius: '20px',
+                  background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED',
+                  color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320',
+                  border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}`,
+                  flexShrink: 0,
+                }}>
+                  {mobileCaptureStatus === 'uploaded' ? '✓ Done' : '⏳ Waiting'}
+                </div>
+              </div>
+
+              {/* Fallback link */}
+              <div style={{
+                width: '100%', background: '#F8F9F5', border: '1px solid #E0E2D8',
+                borderRadius: '8px', padding: '8px 12px', boxSizing: 'border-box',
+              }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
+                  Manual link
+                </div>
+                <div style={{ fontSize: '10px', color: '#4A7A9B', wordBreak: 'break-all', lineHeight: 1.5, fontFamily: 'monospace' }}>
+                  {mobileLink}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: '12px 20px 16px',
+              borderTop: '1px solid #ECEEE6',
+              background: '#F8F9F5',
+              display: 'flex', gap: '8px',
+            }}>
+              <button
+                onClick={() => setShowQRModal(false)}
+                style={{ ...s.cancelBtn, flex: 1 }}
+              >
+                Done
+              </button>
+              <button
+                onClick={() => {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(mobileLink).then(() => {
+                      // brief visual feedback could go here
+                    });
+                  }
+                }}
+                style={{
+                  flex: 1, padding: '9px 16px',
+                  background: '#4A7A9B', color: '#fff',
+                  border: 'none', borderRadius: '8px',
+                  fontSize: '12px', fontWeight: 600,
+                  cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy Link
               </button>
             </div>
 
@@ -1088,7 +1431,6 @@ const s = {
   pillBadge2: { background: 'rgba(31,181,5,0.25)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', fontWeight: 600, color: '#9fff85' },
   pillClose:  { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', width: '20px', height: '20px', borderRadius: '50%', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '2px' },
 
-  // ── Camera modal styles ────────────────────────────────────────────────────
   cameraOverlay: { position: 'fixed', inset: 0, background: 'rgba(8,18,10,0.72)', backdropFilter: 'blur(6px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cameraModal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '560px', maxWidth: '95vw', maxHeight: '90vh' },
   cameraHead:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 18px', background: '#141514', flexShrink: 0 },

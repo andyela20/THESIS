@@ -4,7 +4,6 @@ import Topbar from './Topbar';
 import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, getAnalyses } from './api';
 import './index.css';
 
-// Inject keyframes once into <head>
 const ANIM_STYLE = `
   @keyframes spin        { to { transform: rotate(360deg); } }
   @keyframes pulseRing   { 0%,100% { transform: scale(0.85); opacity: 0.5; } 50% { transform: scale(1.18); opacity: 0.12; } }
@@ -125,22 +124,20 @@ export default function Upload({
   const [minimized, setMinimized]           = useState(false);
   const [expanded, setExpanded]             = useState(false);
 
-  // ── Camera state ─────────────────────────────────────────────────────────
+  // ── Camera state
   const [showCamera, setShowCamera]         = useState(false);
   const [cameraStream, setCameraStream]     = useState(null);
   const [cameraError, setCameraError]       = useState('');
   const [capturing, setCapturing]           = useState(false);
   const [facingMode, setFacingMode]         = useState('environment');
-  // ─────────────────────────────────────────────────────────────────────────
 
-  // ===== MOBILE CAPTURE STATE =====
+  // ── Mobile capture state
   const [captureSessionId, setCaptureSessionId]             = useState('');
   const [mobileCaptureStatus, setMobileCaptureStatus]       = useState('');
   const [mobileCapturedImageUrl, setMobileCapturedImageUrl] = useState('');
   const [mobileCaptureLoading, setMobileCaptureLoading]     = useState(false);
   const [mobileLink, setMobileLink]                         = useState('');
   const [showQRModal, setShowQRModal]                       = useState(false);
-  // =================================
 
   const searchRef    = useRef(null);
   const fileInputRef = useRef(null);
@@ -148,12 +145,9 @@ export default function Upload({
   const canvasRef    = useRef(null);
   const qrCanvasRef  = useRef(null);
 
-  // ── Camera helpers ───────────────────────────────────────────────────────
   const stopCamera = useCallback(() => {
     setCameraStream((stream) => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      if (stream) stream.getTracks().forEach((track) => track.stop());
       return null;
     });
   }, []);
@@ -223,35 +217,31 @@ export default function Upload({
     return () => { stopCamera(); };
   }, [stopCamera]);
 
-  // ── QR Code generation ───────────────────────────────────────────────────
+  // ── QR Code generation
   useEffect(() => {
-  if (!showQRModal || !mobileLink) return;
-
-  const generate = () => {
-    if (!qrCanvasRef.current) return;
-    // Clear any previous QR
-    qrCanvasRef.current.innerHTML = '';
-    new window.QRCode(qrCanvasRef.current, {
-      text: mobileLink,
-      width: 220,
-      height: 220,
-      colorDark: '#1F5330',
-      colorLight: '#ffffff',
-      correctLevel: window.QRCode.CorrectLevel.H,
-    });
-  };
-
-  if (window.QRCode) {
-    generate();
-  } else {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    script.onload = generate;
-    script.onerror = () => console.error('Failed to load QRCode library');
-    document.head.appendChild(script);
-  }
-}, [showQRModal, mobileLink]);
-  // ─────────────────────────────────────────────────────────────────────────
+    if (!showQRModal || !mobileLink) return;
+    const generate = () => {
+      if (!qrCanvasRef.current) return;
+      qrCanvasRef.current.innerHTML = '';
+      new window.QRCode(qrCanvasRef.current, {
+        text: mobileLink,
+        width: 220,
+        height: 220,
+        colorDark: '#1F5330',
+        colorLight: '#ffffff',
+        correctLevel: window.QRCode.CorrectLevel.H,
+      });
+    };
+    if (window.QRCode) {
+      generate();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+      script.onload = generate;
+      script.onerror = () => console.error('Failed to load QRCode library');
+      document.head.appendChild(script);
+    }
+  }, [showQRModal, mobileLink]);
 
   const handleSelectSearchResult = (patient) => {
     setPatientName(patient.name || ''); setPatientDOB(patient.dob || '');
@@ -289,7 +279,6 @@ export default function Upload({
     setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
     setAnalyzing(false); setAnalyzeStep(0); setResizing(false);
     setShowCamera(false); setCameraError('');
-    // reset mobile capture
     setCaptureSessionId('');
     setMobileCaptureStatus('');
     setMobileCapturedImageUrl('');
@@ -321,7 +310,6 @@ export default function Upload({
   const handleDragOver      = (e) => e.preventDefault();
   const handleRemoveImage   = () => { setUploadedImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; };
 
-  // ── Camera helpers ───────────────────────────────────────────────────────
   const openCamera = async () => {
     if (!patientId) return;
     setCameraError('');
@@ -344,11 +332,7 @@ export default function Upload({
     }
   };
 
-  const closeCamera = () => {
-    stopCamera();
-    setShowCamera(false);
-    setCameraError('');
-  };
+  const closeCamera = () => { stopCamera(); setShowCamera(false); setCameraError(''); };
 
   const switchCamera = async () => {
     stopCamera();
@@ -390,8 +374,7 @@ export default function Upload({
     }
   };
 
-  // ===== MOBILE CAPTURE FUNCTIONS =====
-
+  // ── Mobile capture — now includes name & patientId in QR link
   const startMobileCapture = async () => {
     if (!patientId) {
       alert('Add/select patient first');
@@ -399,25 +382,38 @@ export default function Upload({
     }
     setMobileCaptureLoading(true);
     try {
-      const res = await fetch('http://192.168.1.6:5001/create-capture-session', {
+      const res = await fetch('http://192.168.1.17:5001/create-capture-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patientId }),
+        body: JSON.stringify({ patientId, patientName }),
       });
-      const data = await res.json();
-      if (!data.success) {
-        alert('Failed to create session');
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Server error response:', text);
+        alert(`Server error ${res.status} — check your backend console.\n\n${text}`);
         return;
       }
-      const link = `exp://192.168.1.6:8081/--/?sessionId=${data.sessionId}`;
+
+      const data = await res.json();
+      if (!data.success) {
+        alert('Failed to create session: ' + (data.message || 'unknown error'));
+        return;
+      }
+
+      // Encode patient name & ID into the QR so the mobile app auto-fills them
+      const encodedName = encodeURIComponent(patientName);
+      const encodedId   = encodeURIComponent(patientId);
+      const link = `exp://192.168.1.6:8081/--/?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
+
       setCaptureSessionId(data.sessionId);
       setMobileCaptureStatus('waiting');
       setMobileCapturedImageUrl('');
       setMobileLink(link);
-      setShowQRModal(true); // ← Show QR modal instead of alert
+      setShowQRModal(true);
     } catch (err) {
       console.error(err);
-      alert('Server error');
+      alert('Cannot reach server at 192.168.1.17:5001 — is it running?\n\n' + err.message);
     } finally {
       setMobileCaptureLoading(false);
     }
@@ -425,14 +421,18 @@ export default function Upload({
 
   const checkMobileCapture = async () => {
     if (!captureSessionId) return;
-    const res = await fetch(`http://192.168.1.6:5001/check-capture/${captureSessionId}`);
-    const data = await res.json();
-    if (data.status === 'uploaded') {
-      setMobileCaptureStatus('uploaded');
-      setMobileCapturedImageUrl(data.imageUrl);
-      alert('Image received from mobile');
-    } else {
-      alert('Still waiting...');
+    try {
+      const res = await fetch(`http://192.168.1.17:5001/check-capture/${captureSessionId}`);
+      const data = await res.json();
+      if (data.status === 'uploaded') {
+        setMobileCaptureStatus('uploaded');
+        setMobileCapturedImageUrl(data.imageUrl);
+        alert('Image received from mobile!');
+      } else {
+        alert('Still waiting for mobile upload…');
+      }
+    } catch (err) {
+      alert('Error checking capture: ' + err.message);
     }
   };
 
@@ -441,14 +441,11 @@ export default function Upload({
     setAnalyzing(true);
     try {
       const res = await fetch(
-        `http://192.168.1.6:5001/analyze-captured/${captureSessionId}`,
+        `http://192.168.1.17:5001/analyze-captured/${captureSessionId}`,
         { method: 'POST' }
       );
       const data = await res.json();
-      if (!data.success) {
-        alert('Analysis failed');
-        return;
-      }
+      if (!data.success) { alert('Analysis failed'); return; }
       goToResults({
         patientId,
         patientName,
@@ -460,13 +457,11 @@ export default function Upload({
       });
     } catch (err) {
       console.error(err);
-      alert('Analyze error');
+      alert('Analyze error: ' + err.message);
     } finally {
       setAnalyzing(false);
     }
   };
-
-  // =====================================
 
   const handleAnalyze = async () => {
     if (!uploadedImage || !patientId) return;
@@ -505,7 +500,6 @@ export default function Upload({
 
   const modalW = expanded ? 'min(92vw, 1100px)' : '660px';
   const modalH = expanded ? '90vh' : '640px';
-
   const STEP_LABELS = ['', 'Uploading image…', 'AI detecting particles…', 'Analysis complete!'];
   const STEP_PILLS  = [
     { label: 'Upload',   done: analyzeStep >= 2 },
@@ -614,56 +608,10 @@ export default function Upload({
                   <div style={s.cardHead}><span style={s.cardTitle}>Quick Actions</span></div>
                   <div style={s.quickGrid}>
                     {[
-                      {
-                        label: 'New Analysis',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                          </svg>
-                        ),
-                        onClick: openModal
-                      },
-                      {
-                        label: 'Patients',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                          </svg>
-                        ),
-                        onClick: goToPatients
-                      },
-                      {
-                        label: 'Library',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="3"/>
-                            <path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z"/>
-                            <path d="M2 2l4 4"/>
-                            <path d="M22 22l-4-4"/>
-                            <line x1="8" y1="11" x2="2" y2="11"/>
-                            <line x1="22" y1="11" x2="14" y2="11"/>
-                          </svg>
-                        ),
-                        onClick: goToLibrary
-                      },
-                      {
-                        label: 'Reports',
-                        icon: (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
-                          </svg>
-                        ),
-                        onClick: goToExport
-                      },
+                      { label: 'New Analysis', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>), onClick: openModal },
+                      { label: 'Patients', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>), onClick: goToPatients },
+                      { label: 'Library', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="3"/><path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z"/><path d="M2 2l4 4"/><path d="M22 22l-4-4"/><line x1="8" y1="11" x2="2" y2="11"/><line x1="22" y1="11" x2="14" y2="11"/></svg>), onClick: goToLibrary },
+                      { label: 'Reports', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>), onClick: goToExport },
                     ].map((a, i) => (
                       <button key={i} onClick={a.onClick} style={s.quickBtn}>
                         <span style={{ fontSize: '18px' }}>{a.icon}</span>
@@ -693,12 +641,11 @@ export default function Upload({
         </div>
       )}
 
-      {/* ── Centered Modal ── */}
+      {/* ── Analysis Modal ── */}
       {showAnalysisForm && !minimized && (
         <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget && !analyzing) setMinimized(true); }}>
           <div style={{ ...s.modal, width: modalW, maxHeight: modalH, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)' }}>
 
-            {/* ANALYZING OVERLAY */}
             {analyzing && (
               <div style={s.analyzingOverlay}>
                 {uploadedImage && (
@@ -880,13 +827,8 @@ export default function Upload({
                     <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Resizing to 704 × 704…</div>
                     <div style={{ fontSize: '10px', color: '#A4AAA4' }}>Optimizing image for the detection model</div>
                   </div>
-
                 ) : !uploadedImage ? (
-                  <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, flex: expanded ? 1 : 'unset', cursor: 'default' }}
-                  >
+                  <div onDrop={handleDrop} onDragOver={handleDragOver} style={{ ...s.dropzone, opacity: patientId ? 1 : 0.5, flex: expanded ? 1 : 'unset', cursor: 'default' }}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={patientId ? '#1F5330' : '#C9CAC0'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
@@ -895,146 +837,50 @@ export default function Upload({
                     </div>
                     <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG · Max 10 MB</div>
 
-                    {/* Three action buttons */}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                      {/* Browse File */}
-                      <button
-                        onClick={handleDropzoneClick}
-                        disabled={!patientId}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '6px',
-                          padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #D8DAD0',
-                          background: '#fff', fontSize: '12px', fontWeight: 600, color: '#1F5330',
-                          cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif",
-                          opacity: patientId ? 1 : 0.5,
-                        }}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
+                      <button onClick={handleDropzoneClick} disabled={!patientId} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #D8DAD0', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#1F5330', cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId ? 1 : 0.5 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         Browse File
                       </button>
 
-                      {/* Use Camera */}
-                      <button
-                        onClick={openCamera}
-                        disabled={!patientId}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '6px',
-                          padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #1F5330',
-                          background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff',
-                          cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif",
-                          opacity: patientId ? 1 : 0.5,
-                        }}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                          <circle cx="12" cy="13" r="4"/>
-                        </svg>
+                      <button onClick={openCamera} disabled={!patientId} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #1F5330', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId ? 1 : 0.5 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         Use Camera
                       </button>
 
-                      {/* Mobile Capture */}
-                      <button
-                        onClick={startMobileCapture}
-                        disabled={!patientId || mobileCaptureLoading}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '6px',
-                          padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #4A7A9B',
-                          background: '#4A7A9B', fontSize: '12px', fontWeight: 600, color: '#fff',
-                          cursor: patientId && !mobileCaptureLoading ? 'pointer' : 'not-allowed',
-                          fontFamily: "'Poppins', sans-serif",
-                          opacity: patientId && !mobileCaptureLoading ? 1 : 0.5,
-                        }}
-                      >
+                      <button onClick={startMobileCapture} disabled={!patientId || mobileCaptureLoading} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #4A7A9B', background: '#4A7A9B', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: patientId && !mobileCaptureLoading ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId && !mobileCaptureLoading ? 1 : 0.5 }}>
                         {mobileCaptureLoading
                           ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                          : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                              <line x1="12" y1="18" x2="12.01" y2="18"/>
-                            </svg>
+                          : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                         }
                         {mobileCaptureLoading ? 'Creating…' : 'Mobile Capture'}
                       </button>
                     </div>
 
-                    {/* Mobile capture status panel */}
+                    {/* Mobile session panel */}
                     {captureSessionId && (
-                      <div style={{
-                        marginTop: '10px', width: '100%',
-                        background: '#F0F4FF', border: '1.5px solid #B8CCE8',
-                        borderRadius: '10px', padding: '12px 14px',
-                        display: 'flex', flexDirection: 'column', gap: '8px',
-                      }}>
+                      <div style={{ marginTop: '10px', width: '100%', background: '#F0F4FF', border: '1.5px solid #B8CCE8', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <div>
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#4A7A9B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mobile Session Active</div>
                             <div style={{ fontSize: '11px', color: '#141514', fontWeight: 600, marginTop: '2px', fontFamily: 'monospace' }}>{captureSessionId}</div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {/* Re-open QR button */}
-                            <button
-                              onClick={() => setShowQRModal(true)}
-                              title="Show QR Code"
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '4px',
-                                padding: '3px 9px', borderRadius: '20px',
-                                background: '#4A7A9B', color: '#fff',
-                                border: 'none', fontSize: '10px', fontWeight: 600,
-                                cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
-                              }}
-                            >
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-                              </svg>
+                            <button onClick={() => setShowQRModal(true)} title="Show QR Code" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '20px', background: '#4A7A9B', color: '#fff', border: 'none', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                               QR
                             </button>
-                            <div style={{
-                              fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px',
-                              background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED',
-                              color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320',
-                              border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}`,
-                            }}>
+                            <div style={{ fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED', color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320', border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}` }}>
                               {mobileCaptureStatus === 'uploaded' ? '✓ Uploaded' : '⏳ Waiting'}
                             </div>
                           </div>
                         </div>
-
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            onClick={checkMobileCapture}
-                            style={{
-                              flex: 1, padding: '7px', borderRadius: '7px',
-                              border: '1.5px solid #4A7A9B', background: '#fff',
-                              fontSize: '11px', fontWeight: 600, color: '#4A7A9B',
-                              cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
-                            }}
-                          >
-                            Check Upload
-                          </button>
-                          <button
-                            onClick={analyzeMobileCapturedImage}
-                            disabled={mobileCaptureStatus !== 'uploaded'}
-                            style={{
-                              flex: 1, padding: '7px', borderRadius: '7px',
-                              border: 'none', background: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#D8DAD0',
-                              fontSize: '11px', fontWeight: 600,
-                              color: mobileCaptureStatus === 'uploaded' ? '#fff' : '#A4AAA4',
-                              cursor: mobileCaptureStatus === 'uploaded' ? 'pointer' : 'not-allowed',
-                              fontFamily: "'Poppins', sans-serif",
-                            }}
-                          >
-                            Analyze Image
-                          </button>
+                          <button onClick={checkMobileCapture} style={{ flex: 1, padding: '7px', borderRadius: '7px', border: '1.5px solid #4A7A9B', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#4A7A9B', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>Check Upload</button>
+                          <button onClick={analyzeMobileCapturedImage} disabled={mobileCaptureStatus !== 'uploaded'} style={{ flex: 1, padding: '7px', borderRadius: '7px', border: 'none', background: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#D8DAD0', fontSize: '11px', fontWeight: 600, color: mobileCaptureStatus === 'uploaded' ? '#fff' : '#A4AAA4', cursor: mobileCaptureStatus === 'uploaded' ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif" }}>Analyze Image</button>
                         </div>
-
                         {mobileCapturedImageUrl && (
-                          <img
-                            src={mobileCapturedImageUrl}
-                            alt="Mobile capture preview"
-                            style={{ width: '100%', borderRadius: '8px', border: '1px solid #D8DAD0', marginTop: '2px' }}
-                          />
+                          <img src={mobileCapturedImageUrl} alt="Mobile capture preview" style={{ width: '100%', borderRadius: '8px', border: '1px solid #D8DAD0', marginTop: '2px' }} />
                         )}
                       </div>
                     )}
@@ -1043,7 +889,6 @@ export default function Upload({
                       {['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}
                     </div>
                   </div>
-
                 ) : (
                   <div style={s.uploadedBox}>
                     <div style={s.fileIconWrap}>
@@ -1051,9 +896,7 @@ export default function Upload({
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514' }}>{uploadedImage.name}</div>
-                      <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>
-                        {(uploadedImage.size / 1024).toFixed(1)} KB · 704 × 704 · Ready to analyze
-                      </div>
+                      <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>{(uploadedImage.size / 1024).toFixed(1)} KB · 704 × 704 · Ready to analyze</div>
                     </div>
                     <button onClick={handleRemoveImage} style={{ ...s.editBtn, color: '#E24B4A' }}>✕ Remove</button>
                   </div>
@@ -1068,11 +911,7 @@ export default function Upload({
               {resizing && <span style={{ ...s.hint, color: '#1F5330' }}> Resizing image…</span>}
               <div style={{ flex: 1 }} />
               <button onClick={handleReset} style={s.cancelBtn} disabled={analyzing || resizing}>Cancel</button>
-              <button
-                onClick={handleAnalyze}
-                style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!uploadedImage || !patientId || analyzing || resizing) ? 0.55 : 1, cursor: (!uploadedImage || !patientId || analyzing || resizing) ? 'not-allowed' : 'pointer' }}
-                disabled={!uploadedImage || !patientId || analyzing || resizing}
-              >
+              <button onClick={handleAnalyze} style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!uploadedImage || !patientId || analyzing || resizing) ? 0.55 : 1, cursor: (!uploadedImage || !patientId || analyzing || resizing) ? 'not-allowed' : 'pointer' }} disabled={!uploadedImage || !patientId || analyzing || resizing}>
                 {analyzing
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1085,27 +924,19 @@ export default function Upload({
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          CAMERA MODAL
-      ══════════════════════════════════════════════════════════════════ */}
+      {/* ── Camera Modal ── */}
       {showCamera && (
         <div style={s.cameraOverlay}>
           <div style={s.cameraModal}>
-
             <div style={s.cameraHead}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Capture Image</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {cameraStream && (
                   <button onClick={switchCamera} title="Switch camera" style={s.camCtrlBtn}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 7h-9"/><path d="M14 17H5"/><polyline points="17 4 20 7 17 10"/><polyline points="8 14 5 17 8 20"/>
-                    </svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><polyline points="17 4 20 7 17 10"/><polyline points="8 14 5 17 8 20"/></svg>
                   </button>
                 )}
                 <button onClick={closeCamera} style={{ ...s.camCtrlBtn, background: 'rgba(226,75,74,0.35)', borderColor: 'rgba(226,75,74,0.5)' }}>
@@ -1113,13 +944,10 @@ export default function Upload({
                 </button>
               </div>
             </div>
-
             <div style={s.cameraBody}>
               {cameraError ? (
                 <div style={s.cameraError}>
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: '#A32D2D', textAlign: 'center', maxWidth: '280px' }}>{cameraError}</div>
                   <button onClick={closeCamera} style={s.addBtn}>Close</button>
                 </div>
@@ -1131,7 +959,6 @@ export default function Upload({
               ) : (
                 <video ref={videoRef} autoPlay playsInline muted style={s.cameraVideo} />
               )}
-
               {cameraStream && !cameraError && (
                 <div style={s.cameraGuide}>
                   <div style={{ position: 'absolute', top: 16, left: 16, width: 28, height: 28, borderTop: '2.5px solid rgba(255,255,255,0.8)', borderLeft: '2.5px solid rgba(255,255,255,0.8)', borderRadius: '3px 0 0 0' }} />
@@ -1141,108 +968,47 @@ export default function Upload({
                 </div>
               )}
             </div>
-
             <div style={s.cameraFoot}>
-              <div style={{ fontSize: '11px', color: '#A4AAA4' }}>
-                {cameraStream ? 'Position sample in frame, then capture' : ''}
-              </div>
+              <div style={{ fontSize: '11px', color: '#A4AAA4' }}>{cameraStream ? 'Position sample in frame, then capture' : ''}</div>
               <div style={{ flex: 1 }} />
               <button onClick={closeCamera} style={s.cancelBtn}>Cancel</button>
-              <button
-                onClick={handleCapture}
-                disabled={!cameraStream || capturing || !!cameraError}
-                style={{
-                  ...s.analyzeBtn,
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  opacity: (!cameraStream || capturing || !!cameraError) ? 0.55 : 1,
-                  cursor: (!cameraStream || capturing || !!cameraError) ? 'not-allowed' : 'pointer',
-                }}
-              >
+              <button onClick={handleCapture} disabled={!cameraStream || capturing || !!cameraError} style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!cameraStream || capturing || !!cameraError) ? 0.55 : 1, cursor: (!cameraStream || capturing || !!cameraError) ? 'not-allowed' : 'pointer' }}>
                 {capturing
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                      <circle cx="12" cy="12" r="10"/>
-                      <circle cx="12" cy="12" r="4"/>
-                    </svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
                 }
                 {capturing ? 'Capturing…' : 'Capture'}
               </button>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          QR CODE MODAL
-      ══════════════════════════════════════════════════════════════════ */}
+      {/* ── QR Modal ── */}
       {showQRModal && (
-        <div
-          style={{ ...s.overlay, zIndex: 1200 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowQRModal(false); }}
-        >
-          <div style={{
-            background: '#fff',
-            borderRadius: '18px',
-            boxShadow: '0 28px 72px rgba(0,0,0,0.28), 0 4px 20px rgba(0,0,0,0.12)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            width: '360px',
-            maxWidth: '95vw',
-            animation: 'fadeInScale 0.22s ease',
-          }}>
+        <div style={{ ...s.overlay, zIndex: 1200 }} onClick={(e) => { if (e.target === e.currentTarget) setShowQRModal(false); }}>
+          <div style={{ background: '#fff', borderRadius: '18px', boxShadow: '0 28px 72px rgba(0,0,0,0.28), 0 4px 20px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '360px', maxWidth: '95vw', animation: 'fadeInScale 0.22s ease' }}>
 
-            {/* Header */}
             <div style={{ background: '#4A7A9B', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
-                  </svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                 </div>
                 <div>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Mobile Capture</div>
                   <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.65)' }}>Scan to open on your phone</div>
                 </div>
               </div>
-              <button
-                onClick={() => setShowQRModal(false)}
-                style={{
-                  width: '28px', height: '28px', borderRadius: '6px',
-                  border: '1px solid rgba(255,255,255,0.25)',
-                  background: 'rgba(226,75,74,0.35)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                  <path d="M1 1l7 7M8 1l-7 7" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" strokeLinecap="round"/>
-                </svg>
+              <button onClick={() => setShowQRModal(false)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(226,75,74,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1 1l7 7M8 1l-7 7" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" strokeLinecap="round"/></svg>
               </button>
             </div>
 
-            {/* Body */}
             <div style={{ padding: '24px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-
-              {/* Instructions */}
               <div style={{ fontSize: '12px', color: '#8C9A8C', textAlign: 'center', lineHeight: 1.6 }}>
                 Point your phone's camera at the QR code to open the capture session instantly.
               </div>
-
-              {/* QR Code box */}
-              <div style={{
-                padding: '16px',
-                background: '#fff',
-                border: '2px solid #E8EAE0',
-                borderRadius: '16px',
-                boxShadow: '0 6px 24px rgba(31,83,48,0.10)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-              }}>
-                {/* Corner decorations */}
+              <div style={{ padding: '16px', background: '#fff', border: '2px solid #E8EAE0', borderRadius: '16px', boxShadow: '0 6px 24px rgba(31,83,48,0.10)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: 8, left: 8, width: 16, height: 16, borderTop: '2.5px solid #1F5330', borderLeft: '2.5px solid #1F5330', borderRadius: '3px 0 0 0' }} />
                 <div style={{ position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderTop: '2.5px solid #1F5330', borderRight: '2.5px solid #1F5330', borderRadius: '0 3px 0 0' }} />
                 <div style={{ position: 'absolute', bottom: 8, left: 8, width: 16, height: 16, borderBottom: '2.5px solid #1F5330', borderLeft: '2.5px solid #1F5330', borderRadius: '0 0 0 3px' }} />
@@ -1250,76 +1016,30 @@ export default function Upload({
                 <div ref={qrCanvasRef} style={{ display: 'block' }} />
               </div>
 
-              {/* Session info pill */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                background: '#F0F6FF', border: '1px solid #C4D8EE',
-                borderRadius: '10px', padding: '8px 14px', width: '100%',
-                boxSizing: 'border-box',
-              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F0F6FF', border: '1px solid #C4D8EE', borderRadius: '10px', padding: '8px 14px', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F5A623', flexShrink: 0, boxShadow: '0 0 0 3px rgba(245,166,35,0.2)' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '9px', fontWeight: 700, color: '#4A7A9B', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Session ID</div>
                   <div style={{ fontSize: '11px', fontWeight: 600, color: '#141514', fontFamily: 'monospace', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{captureSessionId}</div>
                 </div>
-                <div style={{
-                  fontSize: '10px', fontWeight: 600, padding: '3px 9px', borderRadius: '20px',
-                  background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED',
-                  color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320',
-                  border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}`,
-                  flexShrink: 0,
-                }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, padding: '3px 9px', borderRadius: '20px', background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED', color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320', border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}`, flexShrink: 0 }}>
                   {mobileCaptureStatus === 'uploaded' ? '✓ Done' : '⏳ Waiting'}
                 </div>
               </div>
 
-              {/* Fallback link */}
-              <div style={{
-                width: '100%', background: '#F8F9F5', border: '1px solid #E0E2D8',
-                borderRadius: '8px', padding: '8px 12px', boxSizing: 'border-box',
-              }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
-                  Manual link
-                </div>
-                <div style={{ fontSize: '10px', color: '#4A7A9B', wordBreak: 'break-all', lineHeight: 1.5, fontFamily: 'monospace' }}>
-                  {mobileLink}
-                </div>
+              <div style={{ width: '100%', background: '#F8F9F5', border: '1px solid #E0E2D8', borderRadius: '8px', padding: '8px 12px', boxSizing: 'border-box' }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Manual link</div>
+                <div style={{ fontSize: '10px', color: '#4A7A9B', wordBreak: 'break-all', lineHeight: 1.5, fontFamily: 'monospace' }}>{mobileLink}</div>
               </div>
             </div>
 
-            {/* Footer */}
-            <div style={{
-              padding: '12px 20px 16px',
-              borderTop: '1px solid #ECEEE6',
-              background: '#F8F9F5',
-              display: 'flex', gap: '8px',
-            }}>
+            <div style={{ padding: '12px 20px 16px', borderTop: '1px solid #ECEEE6', background: '#F8F9F5', display: 'flex', gap: '8px' }}>
+              <button onClick={() => setShowQRModal(false)} style={{ ...s.cancelBtn, flex: 1 }}>Done</button>
               <button
-                onClick={() => setShowQRModal(false)}
-                style={{ ...s.cancelBtn, flex: 1 }}
+                onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(mobileLink); }}
+                style={{ flex: 1, padding: '9px 16px', background: '#4A7A9B', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                Done
-              </button>
-              <button
-                onClick={() => {
-                  if (navigator.clipboard) {
-                    navigator.clipboard.writeText(mobileLink).then(() => {
-                      // brief visual feedback could go here
-                    });
-                  }
-                }}
-                style={{
-                  flex: 1, padding: '9px 16px',
-                  background: '#4A7A9B', color: '#fff',
-                  border: 'none', borderRadius: '8px',
-                  fontSize: '12px', fontWeight: 600,
-                  cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 Copy Link
               </button>
             </div>
@@ -1337,25 +1057,21 @@ const s = {
   body:  { flex: 1, display: 'grid', gridTemplateColumns: '210px 1fr', minHeight: 0, overflow: 'hidden' },
   main:  { display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', background: '#EEF0E8' },
   pane:  { flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 24px', gap: '14px', minHeight: 0, overflowY: 'auto' },
-
   banner:         { background: '#1F5330', borderRadius: '14px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 },
   bannerGreeting: { fontSize: '20px', fontWeight: 700, color: '#fff', marginBottom: '4px' },
   bannerSub:      { fontSize: '12px', color: 'rgba(255,255,255,0.65)' },
   bannerBtn:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-
   statRow:    { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', flexShrink: 0 },
   statCard:   { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden' },
   statAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: '3px' },
   statValue:  { fontWeight: 800, marginBottom: '4px', fontFamily: "'Poppins', sans-serif" },
   statLabel:  { fontSize: '10px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' },
   statSub:    { fontSize: '11px', color: '#A4AAA4' },
-
   twoCol:    { display: 'grid', gridTemplateColumns: '1fr 380px', gap: '14px', flex: 1, minHeight: 0 },
   card:      { background: '#fff', border: '1px solid #D8DAD0', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column' },
   cardHead:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' },
   cardTitle: { fontSize: '14px', fontWeight: 700, color: '#141514' },
   viewAll:   { fontSize: '12px', color: '#1F5330', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-
   recordList:  { display: 'flex', flexDirection: 'column', gap: '2px' },
   recordRow:   { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #F0F1E8' },
   recordDot:   { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
@@ -1365,18 +1081,14 @@ const s = {
   riskTag:     { fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px' },
   recordCount: { fontSize: '13px', fontWeight: 800, color: '#1F5330' },
   avatar:      { width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 },
-
   emptyBlock: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '32px', gap: '8px' },
   emptyText:  { fontSize: '13px', color: '#A4AAA4', fontWeight: 500 },
   emptyBtn:   { marginTop: '8px', padding: '8px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-
   quickGrid:  { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
   quickBtn:   { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: '#F5F6F0', border: '1px solid #E8EAE0', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
   quickLabel: { fontSize: '12px', fontWeight: 600, color: '#141514' },
-
   overlay: { position: 'fixed', inset: 0, background: 'rgba(8,18,10,0.58)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   modal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.24), 0 4px 20px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', overflow: 'hidden', maxWidth: '95vw', position: 'relative' },
-
   analyzingOverlay: { position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(243,245,238,0.97)', backdropFilter: 'blur(10px)', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'fadeInScale 0.28s ease' },
   analyzingBgImg:   { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.07, borderRadius: '16px', filter: 'blur(14px) saturate(0.4)', pointerEvents: 'none' },
   analyzingContent: { position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '0 40px' },
@@ -1388,20 +1100,16 @@ const s = {
   scanBox:  { width: '188px', height: '96px', borderRadius: '10px', border: '1.5px solid #D8DAD0', background: '#fff', position: 'relative', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   scanGrid: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridTemplateRows: 'repeat(3,1fr)', gap: '3px', padding: '6px', height: '100%', boxSizing: 'border-box' },
   scanLine: { position: 'absolute', left: '4px', right: '4px', height: '2px', background: 'linear-gradient(90deg, transparent 0%, #1F5330 40%, #6D9922 60%, transparent 100%)', boxShadow: '0 0 10px rgba(31,83,48,0.7)', animation: 'scanLine 1.5s ease-in-out infinite alternate', top: '6%' },
-
   modalHead:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 18px', background: '#1F5330', flexShrink: 0 },
   modalHeadIcon: { width: '26px', height: '26px', borderRadius: '6px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   modalTitle:    { fontSize: '14px', fontWeight: 700, color: '#fff' },
   patientChip:   { display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '20px', padding: '3px 10px', fontSize: '11px', fontWeight: 600, color: '#fff' },
   winBtn:        { width: '26px', height: '26px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-
   progressBar: { display: 'flex', alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #ECEEE6', background: '#F8F9F5', flexShrink: 0 },
   modalBody:   { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex' },
   modalFoot:   { padding: '12px 24px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
-
   sectionLabel: { display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10px', fontWeight: 700, color: '#8C9A8C', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' },
   sectionNum:   { width: '17px', height: '17px', borderRadius: '50%', background: '#EEF0E8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 800, color: '#1F5330' },
-
   confirmedBanner: { display: 'flex', alignItems: 'center', gap: '10px', background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '10px 14px' },
   tabRow:    { display: 'flex', gap: '6px' },
   tab:       { padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #D8DAD0', background: 'transparent', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#4A5240', fontFamily: "'Poppins', sans-serif" },
@@ -1421,16 +1129,13 @@ const s = {
   dzTag:     { fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '100px', background: '#EEF3E8', color: '#306A33', border: '1px solid #B8C9A8' },
   uploadedBox: { background: '#F2FBF0', border: '1.5px solid #B8E0AF', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' },
   fileIconWrap: { width: '40px', height: '40px', borderRadius: '8px', background: '#E8F5E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-
   hint:       { fontSize: '11px', color: '#C07320', fontWeight: 500 },
   cancelBtn:  { padding: '9px 16px', background: '#fff', border: '1px solid #D8DAD0', borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#4A5240', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
   analyzeBtn: { padding: '9px 18px', background: '#1F5330', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" },
-
   minimizedPill: { position: 'fixed', bottom: '24px', right: '24px', background: '#1F5330', borderRadius: '30px', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 20px rgba(31,83,48,0.4)', cursor: 'pointer', zIndex: 1001 },
   pillBadge:  { background: 'rgba(255,255,255,0.2)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', fontWeight: 600, color: '#fff' },
   pillBadge2: { background: 'rgba(31,181,5,0.25)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', fontWeight: 600, color: '#9fff85' },
   pillClose:  { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', width: '20px', height: '20px', borderRadius: '50%', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '2px' },
-
   cameraOverlay: { position: 'fixed', inset: 0, background: 'rgba(8,18,10,0.72)', backdropFilter: 'blur(6px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cameraModal:   { background: '#fff', borderRadius: '16px', boxShadow: '0 28px 72px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '560px', maxWidth: '95vw', maxHeight: '90vh' },
   cameraHead:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 18px', background: '#141514', flexShrink: 0 },

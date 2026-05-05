@@ -20,23 +20,45 @@ pillow_heif.register_heif_opener()
 app = Flask(__name__)
 CORS(app)
 
-MODEL_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), 'model', 'best_RFDETRL_von.pt'
+# -------------------------------------------------------------------------
+# MODEL PATHS
+# -------------------------------------------------------------------------
+
+CRYSTALS_MODEL_PATH = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), 'model', 'crystal.pt'
 )
 
-CLASS_NAMES = {
+PARTICLES_MODEL_PATH = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), 'model', 'particles.pt'
+)
+
+CONFIDENCE_THRESHOLD = 0.40
+
+# -------------------------------------------------------------------------
+# CLASS NAMES PER MODEL
+# Replace class IDs and names to match your actual model outputs
+# -------------------------------------------------------------------------
+
+CRYSTALS_CLASS_NAMES = {
     1: 'Ammonium Biurate',
     2: 'CaOx Dihydrate',
     3: 'CaOx Monohydrate Ovoid',
-    4: 'Casts',
-    5: 'Epithelial Cells',
-    6: 'Microorganisms',
-    7: 'Misc',
-    8: 'Red Blood Cells',
-    9: 'Triple Phosphate',
-    10: 'Uric Acid',
-    11: 'White Blood Cells',
+    4: 'Triple Phosphate',
+    5: 'Uric Acid',
 }
+
+PARTICLES_CLASS_NAMES = {
+    1: 'Casts',
+    2: 'Epithelial Cells',
+    3: 'Microorganisms',
+    4: 'Misc',
+    5: 'Red Blood Cells',
+    6: 'White Blood Cells',
+}
+
+# Offset applied to particles class IDs when merging with crystals detections
+# to avoid ID collision. Set this higher than the max crystals class ID.
+PARTICLES_CLASS_ID_OFFSET = 100
 
 RISK_MAP = {
     'Ammonium Biurate': 'Moderate',
@@ -56,14 +78,15 @@ RISK_MAP = {
 UPLOAD_FOLDER = 'temp_uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Mobile capture temporary session storage
-# Later, this can be replaced with your database.
 capture_sessions = {}
 
 
+# -------------------------------------------------------------------------
+# HELPERS
+# -------------------------------------------------------------------------
+
 def get_server_base_url():
-    host = request.host_url.rstrip("/")
-    return host
+    return request.host_url.rstrip("/")
 
 
 def encode_image_to_base64(image_path: str) -> str:
@@ -72,69 +95,15 @@ def encode_image_to_base64(image_path: str) -> str:
     return f"data:image/jpeg;base64,{encoded}"
 
 
-def get_adaptive_threshold(pil_image: Image.Image) -> float:
-    gray = np.array(pil_image.convert("L"))
-
-    brightness = float(gray.mean())
-    contrast = float(gray.std())
-    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
-
-    print(
-        f"[ADAPTIVE] brightness={brightness:.1f} | "
-        f"contrast={contrast:.1f} | blur={blur_score:.1f}"
-    )
-
-    if blur_score < 40:
-        threshold, reason = 0.30, "very blurry"
-    elif brightness < 70 or contrast < 25:
-        threshold, reason = 0.28, "dark / low contrast"
-    elif brightness > 210 and contrast < 35:
-        threshold, reason = 0.32, "overexposed"
-    elif blur_score >= 120 and 90 <= brightness <= 180:
-        threshold, reason = 0.25, "clean image"
-    elif blur_score >= 80:
-        threshold, reason = 0.27, "moderate quality"
-    else:
-        threshold, reason = 0.30, "fallback"
-
-    print(f"[ADAPTIVE] threshold={threshold} ({reason})")
-    return threshold
-
-
-def get_threshold_with_retry(pil_image: Image.Image) -> float:
-    base_threshold = get_adaptive_threshold(pil_image)
-
-    test_detections = detection_model.model.predict(
-        pil_image,
-        threshold=base_threshold
-    )
-
-    count = len(test_detections) if test_detections.class_id is not None else 0
-
-    print(f"[RETRY CHECK] detections at {base_threshold}: {count}")
-
-    if count == 0:
-        lowered = 0.18
-        print(f"[RETRY] no detections → {base_threshold} → {lowered}")
-        return lowered
-
-    elif count < 3:
-        lowered = 0.20
-        print(f"[RETRY] few detections → {base_threshold} → {lowered}")
-        return lowered
-
-    elif count < 8:
-        lowered = 0.22
-        print(f"[RETRY] low detections → {base_threshold} → {lowered}")
-        return lowered
-
-    return base_threshold
-
+# -------------------------------------------------------------------------
+# DETECTION MODEL CLASS
+# -------------------------------------------------------------------------
 
 class RFDETRDetectionModel(DetectionModel):
 
-    def __init__(self, model_path, confidence_threshold=0.35, device="cpu:0", **kwargs):
+    def __init__(self, model_path, class_names, confidence_threshold=CONFIDENCE_THRESHOLD, device="cpu:0", **kwargs):
         self.model_path = model_path
+        self.class_names = class_names
         self.confidence_threshold = confidence_threshold
         self.device = device
         self._object_prediction_list_per_image = [[]]
@@ -144,7 +113,7 @@ class RFDETRDetectionModel(DetectionModel):
     def load_model(self):
         self.model = RFDETRLarge(
             pretrain_weights=self.model_path,
-            num_classes=11,
+            num_classes=len(self.class_names),
         )
         self.set_model(self.model)
 
@@ -178,7 +147,7 @@ class RFDETRDetectionModel(DetectionModel):
                 x1, y1, x2, y2 = detections.xyxy[i].tolist()
                 confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
                 class_id = int(detections.class_id[i])
-                class_name = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
+                class_name = self.class_names.get(class_id, f'Unknown_{class_id}')
 
                 if confidence < self.confidence_threshold:
                     continue
@@ -202,7 +171,7 @@ class RFDETRDetectionModel(DetectionModel):
 
     @property
     def num_categories(self):
-        return len(CLASS_NAMES)
+        return len(self.class_names)
 
     @property
     def has_mask(self):
@@ -210,44 +179,42 @@ class RFDETRDetectionModel(DetectionModel):
 
     @property
     def category_names(self):
-        return list(CLASS_NAMES.values())
+        return list(self.class_names.values())
 
 
-detection_model = RFDETRDetectionModel(
-    model_path=MODEL_PATH,
-    confidence_threshold=0.2,
+# -------------------------------------------------------------------------
+# LOAD BOTH MODELS AT STARTUP
+# -------------------------------------------------------------------------
+
+crystals_detection_model = RFDETRDetectionModel(
+    model_path=CRYSTALS_MODEL_PATH,
+    class_names=CRYSTALS_CLASS_NAMES,
+    confidence_threshold=CONFIDENCE_THRESHOLD,
+    device="cpu:0",
+)
+
+particles_detection_model = RFDETRDetectionModel(
+    model_path=PARTICLES_MODEL_PATH,
+    class_names=PARTICLES_CLASS_NAMES,
+    confidence_threshold=CONFIDENCE_THRESHOLD,
     device="cpu:0",
 )
 
 
-def run_sahi(pil_image: Image.Image, image_path: str):
-    adaptive_conf = get_threshold_with_retry(pil_image)
-    detection_model.confidence_threshold = adaptive_conf
+# -------------------------------------------------------------------------
+# SAHI INFERENCE
+# -------------------------------------------------------------------------
 
+def run_sahi_single(pil_image: Image.Image, image_path: str, detection_model: RFDETRDetectionModel) -> sv.Detections:
+    """Run SAHI inference for a single model. Returns raw sv.Detections."""
     w, h = pil_image.size
     long_edge = max(w, h)
 
-    def annotate(pil_img, dets):
-        frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-        labels = (
-            [CLASS_NAMES.get(int(c), f'Unknown_{c}') for c in dets.class_id]
-            if dets.class_id is not None and len(dets.class_id) > 0
-            else []
-        )
-
-        box_annotator = sv.BoxAnnotator()
-        label_annotator = sv.LabelAnnotator()
-
-        ann = box_annotator.annotate(scene=frame.copy(), detections=dets)
-        ann = label_annotator.annotate(scene=ann, detections=dets, labels=labels)
-        return ann
-
     if long_edge < 800:
-        detections = detection_model.model.predict(
+        return detection_model.model.predict(
             pil_image,
-            threshold=detection_model.confidence_threshold
+            threshold=CONFIDENCE_THRESHOLD
         )
-        return detections, annotate(pil_image, detections), adaptive_conf
 
     elif long_edge <= 1280:
         slice_passes = [
@@ -299,12 +266,105 @@ def run_sahi(pil_image: Image.Image, image_path: str):
             confidence=np.array(all_conf, dtype=np.float32),
             class_id=np.array(all_cls, dtype=int),
         )
-        detections = raw.with_nms(threshold=0.4)
+        return raw.with_nms(threshold=0.4)
     else:
-        detections = sv.Detections.empty()
+        return sv.Detections.empty()
 
-    return detections, annotate(pil_image, detections), adaptive_conf
 
+def run_sahi(pil_image: Image.Image, image_path: str):
+    """
+    Run both models and merge their detections.
+    Particles class IDs are offset by PARTICLES_CLASS_ID_OFFSET to avoid
+    collision with crystals class IDs during merging.
+    Returns: (merged sv.Detections, annotated frame, unified class name dict)
+    """
+    crystals_detections = run_sahi_single(pil_image, image_path, crystals_detection_model)
+    particles_detections = run_sahi_single(pil_image, image_path, particles_detection_model)
+
+    # Build unified class name lookup with offset applied to particles
+    unified_class_names = dict(CRYSTALS_CLASS_NAMES)
+    for class_id, class_name in PARTICLES_CLASS_NAMES.items():
+        unified_class_names[class_id + PARTICLES_CLASS_ID_OFFSET] = class_name
+
+    # Merge detections from both models
+    all_xyxy, all_conf, all_cls = [], [], []
+
+    if crystals_detections.class_id is not None and len(crystals_detections.class_id) > 0:
+        all_xyxy.extend(crystals_detections.xyxy.tolist())
+        all_conf.extend(crystals_detections.confidence.tolist())
+        all_cls.extend(crystals_detections.class_id.tolist())
+
+    if particles_detections.class_id is not None and len(particles_detections.class_id) > 0:
+        all_xyxy.extend(particles_detections.xyxy.tolist())
+        all_conf.extend(particles_detections.confidence.tolist())
+        all_cls.extend([c + PARTICLES_CLASS_ID_OFFSET for c in particles_detections.class_id.tolist()])
+
+    if all_xyxy:
+        merged = sv.Detections(
+            xyxy=np.array(all_xyxy, dtype=np.float32),
+            confidence=np.array(all_conf, dtype=np.float32),
+            class_id=np.array(all_cls, dtype=int),
+        )
+        merged = merged.with_nms(threshold=0.4)
+    else:
+        merged = sv.Detections.empty()
+
+    # Annotate merged detections onto the original image
+    frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+    labels = (
+        [unified_class_names.get(int(c), f'Unknown_{c}') for c in merged.class_id]
+        if merged.class_id is not None and len(merged.class_id) > 0
+        else []
+    )
+
+    box_annotator = sv.BoxAnnotator()
+    label_annotator = sv.LabelAnnotator()
+
+    annotated = box_annotator.annotate(scene=frame.copy(), detections=merged)
+    annotated = label_annotator.annotate(scene=annotated, detections=merged, labels=labels)
+
+    return merged, annotated, unified_class_names
+
+
+# -------------------------------------------------------------------------
+# SHARED RESULT BUILDER
+# -------------------------------------------------------------------------
+
+def build_results(detections: sv.Detections, unified_class_names: dict):
+    """Convert sv.Detections into summary and detection_list for API responses."""
+    crystal_counts = {}
+    detection_list = []
+
+    if detections.class_id is not None and len(detections.class_id) > 0:
+        for i in range(len(detections)):
+            class_id = int(detections.class_id[i])
+            confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+            class_name = unified_class_names.get(class_id, f'Unknown_{class_id}')
+            bbox = detections.xyxy[i].tolist()
+
+            crystal_counts[class_name] = crystal_counts.get(class_name, 0) + 1
+
+            detection_list.append({
+                'crystalType': class_name,
+                'confidence': round(confidence * 100, 2),
+                'bbox': bbox,
+            })
+
+    summary = [
+        {
+            'crystalType': crystal_type,
+            'count': count,
+            'risk': RISK_MAP.get(crystal_type, 'Unknown'),
+        }
+        for crystal_type, count in crystal_counts.items()
+    ]
+
+    return summary, detection_list
+
+
+# -------------------------------------------------------------------------
+# ROUTES
+# -------------------------------------------------------------------------
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -314,16 +374,8 @@ def health():
     })
 
 
-# -------------------------------------------------------------------------
-# MOBILE CAPTURE ROUTES
-# -------------------------------------------------------------------------
-
 @app.route('/create-capture-session', methods=['POST'])
 def create_capture_session():
-    """
-    Desktop calls this after selecting/adding a patient.
-    It creates a temporary session that the mobile app will use when uploading.
-    """
     data = request.get_json(silent=True) or {}
 
     patient_id = data.get('patientId')
@@ -364,38 +416,21 @@ def create_capture_session():
 
 @app.route('/upload-capture', methods=['POST'])
 def upload_capture():
-    """
-    Mobile calls this after capturing an image.
-    This only uploads the captured image. It does NOT analyze yet.
-    Desktop will analyze later.
-    """
     session_id = request.form.get('sessionId')
 
     if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No sessionId provided.'
-        }), 400
+        return jsonify({'success': False, 'error': 'No sessionId provided.'}), 400
 
     if session_id not in capture_sessions:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid or expired capture session.'
-        }), 404
+        return jsonify({'success': False, 'error': 'Invalid or expired capture session.'}), 404
 
     if 'image' not in request.files:
-        return jsonify({
-            'success': False,
-            'error': 'No image provided.'
-        }), 400
+        return jsonify({'success': False, 'error': 'No image provided.'}), 400
 
     file = request.files['image']
 
     if file.filename == '':
-        return jsonify({
-            'success': False,
-            'error': 'No image selected.'
-        }), 400
+        return jsonify({'success': False, 'error': 'No image selected.'}), 400
 
     try:
         filename = f"capture_{session_id}_{uuid.uuid4().hex}.jpg"
@@ -421,25 +456,15 @@ def upload_capture():
 
     except Exception as e:
         print(f"[UPLOAD CAPTURE ERROR] {str(e)}")
-
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/check-capture/<session_id>', methods=['GET'])
 def check_capture(session_id):
-    """
-    Desktop polls this endpoint to know if the mobile image has arrived.
-    """
     session = capture_sessions.get(session_id)
 
     if not session:
-        return jsonify({
-            'success': False,
-            'error': 'Capture session not found.'
-        }), 404
+        return jsonify({'success': False, 'error': 'Capture session not found.'}), 404
 
     return jsonify({
         'success': True,
@@ -451,33 +476,20 @@ def check_capture(session_id):
 
 @app.route('/analyze-captured/<session_id>', methods=['POST'])
 def analyze_captured(session_id):
-    """
-    Optional route:
-    Desktop can call this to analyze the image uploaded by mobile.
-    """
     session = capture_sessions.get(session_id)
 
     if not session:
-        return jsonify({
-            'success': False,
-            'error': 'Capture session not found.'
-        }), 404
+        return jsonify({'success': False, 'error': 'Capture session not found.'}), 404
 
     image_filename = session.get('image_filename')
 
     if not image_filename:
-        return jsonify({
-            'success': False,
-            'error': 'No uploaded image found for this session.'
-        }), 400
+        return jsonify({'success': False, 'error': 'No uploaded image found for this session.'}), 400
 
     filepath = os.path.join(UPLOAD_FOLDER, image_filename)
 
     if not os.path.exists(filepath):
-        return jsonify({
-            'success': False,
-            'error': 'Captured image file does not exist.'
-        }), 404
+        return jsonify({'success': False, 'error': 'Captured image file does not exist.'}), 404
 
     raw_filename = f"raw_{uuid.uuid4()}.jpg"
     raw_path = os.path.join(UPLOAD_FOLDER, raw_filename)
@@ -486,41 +498,14 @@ def analyze_captured(session_id):
         pil_image = Image.open(filepath).convert("RGB")
         pil_image.save(raw_path, "JPEG", quality=92)
 
-        detections, annotated_frame, used_threshold = run_sahi(pil_image, filepath)
+        detections, annotated_frame, unified_class_names = run_sahi(pil_image, filepath)
 
         annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
         annotated_path = os.path.join(UPLOAD_FOLDER, annotated_filename)
         cv2.imwrite(annotated_path, annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
         raw_image_b64 = encode_image_to_base64(raw_path)
-
-        crystal_counts = {}
-        detection_list = []
-
-        if detections.class_id is not None and len(detections.class_id) > 0:
-            for i in range(len(detections)):
-                class_id = int(detections.class_id[i])
-                confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
-                class_name = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
-                bbox = detections.xyxy[i].tolist()
-
-                crystal_counts[class_name] = crystal_counts.get(class_name, 0) + 1
-
-                detection_list.append({
-                    'crystalType': class_name,
-                    'confidence': round(confidence * 100, 2),
-                    'bbox': bbox,
-                })
-
-        summary = [
-            {
-                'crystalType': crystal_type,
-                'count': count,
-                'risk': RISK_MAP.get(crystal_type, 'Unknown'),
-            }
-            for crystal_type, count in crystal_counts.items()
-        ]
-
+        summary, detection_list = build_results(detections, unified_class_names)
         annotated_image_url = f'{get_server_base_url()}/image/{annotated_filename}'
 
         session['status'] = 'analyzed'
@@ -529,7 +514,7 @@ def analyze_captured(session_id):
             'detections': detection_list,
             'total': len(detection_list),
             'annotatedImage': annotated_image_url,
-            'thresholdUsed': used_threshold,
+            'thresholdUsed': CONFIDENCE_THRESHOLD,
         }
 
         return jsonify({
@@ -542,23 +527,16 @@ def analyze_captured(session_id):
             'total': len(detection_list),
             'annotatedImage': annotated_image_url,
             'rawImage': raw_image_b64,
-            'thresholdUsed': used_threshold,
+            'thresholdUsed': CONFIDENCE_THRESHOLD,
         }), 200
 
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
     finally:
         if os.path.exists(raw_path):
             os.remove(raw_path)
 
-
-# -------------------------------------------------------------------------
-# EXISTING ANALYZE ROUTE
-# -------------------------------------------------------------------------
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -579,43 +557,16 @@ def analyze():
 
     try:
         pil_image = Image.open(filepath).convert("RGB")
-
         pil_image.save(raw_path, "JPEG", quality=92)
 
-        detections, annotated_frame, used_threshold = run_sahi(pil_image, filepath)
+        detections, annotated_frame, unified_class_names = run_sahi(pil_image, filepath)
 
         annotated_filename = f"annotated_{uuid.uuid4()}.jpg"
         annotated_path = os.path.join(UPLOAD_FOLDER, annotated_filename)
         cv2.imwrite(annotated_path, annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
         raw_image_b64 = encode_image_to_base64(raw_path)
-
-        crystal_counts = {}
-        detection_list = []
-
-        if detections.class_id is not None and len(detections.class_id) > 0:
-            for i in range(len(detections)):
-                class_id = int(detections.class_id[i])
-                confidence = float(detections.confidence[i]) if detections.confidence is not None else 0.0
-                class_name = CLASS_NAMES.get(class_id, f'Unknown_{class_id}')
-                bbox = detections.xyxy[i].tolist()
-
-                crystal_counts[class_name] = crystal_counts.get(class_name, 0) + 1
-
-                detection_list.append({
-                    'crystalType': class_name,
-                    'confidence': round(confidence * 100, 2),
-                    'bbox': bbox,
-                })
-
-        summary = [
-            {
-                'crystalType': crystal_type,
-                'count': count,
-                'risk': RISK_MAP.get(crystal_type, 'Unknown'),
-            }
-            for crystal_type, count in crystal_counts.items()
-        ]
+        summary, detection_list = build_results(detections, unified_class_names)
 
         return jsonify({
             'success': True,
@@ -624,7 +575,7 @@ def analyze():
             'total': len(detection_list),
             'annotatedImage': f'{get_server_base_url()}/image/{annotated_filename}',
             'rawImage': raw_image_b64,
-            'thresholdUsed': used_threshold,
+            'thresholdUsed': CONFIDENCE_THRESHOLD,
         }), 200
 
     except Exception as e:
@@ -633,7 +584,6 @@ def analyze():
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
-
         if os.path.exists(raw_path):
             os.remove(raw_path)
 

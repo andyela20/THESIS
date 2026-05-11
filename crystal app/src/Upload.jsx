@@ -10,6 +10,11 @@ const ANIM_STYLE = `
   @keyframes scanLine    { 0% { top: 6%; } 100% { top: 86%; } }
   @keyframes fadeInScale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
   @keyframes dotBounce   { 0%,80%,100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-7px); opacity: 1; } }
+  @keyframes slideDown   { from { opacity: 0; transform: translateY(-12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes errorModalIn   { from { opacity: 0; transform: scale(0.94) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  @keyframes errorBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes progressShrink { from { width: 100%; } to { width: 0%; } }
+  @keyframes iconPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 `;
 function injectStyles() {
   if (document.getElementById('upload-anim')) return;
@@ -18,6 +23,69 @@ function injectStyles() {
   el.textContent = ANIM_STYLE;
   document.head.appendChild(el);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Crystal / Risk constants — kept in sync with app.py CLASS_NAMES + RISK_MAP
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Colour swatch for every crystal class that app.py can return.
+ * Used for the dot indicators in the Recent Crystal Records list.
+ */
+const CRYSTAL_COLORS = {
+  'Ammonium Biurate':       '#A78BFA', // violet
+  'CaOx Dihydrate':         '#E24B4A', // red
+  'CaOx Monohydrate Ovoid': '#F5A623', // amber
+  'Casts':                  '#8B5CF6', // purple
+  'Epithelial Cells':       '#06B6D4', // cyan
+  'Microorganisms':         '#F43F5E', // rose
+  'Misc':                   '#94A3B8', // slate
+  'Red Blood Cells':         '#EF4444', // bright-red
+  'Triple Phosphate':       '#6D9922', // olive-green
+  'Uric Acid':              '#1FB505', // green
+  'White Blood Cells':      '#4A7A9B', // steel-blue
+};
+
+/**
+ * Badge colours for each risk level string returned by get_risk_level().
+ * Matches exactly the three levels defined in RISK_MAP in app.py.
+ */
+const RISK_STYLE = {
+  High:     { bg: '#FFF0ED', color: '#A32D2D' },
+  Moderate: { bg: '#FFF8ED', color: '#C07320' },
+  Low:      { bg: '#E8F5E8', color: '#1F5330' },
+  Unknown:  { bg: '#F3F4F6', color: '#6B7280' },
+};
+
+/**
+ * Client-side mirror of app.py's RISK_MAP + get_risk_level().
+ * Used only for the Recent Crystal Records preview; the authoritative
+ * risk level always comes from the backend response.
+ */
+const RISK_MAP = {
+  'Ammonium Biurate':       { Low: [1, 2],  Moderate: [3, 5],  High: [6, Infinity] },
+  'CaOx Dihydrate':         { Low: [1, 3],  Moderate: [4, 7],  High: [8, Infinity] },
+  'CaOx Monohydrate Ovoid': { Low: [1, 2],  Moderate: [3, 5],  High: [6, Infinity] },
+  'Casts':                  { Low: [1, 1],  Moderate: [2, 3],  High: [4, Infinity] },
+  'Epithelial Cells':       { Low: [1, 5],  Moderate: [6, 10], High: [11, Infinity] },
+  'Microorganisms':         { Low: [1, 3],  Moderate: [4, 8],  High: [9, Infinity] },
+  'Misc':                   { Low: [1, 2],  Moderate: [3, 5],  High: [6, Infinity] },
+  'Red Blood Cells':        { Low: [1, 3],  Moderate: [4, 10], High: [11, Infinity] },
+  'Triple Phosphate':       { Low: [1, 3],  Moderate: [4, 6],  High: [7, Infinity] },
+  'Uric Acid':              { Low: [1, 3],  Moderate: [4, 7],  High: [8, Infinity] },
+  'White Blood Cells':      { Low: [1, 5],  Moderate: [6, 10], High: [11, Infinity] },
+};
+
+function getRiskLevel(crystalType, count) {
+  const map = RISK_MAP[crystalType];
+  if (!map) return 'Unknown';
+  for (const [level, [min, max]] of Object.entries(map)) {
+    if (count >= min && count <= max) return level;
+  }
+  return 'Unknown';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function resizeTo704(file) {
   return new Promise((resolve, reject) => {
@@ -84,6 +152,153 @@ function resizeBlobTo704(blob, filename) {
   });
 }
 
+// ── Error toast types
+const ERROR_TYPES = {
+  CLASSIFIER: 'classifier',
+  SERVER:     'server',
+  WARNING:    'warning',
+};
+
+function extractBackendMessage(data) {
+  if (!data) return 'An unknown error occurred.';
+  return (
+    data.message ||
+    data.error   ||
+    data.detail  ||
+    'An unknown error occurred.'
+  );
+}
+
+function ErrorToast({ error, onClose }) {
+  useEffect(() => {
+    if (!error) return;
+    if (error.type !== ERROR_TYPES.CLASSIFIER) {
+      const timer = setTimeout(onClose, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, onClose]);
+
+  useEffect(() => {
+    if (!error) return;
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [error, onClose]);
+
+  if (!error) return null;
+
+  const isClassifier = error.type === ERROR_TYPES.CLASSIFIER;
+  const isWarning    = error.type === ERROR_TYPES.WARNING;
+
+  const tokens = isWarning
+    ? { ring: '#F59E0B', ringBg: '#FFFBEB', iconBg: '#FEF3C7', iconRing: '#FDE68A', iconStroke: '#B45309', titleColor: '#92400E', bodyColor: '#78350F', hintColor: '#B45309', progressColor: '#F59E0B', progressTrack: '#FDE68A', btnBorder: '#FDE68A', btnBg: '#FFFBEB', btnStroke: '#B45309' }
+    : { ring: '#DC2626', ringBg: '#FEF2F2', iconBg: '#FEE2E2', iconRing: '#FECACA', iconStroke: '#B91C1C', titleColor: '#991B1B', bodyColor: '#7F1D1D', hintColor: '#B91C1C', progressColor: '#EF4444', progressTrack: '#FECACA', btnBorder: '#FECACA', btnBg: '#FEE2E2', btnStroke: '#B91C1C' };
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 3000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+        background: 'rgba(10, 14, 10, 0.52)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)',
+        animation: 'errorBackdropIn 0.2s ease',
+      }}
+    >
+      <div
+        role="alertdialog" aria-modal="true" aria-labelledby="err-title" aria-describedby="err-body"
+        style={{
+          position: 'relative', width: '100%', maxWidth: '420px',
+          background: '#FFFFFF', borderRadius: '20px',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
+          overflow: 'hidden', animation: 'errorModalIn 0.28s cubic-bezier(0.34, 1.2, 0.64, 1)',
+          fontFamily: "'Poppins', sans-serif",
+        }}
+      >
+        <div style={{ height: '4px', background: `linear-gradient(90deg, ${tokens.ring}, ${isWarning ? '#FBBF24' : '#F87171'})`, width: '100%' }} />
+        <div style={{ padding: '28px 28px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <div style={{
+              width: '52px', height: '52px', borderRadius: '14px',
+              background: tokens.iconBg, border: `1.5px solid ${tokens.iconRing}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              animation: 'iconPulse 2.4s ease-in-out infinite',
+              boxShadow: `0 4px 12px ${isWarning ? 'rgba(245,158,11,0.18)' : 'rgba(220,38,38,0.15)'}`,
+            }}>
+              {isWarning ? (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={tokens.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              ) : isClassifier ? (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={tokens.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>
+                  <line x1="11" y1="8" x2="11" y2="11"/><line x1="11" y1="14" x2="11.01" y2="14"/>
+                </svg>
+              ) : (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={tokens.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              )}
+            </div>
+            <button
+              onClick={onClose} title="Dismiss"
+              style={{
+                width: '32px', height: '32px', borderRadius: '10px',
+                border: '1.5px solid #E5E7EB', background: '#F9FAFB',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0, transition: 'background 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.borderColor = '#D1D5DB'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.borderColor = '#E5E7EB'; }}
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div style={{ marginBottom: error.hint ? '12px' : '0' }}>
+            <p id="err-title" style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 8px', lineHeight: 1.3, letterSpacing: '-0.2px' }}>
+              {error.title || 'Analysis Error'}
+            </p>
+            <p id="err-body" style={{ fontSize: '13px', color: '#4B5563', lineHeight: 1.65, margin: 0, fontWeight: 400 }}>
+              {error.message}
+            </p>
+          </div>
+          {error.hint && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: tokens.iconBg, border: `1px solid ${tokens.iconRing}`, borderRadius: '10px', padding: '10px 12px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '13px', lineHeight: 1, flexShrink: 0, marginTop: '1px' }}>💡</span>
+              <span style={{ fontSize: '12px', color: tokens.hintColor, fontWeight: 500, lineHeight: 1.5 }}>{error.hint}</span>
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '0 28px 22px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '9px 22px', borderRadius: '10px', border: 'none',
+              background: isWarning ? '#F59E0B' : '#DC2626', color: '#fff',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              fontFamily: "'Poppins', sans-serif", letterSpacing: '0.01em',
+              boxShadow: isWarning ? '0 2px 8px rgba(245,158,11,0.35)' : '0 2px 8px rgba(220,38,38,0.35)',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+          >
+            {isClassifier ? 'Use a Different Image' : 'Dismiss'}
+          </button>
+        </div>
+        {!isClassifier && (
+          <div style={{ height: '3px', background: tokens.progressTrack, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+            <div style={{ height: '100%', background: tokens.progressColor, animation: 'progressShrink 8s linear forwards' }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Upload({
   goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
   currentPatient, setCurrentPatient, clearCurrentPatient,
@@ -124,14 +339,18 @@ export default function Upload({
   const [minimized, setMinimized]           = useState(false);
   const [expanded, setExpanded]             = useState(false);
 
-  // ── Camera state
+  const [uiError, setUiError] = useState(null);
+  const showError = useCallback((title, message, hint = '', type = ERROR_TYPES.SERVER) => {
+    setUiError({ title, message, hint, type });
+  }, []);
+  const clearError = useCallback(() => setUiError(null), []);
+
   const [showCamera, setShowCamera]         = useState(false);
   const [cameraStream, setCameraStream]     = useState(null);
   const [cameraError, setCameraError]       = useState('');
   const [capturing, setCapturing]           = useState(false);
   const [facingMode, setFacingMode]         = useState('environment');
 
-  // ── Mobile capture state
   const [captureSessionId, setCaptureSessionId]             = useState('');
   const [mobileCaptureStatus, setMobileCaptureStatus]       = useState('');
   const [mobileCapturedImageUrl, setMobileCapturedImageUrl] = useState('');
@@ -217,18 +436,14 @@ export default function Upload({
     return () => { stopCamera(); };
   }, [stopCamera]);
 
-  // ── QR Code generation
   useEffect(() => {
     if (!showQRModal || !mobileLink) return;
     const generate = () => {
       if (!qrCanvasRef.current) return;
       qrCanvasRef.current.innerHTML = '';
       new window.QRCode(qrCanvasRef.current, {
-        text: mobileLink,
-        width: 220,
-        height: 220,
-        colorDark: '#1F5330',
-        colorLight: '#ffffff',
+        text: mobileLink, width: 220, height: 220,
+        colorDark: '#1F5330', colorLight: '#ffffff',
         correctLevel: window.QRCode.CorrectLevel.H,
       });
     };
@@ -252,12 +467,12 @@ export default function Upload({
   };
 
   const handleAddPatient = async () => {
-    if (!patientName.trim())    { alert('Please enter patient name'); return; }
-    if (!patientDOB.trim())     { alert('Please enter date of birth'); return; }
-    if (!patientAge)            { alert('Please enter age'); return; }
-    if (!patientSex)            { alert('Please select sex'); return; }
-    if (!patientAddress.trim()) { alert('Please enter address'); return; }
-    if (!patientContact.trim()) { alert('Please enter contact number'); return; }
+    if (!patientName.trim())    { showError('Missing Field', 'Please enter the patient name.', '', ERROR_TYPES.WARNING); return; }
+    if (!patientDOB.trim())     { showError('Missing Field', 'Please enter the date of birth.', '', ERROR_TYPES.WARNING); return; }
+    if (!patientAge)            { showError('Missing Field', 'Please enter the patient age.', '', ERROR_TYPES.WARNING); return; }
+    if (!patientSex)            { showError('Missing Field', 'Please select the patient sex.', '', ERROR_TYPES.WARNING); return; }
+    if (!patientAddress.trim()) { showError('Missing Field', 'Please enter the patient address.', '', ERROR_TYPES.WARNING); return; }
+    if (!patientContact.trim()) { showError('Missing Field', 'Please enter the contact number.', '', ERROR_TYPES.WARNING); return; }
     const yr = new Date().getFullYear();
     const newPatientId = `PT-${yr}-${String(Math.floor(Math.random() * 900) + 100)}`;
     setLoading(true);
@@ -267,7 +482,9 @@ export default function Upload({
       setCurrentPatient({ patientId: newPatientId, name: patientName, age: patientAge, sex: patientSex, dob: patientDOB, address: patientAddress, contact: patientContact });
       setTab('confirmed');
       setTotalPatients(p => p + 1);
-    } catch { alert('Error saving patient. Make sure backend is running.'); }
+    } catch {
+      showError('Save Failed', 'Error saving patient. Make sure the backend is running.', 'Check that the server is online and try again.');
+    }
     finally { setLoading(false); }
   };
 
@@ -285,6 +502,7 @@ export default function Upload({
     setMobileCaptureLoading(false);
     setMobileLink('');
     setShowQRModal(false);
+    clearError();
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
@@ -374,10 +592,9 @@ export default function Upload({
     }
   };
 
-  // ── Mobile capture — now includes name & patientId in QR link
   const startMobileCapture = async () => {
     if (!patientId) {
-      alert('Add/select patient first');
+      showError('No Patient Selected', 'Please add or select a patient before starting mobile capture.', '', ERROR_TYPES.WARNING);
       return;
     }
     setMobileCaptureLoading(true);
@@ -387,25 +604,21 @@ export default function Upload({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId, patientName }),
       });
-
       if (!res.ok) {
         const text = await res.text();
-        console.error('Server error response:', text);
-        alert(`Server error ${res.status} — check your backend console.\n\n${text}`);
+        let parsed = {};
+        try { parsed = JSON.parse(text); } catch {}
+        showError('Session Error', extractBackendMessage(parsed) || `Server error ${res.status}`, 'Check that the backend server is running and reachable.');
         return;
       }
-
       const data = await res.json();
       if (!data.success) {
-        alert('Failed to create session: ' + (data.message || 'unknown error'));
+        showError('Session Failed', data.message || 'Failed to create capture session.', 'Try again or restart the server.');
         return;
       }
-
-      // Encode patient name & ID into the QR so the mobile app auto-fills them
       const encodedName = encodeURIComponent(patientName);
       const encodedId   = encodeURIComponent(patientId);
       const link = `exp://192.168.1.6:8081/--/?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
-
       setCaptureSessionId(data.sessionId);
       setMobileCaptureStatus('waiting');
       setMobileCapturedImageUrl('');
@@ -413,7 +626,7 @@ export default function Upload({
       setShowQRModal(true);
     } catch (err) {
       console.error(err);
-      alert('Cannot reach server at 192.168.1.17:5001 — is it running?\n\n' + err.message);
+      showError('Connection Failed', `Cannot reach server at 192.168.1.17:5001 — is it running?`, err.message);
     } finally {
       setMobileCaptureLoading(false);
     }
@@ -427,25 +640,36 @@ export default function Upload({
       if (data.status === 'uploaded') {
         setMobileCaptureStatus('uploaded');
         setMobileCapturedImageUrl(data.imageUrl);
-        alert('Image received from mobile!');
+        showError('Image Received', 'The image from your mobile device is ready. You can now click "Analyze Image".', '', ERROR_TYPES.WARNING);
       } else {
-        alert('Still waiting for mobile upload…');
+        showError('Still Waiting', 'No image has been uploaded from mobile yet. Please take a photo on your phone first.', '', ERROR_TYPES.WARNING);
       }
     } catch (err) {
-      alert('Error checking capture: ' + err.message);
+      showError('Check Failed', 'Error checking mobile capture status: ' + err.message);
     }
   };
 
   const analyzeMobileCapturedImage = async () => {
     if (!captureSessionId) return;
     setAnalyzing(true);
+    clearError();
     try {
       const res = await fetch(
         `http://192.168.1.17:5001/analyze-captured/${captureSessionId}`,
         { method: 'POST' }
       );
       const data = await res.json();
-      if (!data.success) { alert('Analysis failed'); return; }
+      if (!data.success) {
+        const message = extractBackendMessage(data);
+        const isClassifier = data.errorType === 'INVALID_IMAGE_CLASSIFIER_REJECTED';
+        showError(
+          isClassifier ? 'Invalid Image' : 'Analysis Failed',
+          message,
+          isClassifier ? 'Please upload a valid urine sediment microscope image.' : 'Try again with a different image.',
+          isClassifier ? ERROR_TYPES.CLASSIFIER : ERROR_TYPES.SERVER
+        );
+        return;
+      }
       goToResults({
         patientId,
         patientName,
@@ -457,7 +681,7 @@ export default function Upload({
       });
     } catch (err) {
       console.error(err);
-      alert('Analyze error: ' + err.message);
+      showError('Network Error', 'Could not reach the analysis server: ' + err.message, 'Make sure the Flask server is running on port 5001.');
     } finally {
       setAnalyzing(false);
     }
@@ -467,6 +691,7 @@ export default function Upload({
     if (!uploadedImage || !patientId) return;
     setAnalyzing(true);
     setAnalyzeStep(1);
+    clearError();
     try {
       const sampleId = `SMPL-${Date.now()}`;
       const formData = new FormData();
@@ -477,7 +702,19 @@ export default function Upload({
       setAnalyzeStep(2);
       const analysisResult = await analyzeImage(uploadedImage);
       setAnalyzeStep(3);
-      if (!analysisResult.success) { alert('Error analyzing image: ' + analysisResult.error); return; }
+      if (!analysisResult.success) {
+        const message = extractBackendMessage(analysisResult);
+        const isClassifier = analysisResult.errorType === 'INVALID_IMAGE_CLASSIFIER_REJECTED';
+        showError(
+          isClassifier ? 'Invalid Image' : 'Analysis Failed',
+          message,
+          isClassifier
+            ? 'Please upload a valid urine sediment microscope image instead of a random photo.'
+            : 'Check the image and try again.',
+          isClassifier ? ERROR_TYPES.CLASSIFIER : ERROR_TYPES.SERVER
+        );
+        return;
+      }
       await new Promise(r => setTimeout(r, 700));
       goToResults({
         patientId,
@@ -488,15 +725,29 @@ export default function Upload({
         annotatedImage: analysisResult.annotatedImage,
         rawImage:       URL.createObjectURL(uploadedImage),
       });
-    } catch { alert('Error. Make sure the model server is running on port 5001.'); }
-    finally { setAnalyzing(false); setAnalyzeStep(0); }
+    } catch (err) {
+      showError('Server Error', 'Could not connect to the model server.', 'Make sure the Flask server is running on port 5001. ' + err.message);
+    } finally {
+      setAnalyzing(false);
+      setAnalyzeStep(0);
+    }
   };
 
-  const CRYSTAL_COLORS = { 'CaOx Dihydrate': '#E24B4A', 'CaOx Monohydrate Ovoid': '#F5A623', 'Phosphate': '#6D9922', 'Calcium Oxalate': '#E24B4A', 'Uric Acid': '#1FB505', 'Struvite': '#6D9922', 'Ca Phosphate': '#6D7758' };
-  const RISK_STYLE = { High: { bg: '#FFF0ED', color: '#A32D2D' }, Moderate: { bg: '#FFF8ED', color: '#C07320' }, Low: { bg: '#E8F5E8', color: '#1F5330' } };
   const getInitials = (name) => (name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   const AVATAR_COLORS = ['#1F5330', '#306A33', '#4A7A50', '#2D6A4F'];
   const getAvatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
+
+  /**
+   * Resolve the risk for a record row.
+   * Prefers the backend-supplied `risk` string if it's a plain string (e.g. "Low"),
+   * and falls back to the client-side getRiskLevel() for any legacy/missing values.
+   */
+  const resolveRisk = (r) => {
+    if (typeof r.risk === 'string' && ['High', 'Moderate', 'Low', 'Unknown'].includes(r.risk)) {
+      return r.risk;
+    }
+    return getRiskLevel(r.crystalType, r.count);
+  };
 
   const modalW = expanded ? 'min(92vw, 1100px)' : '660px';
   const modalH = expanded ? '90vh' : '640px';
@@ -509,6 +760,8 @@ export default function Upload({
 
   return (
     <div style={s.app}>
+      <ErrorToast error={uiError} onClose={clearError} />
+
       <Topbar goToLogin={goToLogin} />
       <div style={s.body}>
         <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} badges={badges} />
@@ -562,17 +815,28 @@ export default function Upload({
                   </div>
                 ) : (
                   <div style={s.recordList}>
-                    {recentRecords.map((r, i) => (
-                      <div key={i} style={s.recordRow}>
-                        <div style={{ ...s.recordDot, background: CRYSTAL_COLORS[r.crystalType] || '#888' }} />
-                        <div style={s.recordInfo}>
-                          <div style={s.recordName}>{r.crystalType}</div>
-                          <div style={s.recordMeta}>{r.patientName} · {r.sampleId}</div>
+                    {recentRecords.map((r, i) => {
+                      const risk = resolveRisk(r);
+                      return (
+                        <div key={i} style={s.recordRow}>
+                          {/* Dot uses the full 11-class colour map */}
+                          <div style={{ ...s.recordDot, background: CRYSTAL_COLORS[r.crystalType] || '#94A3B8' }} />
+                          <div style={s.recordInfo}>
+                            <div style={s.recordName}>{r.crystalType}</div>
+                            <div style={s.recordMeta}>{r.patientName} · {r.sampleId}</div>
+                          </div>
+                          {/* Badge uses the risk level string from the backend */}
+                          <div style={{
+                            ...s.riskTag,
+                            background: RISK_STYLE[risk]?.bg || RISK_STYLE.Unknown.bg,
+                            color:      RISK_STYLE[risk]?.color || RISK_STYLE.Unknown.color,
+                          }}>
+                            {risk}
+                          </div>
+                          <div style={s.recordCount}>{r.count}</div>
                         </div>
-                        <div style={{ ...s.riskTag, background: RISK_STYLE[r.risk]?.bg || '#E8F5E8', color: RISK_STYLE[r.risk]?.color || '#1F5330' }}>{r.risk}</div>
-                        <div style={s.recordCount}>{r.count}</div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -842,12 +1106,10 @@ export default function Upload({
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         Browse File
                       </button>
-
                       <button onClick={openCamera} disabled={!patientId} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #1F5330', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId ? 1 : 0.5 }}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         Use Camera
                       </button>
-
                       <button onClick={startMobileCapture} disabled={!patientId || mobileCaptureLoading} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #4A7A9B', background: '#4A7A9B', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: patientId && !mobileCaptureLoading ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId && !mobileCaptureLoading ? 1 : 0.5 }}>
                         {mobileCaptureLoading
                           ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -988,7 +1250,6 @@ export default function Upload({
       {showQRModal && (
         <div style={{ ...s.overlay, zIndex: 1200 }} onClick={(e) => { if (e.target === e.currentTarget) setShowQRModal(false); }}>
           <div style={{ background: '#fff', borderRadius: '18px', boxShadow: '0 28px 72px rgba(0,0,0,0.28), 0 4px 20px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '360px', maxWidth: '95vw', animation: 'fadeInScale 0.22s ease' }}>
-
             <div style={{ background: '#4A7A9B', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1003,7 +1264,6 @@ export default function Upload({
                 <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1 1l7 7M8 1l-7 7" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" strokeLinecap="round"/></svg>
               </button>
             </div>
-
             <div style={{ padding: '24px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
               <div style={{ fontSize: '12px', color: '#8C9A8C', textAlign: 'center', lineHeight: 1.6 }}>
                 Point your phone's camera at the QR code to open the capture session instantly.
@@ -1015,7 +1275,6 @@ export default function Upload({
                 <div style={{ position: 'absolute', bottom: 8, right: 8, width: 16, height: 16, borderBottom: '2.5px solid #1F5330', borderRight: '2.5px solid #1F5330', borderRadius: '0 0 3px 0' }} />
                 <div ref={qrCanvasRef} style={{ display: 'block' }} />
               </div>
-
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F0F6FF', border: '1px solid #C4D8EE', borderRadius: '10px', padding: '8px 14px', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F5A623', flexShrink: 0, boxShadow: '0 0 0 3px rgba(245,166,35,0.2)' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1026,13 +1285,11 @@ export default function Upload({
                   {mobileCaptureStatus === 'uploaded' ? '✓ Done' : '⏳ Waiting'}
                 </div>
               </div>
-
               <div style={{ width: '100%', background: '#F8F9F5', border: '1px solid #E0E2D8', borderRadius: '8px', padding: '8px 12px', boxSizing: 'border-box' }}>
                 <div style={{ fontSize: '9px', fontWeight: 700, color: '#A4AAA4', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Manual link</div>
                 <div style={{ fontSize: '10px', color: '#4A7A9B', wordBreak: 'break-all', lineHeight: 1.5, fontFamily: 'monospace' }}>{mobileLink}</div>
               </div>
             </div>
-
             <div style={{ padding: '12px 20px 16px', borderTop: '1px solid #ECEEE6', background: '#F8F9F5', display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowQRModal(false)} style={{ ...s.cancelBtn, flex: 1 }}>Done</button>
               <button
@@ -1043,7 +1300,6 @@ export default function Upload({
                 Copy Link
               </button>
             </div>
-
           </div>
         </div>
       )}

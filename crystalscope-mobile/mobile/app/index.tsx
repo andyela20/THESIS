@@ -227,7 +227,6 @@ const ZOOM_MIN  = 0;
 const ZOOM_MAX  = 1;
 const TRACK_H   = 180;
 
-// FIX: Pass zoomRef so the slider always reads the latest zoom value (no stale closure)
 const ZoomSlider = ({
   zoom,
   zoomRef,
@@ -245,8 +244,7 @@ const ZoomSlider = ({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => {
-        // FIX: read live value from ref, not stale closure
+      onPanResponderGrant: () => {
         startY.current    = zoomToY(zoomRef.current);
         startZoom.current = zoomRef.current;
       },
@@ -259,7 +257,6 @@ const ZoomSlider = ({
   ).current;
 
   const thumbPos = zoomToY(zoom);
-  const percent  = Math.round(zoom * 100);
   const fillH    = TRACK_H - thumbPos;
 
   return (
@@ -288,7 +285,7 @@ const ZoomSlider = ({
       </TouchableOpacity>
 
       <View style={zoomStyles.badge}>
-        <Text style={zoomStyles.badgeText}>{percent}%</Text>
+        <Text style={zoomStyles.badgeText}>{Math.round(zoom * 100)}%</Text>
       </View>
     </View>
   );
@@ -341,9 +338,11 @@ type AppMode = 'qr_scan' | 'capture';
 export default function HomeScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [splashDone, setSplashDone]       = useState(false);
 
+  const isCameraReadyRef = useRef(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+
+  const [splashDone, setSplashDone] = useState(false);
   const [mode,    setMode]    = useState<AppMode>('qr_scan');
   const [photo,   setPhoto]   = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -356,7 +355,6 @@ export default function HomeScreen() {
   const [qrScanned,     setQrScanned]     = useState(false);
   const [patientFromQr, setPatientFromQr] = useState(false);
 
-  // FIX: keep a ref mirror of zoom so pan/pinch closures always read the latest value
   const [zoom, setZoomState] = useState(0);
   const zoomRef = useRef(0);
   const setZoom = useCallback((z: number) => {
@@ -381,7 +379,6 @@ export default function HomeScreen() {
     PanResponder.create({
       onStartShouldSetPanResponder: (e) => e.nativeEvent.touches.length === 2,
       onMoveShouldSetPanResponder:  (e) => e.nativeEvent.touches.length === 2,
-      // FIX: do NOT intercept single-touch (shutter button) — only respond to 2-finger gestures
       onStartShouldSetPanResponderCapture: (e) => e.nativeEvent.touches.length === 2,
       onMoveShouldSetPanResponderCapture:  (e) => e.nativeEvent.touches.length === 2,
       onPanResponderGrant: (e) => {
@@ -390,7 +387,6 @@ export default function HomeScreen() {
           const dx = t1.pageX - t2.pageX;
           const dy = t1.pageY - t2.pageY;
           pinchRef.current.initialDist = Math.sqrt(dx * dx + dy * dy);
-          // FIX: read from ref, not stale closure
           pinchRef.current.initialZoom = zoomRef.current;
         }
       },
@@ -415,17 +411,25 @@ export default function HomeScreen() {
     })
   ).current;
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Camera ready handler ──────────────────────────────────────────────────
+  const handleCameraReady = useCallback(() => {
+    isCameraReadyRef.current = true;
+    setIsCameraReady(true);
+  }, []);
+
+  // ── Session helpers ───────────────────────────────────────────────────────
   const connectSession = (id: string, name = '', pid = '', fromQr = false) => {
     setSessionId(id);
     setPatientName(name);
     setPatientId(pid);
     setPatientFromQr(fromQr && !!(name || pid));
     setMode('capture');
-    // FIX: do NOT reset isCameraReady here — the camera stays mounted; let onCameraReady manage it
     setPhoto(null);
     setResult(null);
     setZoom(0);
+    // Reset camera ready so onCameraReady fires when the capture CameraView mounts
+    isCameraReadyRef.current = false;
+    setIsCameraReady(false);
   };
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
@@ -461,20 +465,11 @@ export default function HomeScreen() {
     }
   }, [url]);
 
-  // FIX: takePhoto no longer gates on isCameraReady from stale state;
-  //      uses a ref for the most current value
-  const isCameraReadyRef = useRef(false);
-  const handleCameraReady = useCallback(() => {
-    isCameraReadyRef.current = true;
-    setIsCameraReady(true);
-  }, []);
-
   const takePhoto = async () => {
     if (!cameraRef.current) {
       Alert.alert('Camera Error', 'Camera is not attached.');
       return;
     }
-    // FIX: check ref (always current) instead of state (may be stale after retake)
     if (!isCameraReadyRef.current) {
       Alert.alert('Camera Error', 'Camera is not ready yet. Please wait a moment.');
       return;
@@ -521,9 +516,9 @@ export default function HomeScreen() {
         onPress: () => {
           setSessionId(''); setPatientName(''); setPatientId('');
           setPatientFromQr(false); setMode('qr_scan'); setQrScanned(false);
-          setPhoto(null); setResult(null);
-          // FIX: do not reset isCameraReady here; camera remains mounted in background
-          setSessionInput(''); setZoom(0);
+          setPhoto(null); setResult(null); setSessionInput(''); setZoom(0);
+          isCameraReadyRef.current = false;
+          setIsCameraReady(false);
         },
       },
     ]);
@@ -557,29 +552,24 @@ export default function HomeScreen() {
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // RENDER: both screens share a single CameraView that stays mounted
-  // to avoid re-init and onCameraReady never re-firing.
-  // ══════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  //
+  // KEY FIX: Each mode renders its OWN CameraView directly inside the
+  // cameraWrapper View. This guarantees the camera feed fills its container
+  // and is never hidden behind another view, ScrollView, or zIndex layer.
+  //
+  // - QR mode:      CameraView with barcode scanning, rendered in its card
+  // - Capture mode: CameraView with zoom + ref, rendered in its card
+  //
+  // When mode switches, the old CameraView unmounts and the new one mounts.
+  // Expo Go handles this cleanly — there is never more than one active at a time.
+  // ══════════════════════════════════════════════════════════════════════════
   return (
     <View style={styles.screen}>
-      {/* 
-        FIX: CameraView is ALWAYS mounted (just hidden when not needed).
-        This ensures onCameraReady fires once and stays valid,
-        and the ref is always attached — so takePhoto() always works.
-      */}
-      <View style={[styles.hiddenCamera, mode === 'capture' && !photo && styles.visibleCamera]}>
-        <CameraView
-          style={StyleSheet.absoluteFill}
-          ref={cameraRef}
-          zoom={zoom}
-          onCameraReady={handleCameraReady}
-        />
-      </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {/* ── QR SCAN SCREEN ─────────────────────────────── */}
+        {/* ── QR SCAN SCREEN ─────────────────────────────────────────────── */}
         {mode === 'qr_scan' && (
           <>
             <View style={styles.topbar}>
@@ -603,13 +593,19 @@ export default function HomeScreen() {
               </Text>
             </View>
 
+            {/*
+              QR Camera Card — CameraView lives DIRECTLY inside cameraWrapper.
+              This is what makes the preview visible. No absolute positioning
+              tricks, no zIndex games — the camera is a normal flex child.
+            */}
             <View style={styles.card}>
               <View style={styles.cameraWrapper}>
                 <CameraView
-                  style={styles.camera}
+                  style={StyleSheet.absoluteFill}
                   barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                  onBarcodeScanned={qrScanned ? undefined : handleBarCodeScanned}
+                  onBarcodeScanned={!qrScanned ? handleBarCodeScanned : undefined}
                 />
+                {/* Visual overlay for QR frame guides */}
                 <View style={styles.qrOverlay}>
                   <View style={styles.qrFrame}>
                     <View style={styles.cornerTL} />
@@ -617,10 +613,14 @@ export default function HomeScreen() {
                     <View style={styles.cornerBL} />
                     <View style={styles.cornerBR} />
                   </View>
-                  {qrScanned && (
+                  {qrScanned ? (
                     <View style={styles.scanningBadge}>
                       <ActivityIndicator size="small" color="#fff" />
                       <Text style={styles.scanningText}>Connecting…</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.scanPromptBadge}>
+                      <Text style={styles.scanPromptText}>Point at QR code</Text>
                     </View>
                   )}
                 </View>
@@ -655,7 +655,7 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* ── CAPTURE SCREEN ─────────────────────────────── */}
+        {/* ── CAPTURE SCREEN ─────────────────────────────────────────────── */}
         {mode === 'capture' && (
           <>
             <View style={styles.topbar}>
@@ -731,21 +731,27 @@ export default function HomeScreen() {
                 </View>
 
                 {/*
-                  FIX: This is a transparent overlay box that sits over the
-                  persistent CameraView rendered above. It's sized/positioned
-                  identically so it visually matches.
-                  The pinchResponder lives here, separate from the shutter button,
-                  so 2-finger pinch zooms but single-tap shutter is never eaten.
+                  Capture Camera — CameraView lives DIRECTLY inside cameraWrapper.
+                  The ref, zoom, and onCameraReady are all wired here.
+                  pinchResponder wraps the whole cameraWrapper for 2-finger zoom.
+                  The shutter button is inside cameraOverlay (absoluteFill sibling
+                  of CameraView), so single taps reach it cleanly.
                 */}
                 <View style={styles.cameraWrapper} {...pinchResponder.panHandlers}>
-                  {/* Corner guides */}
+                  <CameraView
+                    style={StyleSheet.absoluteFill}
+                    ref={cameraRef}
+                    zoom={zoom}
+                    onCameraReady={handleCameraReady}
+                  />
+
+                  {/* Overlay: corners + shutter */}
                   <View style={styles.cameraOverlay}>
                     <View style={styles.cornerTL} />
                     <View style={styles.cornerTR} />
                     <View style={styles.cornerBL} />
                     <View style={styles.cornerBR} />
-                    {/* FIX: shutter is inside overlay but NOT inside pinchResponder wrapper,
-                        so single taps reach it cleanly */}
+
                     <TouchableOpacity
                       style={[styles.captureBtn, !isCameraReady && styles.captureBtnDisabled]}
                       onPress={takePhoto}
@@ -789,8 +795,10 @@ export default function HomeScreen() {
                     style={styles.secondaryBtn}
                     onPress={() => {
                       setPhoto(null);
-                      // FIX: camera never unmounted so it's still ready — no need to reset
                       setZoom(0);
+                      // Reset so onCameraReady fires again when CameraView re-mounts
+                      isCameraReadyRef.current = false;
+                      setIsCameraReady(false);
                     }}
                   >
                     <Text style={styles.secondaryText}>Retake</Text>
@@ -842,23 +850,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen:        { flex: 1, backgroundColor: '#F1F3EC', paddingTop: 52, paddingHorizontal: 14 },
   scrollContent: { paddingBottom: 36 },
-
-  // FIX: persistent camera lives behind the scroll view; shown/hidden via size
-  hiddenCamera: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    overflow: 'hidden',
-  },
-  visibleCamera: {
-    // matches cameraWrapper dimensions so CameraView previews correctly through the card
-    top: 0, left: 0, right: 0, bottom: 0,
-    width: '100%',
-    height: 340,
-    // this node is behind ScrollView; actual visible frame is the card's cameraWrapper
-    zIndex: -1,
-    opacity: 0, // hidden; card shows the real CameraView ref
-  },
 
   topbar:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -917,14 +908,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
   },
 
+  // cameraWrapper: explicit height, no backgroundColor — the CameraView fills it
   cameraWrapper: {
-    height: 340, borderRadius: 12, overflow: 'hidden',
-    position: 'relative', backgroundColor: '#111',
+    height: 340,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    // NO backgroundColor here — letting the camera show through naturally
   },
-  camera: { ...StyleSheet.absoluteFillObject },
 
   qrOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
   qrFrame:   { width: 210, height: 210, position: 'relative', justifyContent: 'center', alignItems: 'center' },
+
   scanningBadge: {
     position: 'absolute', bottom: 18,
     flexDirection: 'row', alignItems: 'center',
@@ -932,6 +927,13 @@ const styles = StyleSheet.create({
     borderRadius: 20, gap: 8,
   },
   scanningText: { color: '#fff', fontFamily: 'Poppins_500Medium', fontSize: 13 },
+
+  scanPromptBadge: {
+    position: 'absolute', bottom: 18,
+    backgroundColor: 'rgba(31,93,63,0.75)', paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 20,
+  },
+  scanPromptText: { color: '#fff', fontFamily: 'Poppins_500Medium', fontSize: 13 },
 
   cameraOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -227,7 +227,16 @@ const ZOOM_MIN  = 0;
 const ZOOM_MAX  = 1;
 const TRACK_H   = 180;
 
-const ZoomSlider = ({ zoom, onZoomChange }: { zoom: number; onZoomChange: (z: number) => void }) => {
+// FIX: Pass zoomRef so the slider always reads the latest zoom value (no stale closure)
+const ZoomSlider = ({
+  zoom,
+  zoomRef,
+  onZoomChange,
+}: {
+  zoom: number;
+  zoomRef: React.MutableRefObject<number>;
+  onZoomChange: (z: number) => void;
+}) => {
   const startY    = useRef(0);
   const startZoom = useRef(zoom);
 
@@ -236,9 +245,10 @@ const ZoomSlider = ({ zoom, onZoomChange }: { zoom: number; onZoomChange: (z: nu
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        startY.current    = zoomToY(zoom);
-        startZoom.current = zoom;
+      onPanResponderGrant: (e) => {
+        // FIX: read live value from ref, not stale closure
+        startY.current    = zoomToY(zoomRef.current);
+        startZoom.current = zoomRef.current;
       },
       onPanResponderMove: (_, gs) => {
         const newY    = Math.max(0, Math.min(TRACK_H, startY.current + gs.dy));
@@ -250,39 +260,33 @@ const ZoomSlider = ({ zoom, onZoomChange }: { zoom: number; onZoomChange: (z: nu
 
   const thumbPos = zoomToY(zoom);
   const percent  = Math.round(zoom * 100);
-  const fillH    = TRACK_H - thumbPos; // filled from bottom up
+  const fillH    = TRACK_H - thumbPos;
 
   return (
     <View style={zoomStyles.container}>
-      {/* + */}
       <TouchableOpacity
         style={zoomStyles.btn}
-        onPress={() => onZoomChange(Math.min(ZOOM_MAX, parseFloat((zoom + 0.05).toFixed(3))))}
+        onPress={() => onZoomChange(Math.min(ZOOM_MAX, parseFloat((zoomRef.current + 0.05).toFixed(3))))}
         activeOpacity={0.7}
       >
         <IconZoomIn size={16} color="#fff" />
       </TouchableOpacity>
 
-      {/* Track */}
       <View style={zoomStyles.trackWrap} {...panResponder.panHandlers}>
         <View style={zoomStyles.track}>
-          {/* Bottom fill = active zoom */}
           <View style={[zoomStyles.fill, { height: fillH, position: 'absolute', bottom: 0 }]} />
         </View>
-        {/* Thumb */}
         <View style={[zoomStyles.thumb, { top: thumbPos - 10 }]} />
       </View>
 
-      {/* - */}
       <TouchableOpacity
         style={zoomStyles.btn}
-        onPress={() => onZoomChange(Math.max(ZOOM_MIN, parseFloat((zoom - 0.05).toFixed(3))))}
+        onPress={() => onZoomChange(Math.max(ZOOM_MIN, parseFloat((zoomRef.current - 0.05).toFixed(3))))}
         activeOpacity={0.7}
       >
         <IconZoomOut size={16} color="#fff" />
       </TouchableOpacity>
 
-      {/* Level badge */}
       <View style={zoomStyles.badge}>
         <Text style={zoomStyles.badgeText}>{percent}%</Text>
       </View>
@@ -352,8 +356,14 @@ export default function HomeScreen() {
   const [qrScanned,     setQrScanned]     = useState(false);
   const [patientFromQr, setPatientFromQr] = useState(false);
 
-  // Zoom
-  const [zoom, setZoom] = useState(0);
+  // FIX: keep a ref mirror of zoom so pan/pinch closures always read the latest value
+  const [zoom, setZoomState] = useState(0);
+  const zoomRef = useRef(0);
+  const setZoom = useCallback((z: number) => {
+    zoomRef.current = z;
+    setZoomState(z);
+  }, []);
+
   const pinchRef = useRef({ initialDist: 0, initialZoom: 0 });
 
   const [fontsLoaded] = useFonts({
@@ -364,20 +374,24 @@ export default function HomeScreen() {
     Poppins_800ExtraBold,
   });
 
-  const API_URL = 'http://192.168.1.17:5001/upload-capture';
+  const API_URL = 'http://10.246.80.62:5001/upload-capture';
 
   // ── Pinch-to-zoom ─────────────────────────────────────────────────────────
   const pinchResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (e) => e.nativeEvent.touches.length === 2,
       onMoveShouldSetPanResponder:  (e) => e.nativeEvent.touches.length === 2,
+      // FIX: do NOT intercept single-touch (shutter button) — only respond to 2-finger gestures
+      onStartShouldSetPanResponderCapture: (e) => e.nativeEvent.touches.length === 2,
+      onMoveShouldSetPanResponderCapture:  (e) => e.nativeEvent.touches.length === 2,
       onPanResponderGrant: (e) => {
         if (e.nativeEvent.touches.length === 2) {
           const [t1, t2] = e.nativeEvent.touches;
           const dx = t1.pageX - t2.pageX;
           const dy = t1.pageY - t2.pageY;
           pinchRef.current.initialDist = Math.sqrt(dx * dx + dy * dy);
-          pinchRef.current.initialZoom = zoom;
+          // FIX: read from ref, not stale closure
+          pinchRef.current.initialZoom = zoomRef.current;
         }
       },
       onPanResponderMove: (e) => {
@@ -394,7 +408,8 @@ export default function HomeScreen() {
               parseFloat((pinchRef.current.initialZoom * scale + (scale - 1) * 0.3).toFixed(3))
             )
           );
-          setZoom(newZoom);
+          zoomRef.current = newZoom;
+          setZoomState(newZoom);
         }
       },
     })
@@ -407,7 +422,7 @@ export default function HomeScreen() {
     setPatientId(pid);
     setPatientFromQr(fromQr && !!(name || pid));
     setMode('capture');
-    setIsCameraReady(false);
+    // FIX: do NOT reset isCameraReady here — the camera stays mounted; let onCameraReady manage it
     setPhoto(null);
     setResult(null);
     setZoom(0);
@@ -446,9 +461,24 @@ export default function HomeScreen() {
     }
   }, [url]);
 
+  // FIX: takePhoto no longer gates on isCameraReady from stale state;
+  //      uses a ref for the most current value
+  const isCameraReadyRef = useRef(false);
+  const handleCameraReady = useCallback(() => {
+    isCameraReadyRef.current = true;
+    setIsCameraReady(true);
+  }, []);
+
   const takePhoto = async () => {
-    if (!cameraRef.current) { Alert.alert('Camera Error', 'Camera is not attached.'); return; }
-    if (!isCameraReady)     { Alert.alert('Camera Error', 'Camera is not ready yet.'); return; }
+    if (!cameraRef.current) {
+      Alert.alert('Camera Error', 'Camera is not attached.');
+      return;
+    }
+    // FIX: check ref (always current) instead of state (may be stale after retake)
+    if (!isCameraReadyRef.current) {
+      Alert.alert('Camera Error', 'Camera is not ready yet. Please wait a moment.');
+      return;
+    }
     try {
       const pic = await cameraRef.current.takePictureAsync({ quality: 0.9 });
       if (!pic) { Alert.alert('Capture Error', 'No image returned.'); return; }
@@ -491,7 +521,8 @@ export default function HomeScreen() {
         onPress: () => {
           setSessionId(''); setPatientName(''); setPatientId('');
           setPatientFromQr(false); setMode('qr_scan'); setQrScanned(false);
-          setPhoto(null); setResult(null); setIsCameraReady(false);
+          setPhoto(null); setResult(null);
+          // FIX: do not reset isCameraReady here; camera remains mounted in background
           setSessionInput(''); setZoom(0);
         },
       },
@@ -527,268 +558,279 @@ export default function HomeScreen() {
   }
 
   // ══════════════════════════════════════════════════════
-  // QR SCAN SCREEN
-  // ══════════════════════════════════════════════════════
-  if (mode === 'qr_scan') {
-    return (
-      <View style={styles.screen}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-          <View style={styles.topbar}>
-            <View style={styles.logoRow}>
-              <MagniTectLogo size={28} color="#1F5D3F" />
-              <Text style={styles.logo}>MagniTect</Text>
-            </View>
-            <View style={styles.statusBadge}>
-              <View style={[styles.statusDot, { backgroundColor: '#aaa' }]} />
-              <Text style={styles.statusText}>No Session</Text>
-            </View>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.cardIconRow}>
-              <IconQr size={18} color="#1F5D3F" />
-              <Text style={styles.sectionTitle}>Connect to Desktop</Text>
-            </View>
-            <Text style={styles.hint}>
-              Open MagniTect on your desktop and scan the QR code shown there to start a session.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.cameraWrapper}>
-              <CameraView
-                style={styles.camera}
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={qrScanned ? undefined : handleBarCodeScanned}
-              />
-              <View style={styles.qrOverlay}>
-                <View style={styles.qrFrame}>
-                  <View style={styles.cornerTL} />
-                  <View style={styles.cornerTR} />
-                  <View style={styles.cornerBL} />
-                  <View style={styles.cornerBR} />
-                </View>
-                {qrScanned && (
-                  <View style={styles.scanningBadge}>
-                    <ActivityIndicator size="small" color="#fff" />
-                    <Text style={styles.scanningText}>Connecting…</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            <Text style={styles.cameraHint}>Point your camera at the desktop QR code</Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.cardIconRow}>
-              <IconLink size={16} color="#1F5D3F" />
-              <Text style={styles.sectionTitle}>Or Enter Session ID</Text>
-            </View>
-            <TextInput
-              placeholder="Paste session ID here"
-              placeholderTextColor="#aaa"
-              style={styles.input}
-              value={sessionInput}
-              onChangeText={setSessionInput}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              style={[styles.primaryBtn, { marginTop: 8 }]}
-              onPress={() => {
-                if (sessionInput.trim()) connectSession(sessionInput.trim());
-                else Alert.alert('Empty', 'Please enter a session ID first.');
-              }}
-            >
-              <IconLink size={15} color="#fff" />
-              <Text style={[styles.primaryText, { marginLeft: 6 }]}>Connect Manually</Text>
-            </TouchableOpacity>
-          </View>
-
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // CAPTURE SCREEN
+  // RENDER: both screens share a single CameraView that stays mounted
+  // to avoid re-init and onCameraReady never re-firing.
   // ══════════════════════════════════════════════════════
   return (
     <View style={styles.screen}>
+      {/* 
+        FIX: CameraView is ALWAYS mounted (just hidden when not needed).
+        This ensures onCameraReady fires once and stays valid,
+        and the ref is always attached — so takePhoto() always works.
+      */}
+      <View style={[styles.hiddenCamera, mode === 'capture' && !photo && styles.visibleCamera]}>
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          ref={cameraRef}
+          zoom={zoom}
+          onCameraReady={handleCameraReady}
+        />
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-        <View style={styles.topbar}>
-          <View style={styles.logoRow}>
-            <MagniTectLogo size={28} color="#1F5D3F" />
-            <Text style={styles.logo}>MagniTect</Text>
-          </View>
-          <TouchableOpacity onPress={disconnectSession} style={styles.statusBadgeActive}>
-            <View style={[styles.statusDot, { backgroundColor: '#22C55E' }]} />
-            <Text style={[styles.statusText, { color: '#1F5D3F' }]}>Session Active</Text>
-            <View style={{ marginLeft: 4 }}><IconX size={12} color="#1F5D3F" /></View>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.sessionBanner}>
-          <IconLink size={13} color="#1F5D3F" />
-          <Text style={styles.sessionText}>
-            {'  '}Session:{' '}
-            <Text style={{ fontFamily: 'Poppins_600SemiBold' }}>{sessionId}</Text>
-          </Text>
-        </View>
-
-        {/* Patient Card */}
-        <View style={styles.card}>
-          <View style={styles.cardIconRow}>
-            <IconUser size={16} color="#1F5D3F" />
-            <Text style={styles.sectionTitle}>Patient</Text>
-          </View>
-
-          {/* Name */}
-          <View style={styles.fieldWrap}>
-            <View style={styles.fieldIconWrap}><IconUser size={15} color="#888" /></View>
-            {patientFromQr && patientName ? (
-              <View style={styles.readonlyField}>
-                <Text style={styles.readonlyLabel}>Name</Text>
-                <Text style={styles.readonlyValue}>{patientName}</Text>
-                <View style={styles.readonlyCheck}><IconCheck size={14} color="#1F5D3F" /></View>
+        {/* ── QR SCAN SCREEN ─────────────────────────────── */}
+        {mode === 'qr_scan' && (
+          <>
+            <View style={styles.topbar}>
+              <View style={styles.logoRow}>
+                <MagniTectLogo size={28} color="#1F5D3F" />
+                <Text style={styles.logo}>MagniTect</Text>
               </View>
-            ) : (
-              <TextInput
-                placeholder="Patient Name"
-                placeholderTextColor="#aaa"
-                style={styles.fieldInput}
-                value={patientName}
-                onChangeText={setPatientName}
-              />
-            )}
-          </View>
-
-          {/* ID */}
-          <View style={[styles.fieldWrap, { marginBottom: 0 }]}>
-            <View style={styles.fieldIconWrap}><IconId size={15} color="#888" /></View>
-            {patientFromQr && patientId ? (
-              <View style={styles.readonlyField}>
-                <Text style={styles.readonlyLabel}>Patient ID</Text>
-                <Text style={styles.readonlyValue}>{patientId}</Text>
-                <View style={styles.readonlyCheck}><IconCheck size={14} color="#1F5D3F" /></View>
+              <View style={styles.statusBadge}>
+                <View style={[styles.statusDot, { backgroundColor: '#aaa' }]} />
+                <Text style={styles.statusText}>No Session</Text>
               </View>
-            ) : (
-              <TextInput
-                placeholder="Patient ID"
-                placeholderTextColor="#aaa"
-                style={styles.fieldInput}
-                value={patientId}
-                onChangeText={setPatientId}
-              />
-            )}
-          </View>
-        </View>
-
-        {/* Camera / Preview */}
-        {!photo ? (
-          <View style={styles.card}>
-            <View style={styles.cardIconRow}>
-              <IconCamera size={16} color="#1F5D3F" />
-              <Text style={styles.sectionTitle}>Capture Image</Text>
             </View>
 
-            {/* Camera with pinch-to-zoom */}
-            <View style={styles.cameraWrapper} {...pinchResponder.panHandlers}>
-              <CameraView
-                style={styles.camera}
-                ref={cameraRef}
-                zoom={zoom}
-                onCameraReady={() => setIsCameraReady(true)}
-              />
-
-              {/* Corner guides + shutter */}
-              <View style={styles.cameraOverlay}>
-                <View style={styles.cornerTL} />
-                <View style={styles.cornerTR} />
-                <View style={styles.cornerBL} />
-                <View style={styles.cornerBR} />
-                <TouchableOpacity
-                  style={[styles.captureBtn, !isCameraReady && styles.captureBtnDisabled]}
-                  onPress={takePhoto}
-                  disabled={!isCameraReady}
-                >
-                  {!isCameraReady
-                    ? <ActivityIndicator size="small" color="#1F5D3F" />
-                    : <View style={styles.captureBtnInner} />
-                  }
-                </TouchableOpacity>
+            <View style={styles.card}>
+              <View style={styles.cardIconRow}>
+                <IconQr size={18} color="#1F5D3F" />
+                <Text style={styles.sectionTitle}>Connect to Desktop</Text>
               </View>
-
-              {/* Vertical zoom slider */}
-              {isCameraReady && (
-                <ZoomSlider zoom={zoom} onZoomChange={setZoom} />
-              )}
-
-              {/* Zoom multiplier pill */}
-              {isCameraReady && (
-                <View style={styles.zoomPill}>
-                  <Text style={styles.zoomPillText}>
-                    {zoom === 0 ? '1×' : `${(1 + zoom * 9).toFixed(1)}×`}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <Text style={styles.cameraHint}>
-              {isCameraReady
-                ? 'Pinch or use slider to zoom  ·  Tap button to capture'
-                : 'Initializing camera…'}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <View style={styles.cardIconRow}>
-              <IconCamera size={16} color="#1F5D3F" />
-              <Text style={styles.sectionTitle}>Preview</Text>
-            </View>
-            <Image source={{ uri: photo.uri }} style={styles.image} resizeMode="cover" />
-            <View style={styles.row}>
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={() => { setPhoto(null); setIsCameraReady(false); setZoom(0); }}
-              >
-                <Text style={styles.secondaryText}>Retake</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtn} onPress={uploadPhoto}>
-                {loading
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : (
-                    <>
-                      <IconUpload size={16} color="#fff" />
-                      <Text style={[styles.primaryText, { marginLeft: 6 }]}>Upload to Desktop</Text>
-                    </>
-                  )
-                }
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Result */}
-        {result && (
-          <View style={[styles.resultCard, {
-            borderLeftColor: result.success ? '#1F5D3F' : '#E24B4A',
-            borderLeftWidth: 4,
-          }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {result.success
-                ? <IconCheck size={16} color="#1F5D3F" />
-                : <IconX    size={16} color="#A32D2D" />
-              }
-              <Text style={{
-                color: result.success ? '#1F5D3F' : '#A32D2D',
-                fontFamily: 'Poppins_600SemiBold', flex: 1,
-              }}>
-                {result.message}
+              <Text style={styles.hint}>
+                Open MagniTect on your desktop and scan the QR code shown there to start a session.
               </Text>
             </View>
-          </View>
+
+            <View style={styles.card}>
+              <View style={styles.cameraWrapper}>
+                <CameraView
+                  style={styles.camera}
+                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  onBarcodeScanned={qrScanned ? undefined : handleBarCodeScanned}
+                />
+                <View style={styles.qrOverlay}>
+                  <View style={styles.qrFrame}>
+                    <View style={styles.cornerTL} />
+                    <View style={styles.cornerTR} />
+                    <View style={styles.cornerBL} />
+                    <View style={styles.cornerBR} />
+                  </View>
+                  {qrScanned && (
+                    <View style={styles.scanningBadge}>
+                      <ActivityIndicator size="small" color="#fff" />
+                      <Text style={styles.scanningText}>Connecting…</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <Text style={styles.cameraHint}>Point your camera at the desktop QR code</Text>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardIconRow}>
+                <IconLink size={16} color="#1F5D3F" />
+                <Text style={styles.sectionTitle}>Or Enter Session ID</Text>
+              </View>
+              <TextInput
+                placeholder="Paste session ID here"
+                placeholderTextColor="#aaa"
+                style={styles.input}
+                value={sessionInput}
+                onChangeText={setSessionInput}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={[styles.primaryBtn, { marginTop: 8 }]}
+                onPress={() => {
+                  if (sessionInput.trim()) connectSession(sessionInput.trim());
+                  else Alert.alert('Empty', 'Please enter a session ID first.');
+                }}
+              >
+                <IconLink size={15} color="#fff" />
+                <Text style={[styles.primaryText, { marginLeft: 6 }]}>Connect Manually</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* ── CAPTURE SCREEN ─────────────────────────────── */}
+        {mode === 'capture' && (
+          <>
+            <View style={styles.topbar}>
+              <View style={styles.logoRow}>
+                <MagniTectLogo size={28} color="#1F5D3F" />
+                <Text style={styles.logo}>MagniTect</Text>
+              </View>
+              <TouchableOpacity onPress={disconnectSession} style={styles.statusBadgeActive}>
+                <View style={[styles.statusDot, { backgroundColor: '#22C55E' }]} />
+                <Text style={[styles.statusText, { color: '#1F5D3F' }]}>Session Active</Text>
+                <View style={{ marginLeft: 4 }}><IconX size={12} color="#1F5D3F" /></View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.sessionBanner}>
+              <IconLink size={13} color="#1F5D3F" />
+              <Text style={styles.sessionText}>
+                {'  '}Session:{' '}
+                <Text style={{ fontFamily: 'Poppins_600SemiBold' }}>{sessionId}</Text>
+              </Text>
+            </View>
+
+            {/* Patient Card */}
+            <View style={styles.card}>
+              <View style={styles.cardIconRow}>
+                <IconUser size={16} color="#1F5D3F" />
+                <Text style={styles.sectionTitle}>Patient</Text>
+              </View>
+              <View style={styles.fieldWrap}>
+                <View style={styles.fieldIconWrap}><IconUser size={15} color="#888" /></View>
+                {patientFromQr && patientName ? (
+                  <View style={styles.readonlyField}>
+                    <Text style={styles.readonlyLabel}>Name</Text>
+                    <Text style={styles.readonlyValue}>{patientName}</Text>
+                    <View style={styles.readonlyCheck}><IconCheck size={14} color="#1F5D3F" /></View>
+                  </View>
+                ) : (
+                  <TextInput
+                    placeholder="Patient Name"
+                    placeholderTextColor="#aaa"
+                    style={styles.fieldInput}
+                    value={patientName}
+                    onChangeText={setPatientName}
+                  />
+                )}
+              </View>
+              <View style={[styles.fieldWrap, { marginBottom: 0 }]}>
+                <View style={styles.fieldIconWrap}><IconId size={15} color="#888" /></View>
+                {patientFromQr && patientId ? (
+                  <View style={styles.readonlyField}>
+                    <Text style={styles.readonlyLabel}>Patient ID</Text>
+                    <Text style={styles.readonlyValue}>{patientId}</Text>
+                    <View style={styles.readonlyCheck}><IconCheck size={14} color="#1F5D3F" /></View>
+                  </View>
+                ) : (
+                  <TextInput
+                    placeholder="Patient ID"
+                    placeholderTextColor="#aaa"
+                    style={styles.fieldInput}
+                    value={patientId}
+                    onChangeText={setPatientId}
+                  />
+                )}
+              </View>
+            </View>
+
+            {/* Camera / Preview */}
+            {!photo ? (
+              <View style={styles.card}>
+                <View style={styles.cardIconRow}>
+                  <IconCamera size={16} color="#1F5D3F" />
+                  <Text style={styles.sectionTitle}>Capture Image</Text>
+                </View>
+
+                {/*
+                  FIX: This is a transparent overlay box that sits over the
+                  persistent CameraView rendered above. It's sized/positioned
+                  identically so it visually matches.
+                  The pinchResponder lives here, separate from the shutter button,
+                  so 2-finger pinch zooms but single-tap shutter is never eaten.
+                */}
+                <View style={styles.cameraWrapper} {...pinchResponder.panHandlers}>
+                  {/* Corner guides */}
+                  <View style={styles.cameraOverlay}>
+                    <View style={styles.cornerTL} />
+                    <View style={styles.cornerTR} />
+                    <View style={styles.cornerBL} />
+                    <View style={styles.cornerBR} />
+                    {/* FIX: shutter is inside overlay but NOT inside pinchResponder wrapper,
+                        so single taps reach it cleanly */}
+                    <TouchableOpacity
+                      style={[styles.captureBtn, !isCameraReady && styles.captureBtnDisabled]}
+                      onPress={takePhoto}
+                      disabled={!isCameraReady}
+                    >
+                      {!isCameraReady
+                        ? <ActivityIndicator size="small" color="#1F5D3F" />
+                        : <View style={styles.captureBtnInner} />
+                      }
+                    </TouchableOpacity>
+                  </View>
+
+                  {isCameraReady && (
+                    <ZoomSlider zoom={zoom} zoomRef={zoomRef} onZoomChange={setZoom} />
+                  )}
+
+                  {isCameraReady && (
+                    <View style={styles.zoomPill}>
+                      <Text style={styles.zoomPillText}>
+                        {zoom === 0 ? '1×' : `${(1 + zoom * 9).toFixed(1)}×`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.cameraHint}>
+                  {isCameraReady
+                    ? 'Pinch or use slider to zoom  ·  Tap button to capture'
+                    : 'Initializing camera…'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.card}>
+                <View style={styles.cardIconRow}>
+                  <IconCamera size={16} color="#1F5D3F" />
+                  <Text style={styles.sectionTitle}>Preview</Text>
+                </View>
+                <Image source={{ uri: photo.uri }} style={styles.image} resizeMode="cover" />
+                <View style={styles.row}>
+                  <TouchableOpacity
+                    style={styles.secondaryBtn}
+                    onPress={() => {
+                      setPhoto(null);
+                      // FIX: camera never unmounted so it's still ready — no need to reset
+                      setZoom(0);
+                    }}
+                  >
+                    <Text style={styles.secondaryText}>Retake</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.primaryBtn} onPress={uploadPhoto} disabled={loading}>
+                    {loading
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : (
+                        <>
+                          <IconUpload size={16} color="#fff" />
+                          <Text style={[styles.primaryText, { marginLeft: 6 }]}>Upload to Desktop</Text>
+                        </>
+                      )
+                    }
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Result */}
+            {result && (
+              <View style={[styles.resultCard, {
+                borderLeftColor: result.success ? '#1F5D3F' : '#E24B4A',
+                borderLeftWidth: 4,
+              }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {result.success
+                    ? <IconCheck size={16} color="#1F5D3F" />
+                    : <IconX    size={16} color="#A32D2D" />
+                  }
+                  <Text style={{
+                    color: result.success ? '#1F5D3F' : '#A32D2D',
+                    fontFamily: 'Poppins_600SemiBold', flex: 1,
+                  }}>
+                    {result.message}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
         )}
 
       </ScrollView>
@@ -800,6 +842,23 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen:        { flex: 1, backgroundColor: '#F1F3EC', paddingTop: 52, paddingHorizontal: 14 },
   scrollContent: { paddingBottom: 36 },
+
+  // FIX: persistent camera lives behind the scroll view; shown/hidden via size
+  hiddenCamera: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+  },
+  visibleCamera: {
+    // matches cameraWrapper dimensions so CameraView previews correctly through the card
+    top: 0, left: 0, right: 0, bottom: 0,
+    width: '100%',
+    height: 340,
+    // this node is behind ScrollView; actual visible frame is the card's cameraWrapper
+    zIndex: -1,
+    opacity: 0, // hidden; card shows the real CameraView ref
+  },
 
   topbar:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

@@ -1,16 +1,28 @@
+require('dotenv').config(); // ← LINE 1, before everything
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+const session = require('express-session');   // ← ADD
+const passport = require('./config/passport'); // ← ADD
 
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: 'http://localhost:3000', credentials: true })); // ← ADD credentials: true
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes  ← IDAGDAG ITO
+// Session & Passport                          // ← ADD THIS BLOCK
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Routes
 app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/patients', require('./routes/patients'));
 app.use('/api/analyses', require('./routes/analyses'));

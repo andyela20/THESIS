@@ -5,37 +5,45 @@ import { saveAnalyses } from './api';
 import { PARTICLE_COLORS, PARTICLE_TYPES, RISK_STYLE } from './particleConstants';
 import './index.css';
 
+
 // Draw bounding boxes on canvas over the image
 function AnnotatedCanvas({ imageSrc, detections = [], visibleTypes, showAll }) {
   const canvasRef   = useRef(null);
   const imgRef      = useRef(null);
   const [imgLoaded, setImgLoaded] = useState(false);
 
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const img    = imgRef.current;
     if (!canvas || !img || !imgLoaded) return;
 
+
     const ctx = canvas.getContext('2d');
     canvas.width  = img.naturalWidth;
     canvas.height = img.naturalHeight;
 
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0);
+
 
     detections.forEach(det => {
       const isVisible = showAll || visibleTypes.has(det.crystalType);
       if (!isVisible) return;
+
 
       const [x1, y1, x2, y2] = det.bbox;
       const color = PARTICLE_COLORS[det.crystalType] || '#888';
       const w = x2 - x1;
       const h = y2 - y1;
 
+
       // Box
       ctx.strokeStyle = color;
       ctx.lineWidth   = Math.max(2, canvas.width / 300);
       ctx.strokeRect(x1, y1, w, h);
+
 
       // Label background
       const fontSize = Math.max(10, canvas.width / 60);
@@ -44,8 +52,10 @@ function AnnotatedCanvas({ imageSrc, detections = [], visibleTypes, showAll }) {
       const tw    = ctx.measureText(label).width;
       const th    = fontSize + 6;
 
+
       ctx.fillStyle = color;
       ctx.fillRect(x1, y1 - th, tw + 8, th);
+
 
       // Label text
       ctx.fillStyle = '#fff';
@@ -53,7 +63,9 @@ function AnnotatedCanvas({ imageSrc, detections = [], visibleTypes, showAll }) {
     });
   }, [detections, visibleTypes, showAll, imgLoaded]);
 
+
   useEffect(() => { draw(); }, [draw]);
+
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -74,9 +86,11 @@ function AnnotatedCanvas({ imageSrc, detections = [], visibleTypes, showAll }) {
   );
 }
 
+
 export default function Results({
   goToUpload, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
   addCrystalRecords, analysisData, markResultsViewed,
+  onSavedToLibrary,   // ← NEW: called after a successful save so Library re-fetches
   badges = {},
 }) {
   const [saved, setSaved]       = useState(false);
@@ -84,7 +98,15 @@ export default function Results({
   const [showAll, setShowAll]   = useState(true);
   const [visibleTypes, setVisibleTypes] = useState(new Set());
 
+
   const particles  = (analysisData?.results?.length > 0) ? analysisData.results : [];
+
+
+  // Reset saved state when new analysis data arrives
+  useEffect(() => {
+    setSaved(false);
+  }, [analysisData]);
+
 
   // Init to show all when new analysis data loads
   useEffect(() => {
@@ -94,8 +116,10 @@ export default function Results({
     }
   }, [analysisData]); // eslint-disable-line react-hooks/exhaustive-deps
 
+
   const detections = analysisData?.detections || [];
   const total      = particles.reduce((sum, p) => sum + p.count, 0);
+
 
   // Exclusive selection: clicking a type shows only that type
   const toggleType = (type) => {
@@ -103,23 +127,33 @@ export default function Results({
     setVisibleTypes(new Set([type]));
   };
 
+
   // All button toggles: first press = show all, second press = hide all
   const handleShowAll = () => {
     if (showAll) {
-      // Already showing all — toggle off (hide everything)
       setShowAll(false);
       setVisibleTypes(new Set());
     } else {
-      // Show all
       setShowAll(true);
       setVisibleTypes(new Set(particles.map(p => p.crystalType || p.particleType)));
     }
   };
 
+
   const handleSaveToLibrary = async () => {
     if (saved) return;
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      let createdBy = 'unknown';
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          createdBy = payload.id || payload._id || payload.username || payload.email || 'unknown';
+        } catch {}
+      }
+
+
       const records = particles.map(particle => ({
         patientId:    analysisData?.patientId,
         patientName:  analysisData?.patientName,
@@ -128,16 +162,19 @@ export default function Results({
         count:        particle.count,
         risk:         particle.risk,
         date:         new Date().toISOString().split('T')[0],
+        createdBy,
       }));
       await saveAnalyses(records);
       addCrystalRecords(records);
       setSaved(true);
+      onSavedToLibrary?.(); // ← notify parent so ParticleLibrary refreshes
     } catch {
       alert('Error saving to library. Make sure backend is running.');
     } finally {
       setLoading(false);
     }
   };
+
 
   // Group particles by category
   const grouped = particles.reduce((acc, p) => {
@@ -148,8 +185,10 @@ export default function Results({
     return acc;
   }, {});
 
+
   // Check if we have bbox data to enable filtering
   const hasBboxData = detections.length > 0 && analysisData?.rawImage;
+
 
   return (
     <div style={styles.app}>
@@ -168,6 +207,7 @@ export default function Results({
         <div style={styles.main}>
           <div style={styles.pane}>
 
+
             {/* ── Image Card ── */}
             <div style={styles.card}>
               <div style={styles.cardTitle}>
@@ -178,6 +218,7 @@ export default function Results({
                   </span>
                 )}
               </div>
+
 
               <div style={styles.scope}>
                 {hasBboxData ? (
@@ -199,6 +240,7 @@ export default function Results({
                   </div>
                 )}
               </div>
+
 
               {/* Filter controls — only show if we have bbox data */}
               {hasBboxData && particles.length > 0 && (
@@ -237,6 +279,7 @@ export default function Results({
               )}
             </div>
 
+
             {/* ── Detection Summary ── */}
             <div style={styles.card}>
               <div style={styles.cardTitle}>
@@ -245,6 +288,7 @@ export default function Results({
                   {total} particles detected · {particles.length} types
                 </span>
               </div>
+
 
               {particles.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#A4AAA4', padding: '20px', fontSize: '13px', fontFamily: "'Poppins', sans-serif" }}>
@@ -300,6 +344,7 @@ export default function Results({
                 ))
               )}
 
+
               {/* Helper text */}
               {hasBboxData && particles.length > 0 && (
                 <div style={styles.helperText}>
@@ -307,6 +352,7 @@ export default function Results({
                 </div>
               )}
             </div>
+
 
             {/* ── Button Bar ── */}
             <div style={styles.bbar}>
@@ -322,12 +368,14 @@ export default function Results({
               <button onClick={goToAnalysis} className="btn-solid">Next →</button>
             </div>
 
+
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 const styles = {
   app:        { display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', background: '#EEF0E8', overflow: 'hidden' },
@@ -342,6 +390,7 @@ const styles = {
   ctypeNum:   { fontSize: '20px', fontWeight: 800, color: '#141514', fontFamily: "'Poppins', sans-serif" },
   ctypeName:  { fontSize: '10px', color: '#A4AAA4', marginTop: '2px', fontFamily: "'Poppins', sans-serif" },
   bbar:       { flexShrink: 0, padding: '12px 28px', background: '#fff', borderTop: '1px solid #D8DAD0', display: 'flex', justifyContent: 'flex-end', gap: '8px' },
+
 
   filterRow:      { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px', alignItems: 'center' },
   filterLabel:    { fontSize: '11px', fontWeight: 600, color: '#A4AAA4', marginRight: '4px', fontFamily: "'Poppins', sans-serif" },

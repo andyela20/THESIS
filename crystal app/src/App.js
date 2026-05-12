@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './Login';
 import Upload from './Upload';
 import Results from './Results';
@@ -6,11 +6,13 @@ import Analysis from './Analysis';
 import Export from './Export';
 import Patients from './Patients';
 import ParticleLibrary from './ParticleLibrary';
+import AuthCallback from './AuthCallback';
 
-// key must be on <PageTransition> itself (in the switch), not on an inner div
+
 function PageTransition({ children }) {
   return <div className="page-enter" style={{ height: '100%' }}>{children}</div>;
 }
+
 
 export default function App() {
   const [currentPage, setCurrentPage]       = useState('login');
@@ -18,12 +20,30 @@ export default function App() {
   const [analysisData, setAnalysisData]     = useState(null);
   const [currentPatient, setCurrentPatient] = useState(null);
 
+
   const [hasUnsavedResult, setHasUnsavedResult] = useState(false);
   const [unseenPatients, setUnseenPatients]      = useState(0);
   const [unseenReports, setUnseenReports]        = useState(0);
 
+
+  // ← increment this after a save so ParticleLibrary re-fetches
+  const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
+
+
+  // ── Detect Google OAuth callback on mount ──────────────────────────────────
+  useEffect(() => {
+    // If the URL contains ?token=... we came back from Google OAuth
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('token')) {
+      setCurrentPage('auth-callback');
+    }
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────────
+
+
   const goToLogin  = () => setCurrentPage('login');
   const goToUpload = () => setCurrentPage('upload');
+
 
   const goToResults = (data) => {
     if (data) {
@@ -33,19 +53,24 @@ export default function App() {
     setCurrentPage('results');
   };
 
+
   const goToAnalysis = () => setCurrentPage('analysis');
+
 
   const goToExport = () => {
     setUnseenReports(0);
     setCurrentPage('export');
   };
 
+
   const goToPatients = () => {
     setUnseenPatients(0);
     setCurrentPage('patients');
   };
 
+
   const goToLibrary = () => setCurrentPage('library');
+
 
   const addCrystalRecords = (newRecords) => {
     setCrystalRecords(prev => [...prev, ...newRecords]);
@@ -53,20 +78,31 @@ export default function App() {
     setUnseenReports(prev => prev + 1);
   };
 
+
+  // called from Results after a successful save
+  const handleSavedToLibrary = () => {
+    setLibraryRefreshKey(k => k + 1);
+  };
+
+
   const addNewPatient = (patient) => {
     setCurrentPatient(patient);
     setUnseenPatients(prev => prev + 1);
   };
 
+
   const clearCurrentPatient = () => setCurrentPatient(null);
+
 
   const clearAnalysisData = () => {
     setAnalysisData(null);
     setHasUnsavedResult(false);
   };
 
+
   const markResultsViewed = () => {};
   const markReportsViewed = () => setUnseenReports(0);
+
 
   const badges = {
     results:  hasUnsavedResult   ? '!' : null,
@@ -74,8 +110,18 @@ export default function App() {
     export:   unseenReports  > 0 ? String(unseenReports)  : null,
   };
 
+
   const renderPage = () => {
     switch (currentPage) {
+
+      // ── Google OAuth callback ── (ADD THIS CASE)
+      case 'auth-callback':
+        return (
+          <PageTransition key="auth-callback">
+            <AuthCallback onLogin={goToUpload} />
+          </PageTransition>
+        );
+
       case 'login':
         return (
           <PageTransition key="login">
@@ -112,6 +158,7 @@ export default function App() {
               addCrystalRecords={addCrystalRecords}
               analysisData={analysisData}
               markResultsViewed={markResultsViewed}
+              onSavedToLibrary={handleSavedToLibrary}
               badges={badges}
             />
           </PageTransition>
@@ -167,7 +214,7 @@ export default function App() {
         );
       case 'library':
         return (
-          <PageTransition key="library">
+          <PageTransition key={`library-${libraryRefreshKey}`}>
             <ParticleLibrary
               goToLogin={goToLogin}
               goToUpload={goToUpload}
@@ -177,6 +224,7 @@ export default function App() {
               goToPatients={goToPatients}
               goToLibrary={goToLibrary}
               crystalRecords={crystalRecords}
+              refreshKey={libraryRefreshKey}
               badges={badges}
             />
           </PageTransition>
@@ -185,6 +233,7 @@ export default function App() {
         return null;
     }
   };
+
 
   return <div style={{ height: '100vh', overflow: 'hidden' }}>{renderPage()}</div>;
 }

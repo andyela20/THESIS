@@ -59,6 +59,11 @@ export default function Login({ onLogin }) {
     }
   };
 
+  // ── Google OAuth handler ──
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:5000/api/auth/google';
+  };
+
   const FEATURES = [
     { title: 'AI Crystal Detection', desc: 'Automated identification of urinary crystal types with high accuracy.' },
     { title: 'Detailed Reports',     desc: 'Generate comprehensive patient reports with crystal analysis data.' },
@@ -146,6 +151,23 @@ export default function Login({ onLogin }) {
             {loading ? 'PLEASE WAIT...' : mode === 'login' ? 'LOGIN' : 'CREATE ACCOUNT'}
           </button>
 
+          {/* ── Divider ── */}
+          <div style={styles.dividerWrap}>
+            <div style={styles.dividerLine} />
+            <span style={styles.dividerText}>or continue with</span>
+            <div style={styles.dividerLine} />
+          </div>
+
+          {/* ── Google Button ── */}
+          <button onClick={handleGoogleLogin} style={styles.googleBtn}>
+            <img
+              src="https://developers.google.com/identity/images/g-logo.png"
+              alt="Google"
+              style={{ width: '18px', height: '18px' }}
+            />
+            {mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
+          </button>
+
           <div style={styles.toggleWrap}>
             {mode === 'login' ? (
               <>
@@ -218,6 +240,15 @@ const styles = {
   lgForgot:     { color: '#E24B4A', textDecoration: 'none', fontWeight: 400 },
   lgErr:        { fontSize: '12px', color: '#E24B4A', marginTop: '-16px', marginBottom: '10px' },
   lgSuccess:    { fontSize: '12px', color: '#1FB505', marginTop: '-16px', marginBottom: '10px', fontWeight: 600 },
+
+  /* ── divider ── */
+  dividerWrap:  { display: 'flex', alignItems: 'center', gap: '10px', margin: '20px 0 12px' },
+  dividerLine:  { flex: 1, height: '1px', background: '#d4dccf' },
+  dividerText:  { fontSize: '12px', color: '#8aab82', whiteSpace: 'nowrap' },
+
+  /* ── google button ── */
+  googleBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', border: '2px solid #d4dccf', borderRadius: '8px', background: '#fff', fontSize: '14px', fontWeight: 600, color: '#1a3a1a', cursor: 'pointer', transition: 'border-color 0.2s, box-shadow 0.2s', marginBottom: '4px' },
+
   toggleWrap:   { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', justifyContent: 'center' },
   toggleText:   { fontSize: '13px', color: '#4a6645' },
   toggleBtn:    { fontSize: '13px', fontWeight: 700, color: '#2d5a27', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 },
@@ -225,7 +256,7 @@ const styles = {
   /* ── right panel ── */
   rightPanel:   { background: 'linear-gradient(160deg, #588157 0%, #2d5a27 100%)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px', position: 'relative', overflow: 'hidden' },
   rightBgLogo:  { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '125%', height: 'auto', opacity: 0.10, filter: 'brightness(0) invert(1)', pointerEvents: 'none', userSelect: 'none' },
-  rightInner:   { color: '#fff', position: 'relative', zIndex: 1 },  // 👈 added position & zIndex
+  rightInner:   { color: '#fff', position: 'relative', zIndex: 1 },
   rightHeading: { fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 12px 0' },
   rightSub:     { fontSize: '14px', color: 'rgba(255,255,255,0.82)', lineHeight: 1.65, margin: '0 0 28px 0' },
   featureList:  { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' },

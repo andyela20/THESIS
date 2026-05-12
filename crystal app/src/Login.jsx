@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import logo from './assets/logo.png';
 import logoBg from './assets/LOGOGRAPHIC.png';
 
+const API_BASE = 'http://192.168.1.18:5000';
+
 export default function Login({ onLogin }) {
   const [mode, setMode]               = useState('login');
   const [username, setUsername]       = useState('');
@@ -10,6 +12,7 @@ export default function Login({ onLogin }) {
   const [error, setError]             = useState('');
   const [success, setSuccess]         = useState('');
   const [loading, setLoading]         = useState(false);
+  const [googleHovered, setGoogleHovered] = useState(false);
 
   const resetForm = () => {
     setUsername(''); setPassword(''); setConfirmPass('');
@@ -20,7 +23,7 @@ export default function Login({ onLogin }) {
     if (!username.trim() || !password) { setError('Please enter username and password'); return; }
     setLoading(true); setError('');
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -43,7 +46,7 @@ export default function Login({ onLogin }) {
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true); setError('');
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -59,9 +62,13 @@ export default function Login({ onLogin }) {
     }
   };
 
-  // ── Google OAuth handler ──
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:5000/api/auth/google';
+    const isElectron = window.navigator.userAgent.includes('Electron');
+    if (isElectron) {
+      window.open(`${API_BASE}/api/auth/google`, '_blank');
+    } else {
+      window.location.href = `${API_BASE}/api/auth/google`;
+    }
   };
 
   const FEATURES = [
@@ -81,11 +88,7 @@ export default function Login({ onLogin }) {
         {/* ── LEFT PANEL ── */}
         <div style={styles.lgLeft}>
 
-          <img
-            src={logo}
-            alt="Magnitect Logo"
-            style={styles.logoImg}
-          />
+          <img src={logo} alt="Magnitect Logo" style={styles.logoImg} />
 
           {mode === 'register' && (
             <div style={styles.lgTitle}>CREATE ACCOUNT</div>
@@ -151,19 +154,33 @@ export default function Login({ onLogin }) {
             {loading ? 'PLEASE WAIT...' : mode === 'login' ? 'LOGIN' : 'CREATE ACCOUNT'}
           </button>
 
-          {/* ── Divider ── */}
           <div style={styles.dividerWrap}>
             <div style={styles.dividerLine} />
             <span style={styles.dividerText}>or continue with</span>
             <div style={styles.dividerLine} />
           </div>
 
-          {/* ── Google Button ── */}
-          <button onClick={handleGoogleLogin} style={styles.googleBtn}>
+          <button
+            onClick={handleGoogleLogin}
+            onMouseEnter={() => setGoogleHovered(true)}
+            onMouseLeave={() => setGoogleHovered(false)}
+            style={{
+              ...styles.googleBtn,
+              borderColor: googleHovered ? '#588157' : '#d4dccf',
+              background:  googleHovered ? '#f4f9f4' : '#fff',
+              boxShadow:   googleHovered ? '0 4px 16px rgba(88,129,87,0.18)' : 'none',
+              transform:   googleHovered ? 'translateY(-2px)' : 'translateY(0)',
+              color:       googleHovered ? '#2d5a27' : '#1a3a1a',
+            }}
+          >
             <img
               src="https://developers.google.com/identity/images/g-logo.png"
               alt="Google"
-              style={{ width: '18px', height: '18px' }}
+              style={{
+                width: '18px', height: '18px',
+                transform: googleHovered ? 'scale(1.1)' : 'scale(1)',
+                transition: 'transform 0.2s ease',
+              }}
             />
             {mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
           </button>
@@ -189,11 +206,7 @@ export default function Login({ onLogin }) {
 
         {/* ── RIGHT PANEL ── */}
         <div style={styles.rightPanel}>
-          <img
-            src={logoBg}
-            alt=""
-            style={styles.rightBgLogo}
-          />
+          <img src={logoBg} alt="" style={styles.rightBgLogo} />
           <div style={styles.rightInner}>
             <h2 style={styles.rightHeading}>Welcome to MagniTect</h2>
             <p style={styles.rightSub}>
@@ -219,16 +232,11 @@ export default function Login({ onLogin }) {
 }
 
 const styles = {
-  /* ── page background ── */
   loginWrap:    { position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f5f7f2 0%, #e8f0e0 100%)', overflow: 'hidden' },
   bgTop:        { position: 'absolute', top: '-100px', left: '50%', transform: 'translateX(-50%)', width: '600px', height: '400px', background: '#588157', borderRadius: '0 0 200px 200px', opacity: 0.3, pointerEvents: 'none' },
   bgBl:         { position: 'absolute', bottom: '-100px', left: '-100px', width: '400px', height: '400px', background: '#ffd700', borderRadius: '50%', opacity: 0.3, pointerEvents: 'none' },
   bgBr:         { position: 'absolute', bottom: '-50px', right: '-50px', width: '350px', height: '350px', background: '#2d5a27', borderRadius: '50%', opacity: 0.2, pointerEvents: 'none' },
-
-  /* ── card ── */
   loginBox:     { background: '#fff', borderRadius: '20px', padding: '60px 80px', width: '90%', maxWidth: '1100px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)', position: 'relative', zIndex: 10 },
-
-  /* ── left panel ── */
   lgLeft:       { display: 'flex', flexDirection: 'column', justifyContent: 'center' },
   logoImg:      { height: '80px', width: 'auto', marginBottom: '14px', objectFit: 'contain', alignSelf: 'flex-start' },
   lgTitle:      { fontSize: '33px', fontWeight: 700, color: '#2d5a27', marginBottom: '40px', letterSpacing: '1px' },
@@ -240,20 +248,13 @@ const styles = {
   lgForgot:     { color: '#E24B4A', textDecoration: 'none', fontWeight: 400 },
   lgErr:        { fontSize: '12px', color: '#E24B4A', marginTop: '-16px', marginBottom: '10px' },
   lgSuccess:    { fontSize: '12px', color: '#1FB505', marginTop: '-16px', marginBottom: '10px', fontWeight: 600 },
-
-  /* ── divider ── */
   dividerWrap:  { display: 'flex', alignItems: 'center', gap: '10px', margin: '20px 0 12px' },
   dividerLine:  { flex: 1, height: '1px', background: '#d4dccf' },
   dividerText:  { fontSize: '12px', color: '#8aab82', whiteSpace: 'nowrap' },
-
-  /* ── google button ── */
-  googleBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', border: '2px solid #d4dccf', borderRadius: '8px', background: '#fff', fontSize: '14px', fontWeight: 600, color: '#1a3a1a', cursor: 'pointer', transition: 'border-color 0.2s, box-shadow 0.2s', marginBottom: '4px' },
-
+  googleBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', border: '2px solid #d4dccf', borderRadius: '8px', background: '#fff', fontSize: '14px', fontWeight: 600, color: '#1a3a1a', cursor: 'pointer', transition: 'border-color 0.25s, box-shadow 0.25s, transform 0.25s, background 0.25s, color 0.25s', marginBottom: '4px' },
   toggleWrap:   { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', justifyContent: 'center' },
   toggleText:   { fontSize: '13px', color: '#4a6645' },
   toggleBtn:    { fontSize: '13px', fontWeight: 700, color: '#2d5a27', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 },
-
-  /* ── right panel ── */
   rightPanel:   { background: 'linear-gradient(160deg, #588157 0%, #2d5a27 100%)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px', position: 'relative', overflow: 'hidden' },
   rightBgLogo:  { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '125%', height: 'auto', opacity: 0.10, filter: 'brightness(0) invert(1)', pointerEvents: 'none', userSelect: 'none' },
   rightInner:   { color: '#fff', position: 'relative', zIndex: 1 },

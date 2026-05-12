@@ -837,7 +837,7 @@ export default function Upload({
     }
     setMobileCaptureLoading(true);
     try {
-      const res = await fetch('http://10.246.80.62:5001/create-capture-session', {
+      const res = await fetch('http://192.168.1.18:5001/create-capture-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId, patientName }),
@@ -856,7 +856,7 @@ export default function Upload({
       }
       const encodedName = encodeURIComponent(patientName);
       const encodedId   = encodeURIComponent(patientId);
-      const link = `exp://10.246.80.62:8081/--/?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
+      const link = `exp://192.168.1.18:8081/--/?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
       setCaptureSessionId(data.sessionId);
       setMobileCaptureStatus('waiting');
       setMobileCapturedImageUrl('');
@@ -864,7 +864,7 @@ export default function Upload({
       setShowQRModal(true);
     } catch (err) {
       console.error(err);
-      showError('Connection Failed', `Cannot reach server at 10.246.80.62:5001 — is it running?`, err.message);
+      showError('Connection Failed', `Cannot reach server at localhost:5001 — is it running?`, err.message);
     } finally {
       setMobileCaptureLoading(false);
     }
@@ -873,7 +873,7 @@ export default function Upload({
   const checkMobileCapture = async () => {
     if (!captureSessionId) return;
     try {
-      const res = await fetch(`http://10.246.80.62:5001/check-capture/${captureSessionId}`);
+      const res = await fetch(`http://192.168.1.18:5001/check-capture/${captureSessionId}`);
       const data = await res.json();
       if (data.status === 'uploaded') {
         setMobileCaptureStatus('uploaded');
@@ -893,7 +893,7 @@ export default function Upload({
     clearError();
     try {
       const res = await fetch(
-        `http://10.246.80.62:5001/analyze-captured/${captureSessionId}`,
+        `http://192.168.1.18:5001/analyze-captured/${captureSessionId}`,
         { method: 'POST' }
       );
       const data = await res.json();

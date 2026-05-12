@@ -372,7 +372,7 @@ export default function HomeScreen() {
     Poppins_800ExtraBold,
   });
 
-  const API_URL = 'http://10.246.80.62:5001/upload-capture';
+  const API_URL = 'http://192.168.1.18:5001/upload-capture';
 
   // ── Pinch-to-zoom ─────────────────────────────────────────────────────────
   const pinchResponder = useRef(

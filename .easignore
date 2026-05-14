@@ -1,0 +1,45 @@
+# Ignore large thesis/backend/model folders
+crystalscope-model
+crystal app
+dataset
+datasets
+model
+models
+runs
+outputs
+results
+exports
+uploads
+videos
+
+# Ignore heavy model/training files anywhere
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.h5
+*.weights
+*.engine
+*.tflite
+*.zip
+*.rar
+*.7z
+*.mp4
+*.avi
+*.mov
+*.heic
+
+# Ignore dependencies/caches anywhere
+node_modules
+**/node_modules
+**/.gradle
+**/.cxx
+**/build
+**/.expo
+**/.metro-cache
+**/__pycache__
+*.pyc
+*.log
+
+# Git
+.git

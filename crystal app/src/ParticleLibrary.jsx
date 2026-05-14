@@ -5,20 +5,26 @@ import { getAnalyses, deleteAnalysis } from './api';
 import { PARTICLE_TYPES, PARTICLE_COLORS, PARTICLE_GROUPS, RISK_STYLE } from './particleConstants';
 import './index.css';
 
+
 const getInitials = (name) => (name || '??').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 const AVATAR_COLORS = ['#1F5330', '#306A33', '#4A7A50', '#2D6A4F', '#1B4332', '#40916C'];
 const getAvatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
 
+
 export default function ParticleLibrary({
   goToLogin, goToUpload, goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary,
   badges = {},
+  refreshKey = 0,   // ← NEW: increment this from the parent to trigger a re-fetch
 }) {
   const [activeFilter, setActiveFilter]       = useState('All');
   const [activeGroup, setActiveGroup]         = useState('All');
   const [particleRecords, setParticleRecords] = useState([]);
   const [loading, setLoading]                 = useState(true);
 
-  useEffect(() => { fetchAnalyses(); }, []);
+
+  // Re-fetch whenever the component mounts OR refreshKey changes (i.e. after a save)
+  useEffect(() => { fetchAnalyses(); }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const fetchAnalyses = async () => {
     try {
@@ -32,6 +38,7 @@ export default function ParticleLibrary({
     }
   };
 
+
   const handleDeleteGroup = async (group) => {
     if (!window.confirm(`Delete all records for ${group.patientName} (${group.patientId})?`)) return;
     try {
@@ -42,13 +49,16 @@ export default function ParticleLibrary({
     }
   };
 
+
   // Normalize: support both crystalType and particleType field names
   const normalize = (r) => ({
     ...r,
     particleType: r.particleType || r.crystalType || '',
   });
 
+
   const normalized = particleRecords.map(normalize);
+
 
   // Filter by group first, then by particle type
   const filtered = normalized.filter(r => {
@@ -58,6 +68,7 @@ export default function ParticleLibrary({
     const matchType  = activeFilter === 'All' || typeLabel === activeFilter;
     return matchGroup && matchType;
   });
+
 
   // Group by patient
   const grouped = filtered.reduce((acc, record) => {
@@ -75,25 +86,37 @@ export default function ParticleLibrary({
     return acc;
   }, {});
 
+
   const groupList    = Object.values(grouped);
   const totalEntries = filtered.length;
+
 
   // Types available for current group filter
   const availableTypes = ['All', ...PARTICLE_TYPES
     .filter(p => activeGroup === 'All' || p.group === activeGroup)
     .map(p => p.label)];
 
+
   const getGridCols = (count) => {
-    if (count <= 2) return `repeat(${count}, 1fr)`;
-    if (count <= 4) return 'repeat(4, 1fr)';
+    if (count <= 3)  return `repeat(${count}, 1fr)`;
+    if (count === 4) return 'repeat(4, 1fr)';
+    if (count === 5) return 'repeat(5, 1fr)';
+    if (count === 6) return 'repeat(3, 1fr)';
+    if (count === 7) return 'repeat(4, 1fr)';
+    if (count === 8) return 'repeat(4, 1fr)';
+    if (count === 9) return 'repeat(3, 1fr)';
+    if (count === 10) return 'repeat(5, 1fr)';
+    if (count === 11) return 'repeat(4, 1fr)';
     return 'repeat(4, 1fr)';
   };
+
 
   const handleExportPDF = (group) => {
     const date = new Date(group.date).toLocaleDateString('en-US', {
       year: 'numeric', month: 'long', day: 'numeric',
     });
     const total = group.particles.reduce((sum, c) => sum + c.count, 0);
+
 
     const rows = group.particles.map(c => {
       const pct = total > 0 ? Math.round(c.count / total * 100) : 0;
@@ -113,6 +136,7 @@ export default function ParticleLibrary({
         </tr>
       `;
     }).join('');
+
 
     const html = `
       <html>
@@ -150,12 +174,14 @@ export default function ParticleLibrary({
       </html>
     `;
 
+
     const win = window.open('', '_blank');
     win.document.write(html);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); win.close(); }, 500);
   };
+
 
   return (
     <div style={styles.app}>
@@ -174,6 +200,7 @@ export default function ParticleLibrary({
         <div style={styles.main}>
           <div style={styles.pane}>
 
+
             {/* Header */}
             <div style={styles.header}>
               <div style={styles.pageTitle}>Particle Library</div>
@@ -181,6 +208,7 @@ export default function ParticleLibrary({
                 {groupList.length} {groupList.length === 1 ? 'patient' : 'patients'} · {totalEntries} {totalEntries === 1 ? 'entry' : 'entries'}
               </div>
             </div>
+
 
             {/* Group Filter */}
             <div style={styles.filters}>
@@ -194,6 +222,7 @@ export default function ParticleLibrary({
                 </button>
               ))}
             </div>
+
 
             {/* Type Filter — only shows when group is selected */}
             {activeGroup !== 'All' && (
@@ -209,6 +238,7 @@ export default function ParticleLibrary({
                 ))}
               </div>
             )}
+
 
             {loading ? (
               <div style={styles.loadingWrap}>Loading particle library...</div>
@@ -230,6 +260,7 @@ export default function ParticleLibrary({
             ) : (
               groupList.map((group) => (
                 <div key={group.patientId} style={styles.group}>
+
 
                   {/* Patient Header */}
                   <div style={styles.groupHeader}>
@@ -266,6 +297,7 @@ export default function ParticleLibrary({
                     </div>
                   </div>
 
+
                   {/* Particle Grid */}
                   <div style={{ ...styles.particleGrid, gridTemplateColumns: getGridCols(group.particles.length) }}>
                     {group.particles.map((particle, i) => {
@@ -291,6 +323,7 @@ export default function ParticleLibrary({
                     })}
                   </div>
 
+
                 </div>
               ))
             )}
@@ -300,6 +333,7 @@ export default function ParticleLibrary({
     </div>
   );
 }
+
 
 const styles = {
   app:          { display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', background: '#EEF0E8', overflow: 'hidden' },
@@ -339,3 +373,4 @@ const styles = {
   emptyHint:    { fontSize: '12px', color: '#C9CAC0', fontFamily: "'Poppins', sans-serif" },
   loadingWrap:  { display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#A4AAA4', fontFamily: "'Poppins', sans-serif", fontSize: '14px' },
 };
+

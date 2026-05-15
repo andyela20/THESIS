@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import logo from './assets/logo.png';
 import logoBg from './assets/LOGOGRAPHIC.png';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'http://16.59.206.79:5000';
 
 export default function Login({ onLogin }) {
   const [mode, setMode]               = useState('login');

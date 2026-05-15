@@ -837,7 +837,7 @@ export default function Upload({
     }
     setMobileCaptureLoading(true);
     try {
-      const res = await fetch('http://192.168.1.18:5001/create-capture-session', {
+      const res = await fetch('http://16.59.206.79:5001/create-capture-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId, patientName }),
@@ -864,7 +864,7 @@ export default function Upload({
       setShowQRModal(true);
     } catch (err) {
       console.error(err);
-      showError('Connection Failed', `Cannot reach server at localhost:5001 — is it running?`, err.message);
+      showError('Connection Failed', `Cannot reach server at 16.59.206.79:5001 — is it running?`, err.message);
     } finally {
       setMobileCaptureLoading(false);
     }
@@ -873,7 +873,7 @@ export default function Upload({
   const checkMobileCapture = async () => {
     if (!captureSessionId) return;
     try {
-      const res = await fetch(`http://192.168.1.18:5001/check-capture/${captureSessionId}`);
+      const res = await fetch(`http://16.59.206.79:5001/check-capture/${captureSessionId}`);
       const data = await res.json();
       if (data.status === 'uploaded') {
         setMobileCaptureStatus('uploaded');
@@ -893,7 +893,7 @@ export default function Upload({
     clearError();
     try {
       const res = await fetch(
-        `http://192.168.1.18:5001/analyze-captured/${captureSessionId}`,
+        `http://16.59.206.79:5001/analyze-captured/${captureSessionId}`,
         { method: 'POST' }
       );
       const data = await res.json();
@@ -1701,3 +1701,4 @@ const s = {
   cameraError:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '40px 24px' },
   cameraFoot:    { padding: '12px 18px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
 };
+

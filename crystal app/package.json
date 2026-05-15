@@ -2,7 +2,7 @@
   "name": "crystal-app",
   "version": "0.1.0",
   "private": true,
-  "main": "Electron.js",
+  "main": "build/electron.js",
   "homepage": "./",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
@@ -21,9 +21,9 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "dev": "concurrently \"npm start\" \"cd ../crystalscope-backend && npm run dev\"",
-    "electron": "set ELECTRON_START_URL=http://localhost:3000 && electron .",
+    "electron": "set ELECTRON_START_URL=http://localhost:3000 && electron Electron.js",
     "electron:dev": "concurrently \"npm start\" \"cd ../crystalscope-backend && npm run dev\" \"wait-on http://localhost:3000 && set ELECTRON_START_URL=http://localhost:3000 && electron .\"",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder --win nsis --x64"
   },
   "eslintConfig": {
     "extends": [
@@ -45,29 +45,44 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "electron": "^42.0.1",
+    "electron": "^31.7.7",
     "electron-builder": "^26.8.1",
     "wait-on": "^8.0.5"
   },
   "build": {
-    "appId": "com.magnitect.app",
+    "appId": "com.magnitect.desktop",
     "productName": "MagniTect",
-    "extraMetadata": {
-      "main": "Electron.js"
-    },
+    "asar": true,
     "files": [
       "build/**/*",
-      "Electron.js",
-      "src/assets/LOGOGRAPHIC.ico"
+      "package.json"
     ],
+    "directories": {
+      "output": "dist"
+    },
     "win": {
-      "target": "nsis",
+      "target": [
+        "nsis"
+      ],
       "icon": "src/assets/LOGOGRAPHIC.ico"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
-    }
-  }
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MagniTect",
+      "installerIcon": "src/assets/LOGOGRAPHIC.ico",
+      "uninstallerIcon": "src/assets/LOGOGRAPHIC.ico"
+    },
+    "extraResources": [
+      {
+        "from": "../crystalscope-model/dist/model-api",
+        "to": "model-api"
+      }
+    ]
+  },
+  "description": "MagniTect desktop application",
+  "author": "MagniTect"
 }

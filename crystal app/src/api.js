@@ -1,4 +1,37 @@
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = 'http://16.59.206.79:5000/api';
+
+const CLOUD_MODEL_URL = 'http://16.59.206.79:5001';
+const LOCAL_MODEL_URL = 'http://127.0.0.1:5001';
+
+async function checkModelHealth(url, timeoutMs = 1200) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(`${url}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+    return res.ok;
+  } catch {
+    clearTimeout(timeout);
+    return false;
+  }
+}
+
+export async function getModelServerUrl() {
+  const localAvailable = await checkModelHealth(LOCAL_MODEL_URL);
+
+  if (localAvailable) {
+    console.log('[MODEL SERVER] Using local model:', LOCAL_MODEL_URL);
+    return LOCAL_MODEL_URL;
+  }
+
+  console.log('[MODEL SERVER] Local model unavailable. Using cloud model:', CLOUD_MODEL_URL);
+  return CLOUD_MODEL_URL;
+}
 
 const getToken = () => localStorage.getItem('token');
 
@@ -80,8 +113,9 @@ export const uploadImage = async (formData) => {
 export const analyzeImage = async (imageFile) => {
   const formData = new FormData();
   formData.append('image', imageFile);
-
-  const res = await fetch('http://localhost:5001/analyze', {
+  
+  const modelUrl = await getModelServerUrl();
+  const res = await fetch(`${modelUrl}/analyze`, { 
     method: 'POST',
     body: formData
   });

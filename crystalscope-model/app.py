@@ -1,8 +1,9 @@
-from flask import Flask, request, jsonify, send_from_directory
+﻿from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from rfdetr import RFDETRLarge
 import supervision as sv
 import os
+import sys
 import uuid
 import cv2
 import numpy as np
@@ -19,6 +20,14 @@ from sahi.models.base import DetectionModel
 from sahi.prediction import ObjectPrediction
 from sahi.predict import get_sliced_prediction
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 pillow_heif.register_heif_opener()
 
@@ -26,11 +35,29 @@ app = Flask(__name__)
 CORS(app)
 
 
-MODEL_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)),
-    "model",
-    "RAFA LATEST.pt"
-)
+
+def resource_path(*parts):
+    """
+    Finds files in normal development mode and later when packaged.
+    Used for loading local model files.
+    """
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    exe_dir = os.path.abspath(os.path.dirname(sys.executable))
+
+    candidates = [
+        os.path.join(base_dir, *parts),
+        os.path.join(exe_dir, *parts),
+        os.path.join(os.getcwd(), *parts),
+    ]
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    return candidates[0]
+
+
+MODEL_PATH = resource_path("model-final", "RAFA LATEST.pt")
 
 
 CLASS_NAMES = {
@@ -134,11 +161,7 @@ ENABLE_MICROSCOPE_IMAGE_GATE = True
 #
 # This classifier is used BEFORE RF-DETR/SAHI.
 # If the image is classified as Random/non-microscope, detection is skipped.
-CLASSIFIER_MODEL_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)),
-    "model",
-    "dinov2_classifier.pt"
-)
+CLASSIFIER_MODEL_PATH = resource_path("model-final", "dinov2_classifier.pt")
 ENABLE_CLASSIFIER_GATE = True
 CLASSIFIER_MIN_CONFIDENCE = 0.70
 CLASSIFIER_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -462,17 +485,17 @@ def get_threshold_with_retry(pil_image: Image.Image) -> float:
 
     if count == 0:
         lowered = 0.18
-        print(f"[RETRY] no detections → {base_threshold} → {lowered}")
+        print(f"[RETRY] no detections â†’ {base_threshold} â†’ {lowered}")
         return lowered
 
     elif count < 3:
         lowered = 0.20
-        print(f"[RETRY] few detections → {base_threshold} → {lowered}")
+        print(f"[RETRY] few detections â†’ {base_threshold} â†’ {lowered}")
         return lowered
 
     elif count < 8:
         lowered = 0.22
-        print(f"[RETRY] low detections → {base_threshold} → {lowered}")
+        print(f"[RETRY] low detections â†’ {base_threshold} â†’ {lowered}")
         return lowered
 
     return base_threshold
@@ -550,7 +573,7 @@ class RFDETRDetectionModel(DetectionModel):
         zoomed_tile = pil_tile.resize((new_w, new_h), resample_filter)
 
         print(
-            f"[TILE ZOOM] tile={w}x{h} → "
+            f"[TILE ZOOM] tile={w}x{h} â†’ "
             f"{new_w}x{new_h} | scale={scale:.2f}x"
         )
 

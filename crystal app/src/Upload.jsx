@@ -4,6 +4,17 @@ import Topbar from './Topbar';
 import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, getAnalyses } from './api';
 import './index.css';
 
+// ── HEIC conversion (heic2any) ────────────────────────────────────────────────
+// Install: npm install heic2any
+// Only loaded lazily when a .heic/.heif file is dropped/selected.
+async function convertHeicToJpeg(file) {
+  const heic2any = (await import('heic2any')).default;
+  const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+  const result = Array.isArray(blob) ? blob[0] : blob;
+  const newName = file.name.replace(/\.[^.]+$/i, '') + '_converted.jpg';
+  return new File([result], newName, { type: 'image/jpeg', lastModified: Date.now() });
+}
+
 const ANIM_STYLE = `
   @keyframes spin        { to { transform: rotate(360deg); } }
   @keyframes pulseRing   { 0%,100% { transform: scale(0.85); opacity: 0.5; } 50% { transform: scale(1.18); opacity: 0.12; } }
@@ -279,28 +290,23 @@ function ErrorToast({ error, onClose }) {
 function CameraSelector({ onSelect, onClose }) {
   const [cameras, setCameras]           = useState([]);
   const [loading, setLoading]           = useState(true);
-  const [previews, setPreviews]         = useState({}); // deviceId -> stream
+  const [previews, setPreviews]         = useState({});
   const [selected, setSelected]         = useState(null);
   const [error, setError]               = useState('');
   const previewRefs                     = useRef({});
   const streamsRef                      = useRef({});
 
-  // Enumerate cameras and start preview streams
   useEffect(() => {
     let cancelled = false;
     const init = async () => {
       try {
-        // Request permission first so labels are populated
         const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         tempStream.getTracks().forEach(t => t.stop());
-
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(d => d.kind === 'videoinput');
         if (cancelled) return;
         setCameras(videoDevices);
         setLoading(false);
-
-        // Start a tiny preview stream for each camera
         for (const device of videoDevices) {
           try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -310,9 +316,7 @@ function CameraSelector({ onSelect, onClose }) {
             if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
             streamsRef.current[device.deviceId] = stream;
             setPreviews(prev => ({ ...prev, [device.deviceId]: stream }));
-          } catch {
-            // Camera might be in use or restricted — skip preview
-          }
+          } catch { /* skip */ }
         }
       } catch (err) {
         if (!cancelled) {
@@ -331,19 +335,15 @@ function CameraSelector({ onSelect, onClose }) {
     };
   }, []);
 
-  // Attach streams to video elements as refs become available
   useEffect(() => {
     Object.entries(previews).forEach(([deviceId, stream]) => {
       const video = previewRefs.current[deviceId];
-      if (video && video.srcObject !== stream) {
-        video.srcObject = stream;
-      }
+      if (video && video.srcObject !== stream) video.srcObject = stream;
     });
   }, [previews]);
 
   const handleConfirm = () => {
     if (!selected) return;
-    // Stop all preview streams
     Object.values(streamsRef.current).forEach(s => s.getTracks().forEach(t => t.stop()));
     streamsRef.current = {};
     const cam = cameras.find(c => c.deviceId === selected);
@@ -356,7 +356,6 @@ function CameraSelector({ onSelect, onClose }) {
     onClose();
   };
 
-  // Guess if a camera might be a microscope
   const isMicroscope = (label) => {
     const l = label.toLowerCase();
     return l.includes('microscope') || l.includes('usb video') || l.includes('capture') || l.includes('amscope') || l.includes('dino') || l.includes('scope');
@@ -368,8 +367,6 @@ function CameraSelector({ onSelect, onClose }) {
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div style={{ background: '#fff', borderRadius: '18px', boxShadow: '0 28px 72px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '620px', maxWidth: '95vw', maxHeight: '90vh', animation: 'fadeInScale 0.22s ease', fontFamily: "'Poppins', sans-serif" }}>
-
-        {/* Header */}
         <div style={{ background: '#141514', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -386,8 +383,6 @@ function CameraSelector({ onSelect, onClose }) {
             <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1 1l7 7M8 1l-7 7" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" strokeLinecap="round"/></svg>
           </button>
         </div>
-
-        {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px', gap: '12px' }}>
@@ -395,14 +390,12 @@ function CameraSelector({ onSelect, onClose }) {
               <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Detecting available cameras…</div>
             </div>
           )}
-
           {error && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 24px', textAlign: 'center' }}>
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#A32D2D', maxWidth: '300px' }}>{error}</div>
             </div>
           )}
-
           {!loading && !error && cameras.length === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 24px', textAlign: 'center' }}>
               <div style={{ fontSize: '36px' }}>📷</div>
@@ -410,7 +403,6 @@ function CameraSelector({ onSelect, onClose }) {
               <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Connect a camera or digital microscope and try again.</div>
             </div>
           )}
-
           {!loading && !error && cameras.length > 0 && (
             <>
               <div style={{ fontSize: '11px', color: '#A4AAA4', marginBottom: '14px' }}>
@@ -422,7 +414,6 @@ function CameraSelector({ onSelect, onClose }) {
                   const hasPreview   = !!previews[cam.deviceId];
                   const mightBeMicro = isMicroscope(cam.label);
                   const label        = cam.label || `Camera ${idx + 1}`;
-
                   return (
                     <div
                       key={cam.deviceId}
@@ -436,7 +427,6 @@ function CameraSelector({ onSelect, onClose }) {
                         animation: `camCardIn 0.25s ease ${idx * 0.07}s both`,
                       }}
                     >
-                      {/* Live preview area */}
                       <div style={{ position: 'relative', width: '100%', paddingTop: '62%', background: '#0A0A0A', overflow: 'hidden' }}>
                         {hasPreview ? (
                           <video
@@ -452,8 +442,6 @@ function CameraSelector({ onSelect, onClose }) {
                             <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>No preview</span>
                           </div>
                         )}
-
-                        {/* Corner brackets overlay */}
                         {hasPreview && (
                           <>
                             <div style={{ position: 'absolute', top: 8, left: 8, width: 16, height: 16, borderTop: '2px solid rgba(255,255,255,0.6)', borderLeft: '2px solid rgba(255,255,255,0.6)', borderRadius: '2px 0 0 0', pointerEvents: 'none' }} />
@@ -462,24 +450,18 @@ function CameraSelector({ onSelect, onClose }) {
                             <div style={{ position: 'absolute', bottom: 8, right: 8, width: 16, height: 16, borderBottom: '2px solid rgba(255,255,255,0.6)', borderRight: '2px solid rgba(255,255,255,0.6)', borderRadius: '0 0 2px 0', pointerEvents: 'none' }} />
                           </>
                         )}
-
-                        {/* LIVE badge */}
                         {hasPreview && (
                           <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(0,0,0,0.55)', borderRadius: '20px', padding: '3px 8px' }}>
                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#E24B4A', boxShadow: '0 0 0 2px rgba(226,75,74,0.3)', animation: 'iconPulse 1.5s ease-in-out infinite' }} />
                             <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', letterSpacing: '0.08em' }}>LIVE</span>
                           </div>
                         )}
-
-                        {/* Selected checkmark */}
                         {isSelected && (
                           <div style={{ position: 'absolute', top: 8, right: 8, width: '22px', height: '22px', borderRadius: '50%', background: '#1F5330', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(31,83,48,0.5)' }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                           </div>
                         )}
                       </div>
-
-                      {/* Camera info */}
                       <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
@@ -501,8 +483,6 @@ function CameraSelector({ onSelect, onClose }) {
             </>
           )}
         </div>
-
-        {/* Footer */}
         <div style={{ padding: '12px 20px 16px', borderTop: '1px solid #ECEEE6', background: '#F8F9F5', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <div style={{ fontSize: '11px', color: '#A4AAA4', flex: 1 }}>
             {selected ? `Selected: ${cameras.find(c => c.deviceId === selected)?.label || 'Camera'}` : 'No camera selected'}
@@ -559,6 +539,8 @@ export default function Upload({
   const [searchLoading, setSearchLoading]   = useState(false);
   const [showDropdown, setShowDropdown]     = useState(false);
   const [uploadedImage, setUploadedImage]   = useState(null);
+  // Tracks whether a HEIC→JPEG conversion is in progress
+  const [converting, setConverting]         = useState(false);
   const [resizing, setResizing]             = useState(false);
   const [loading, setLoading]               = useState(false);
   const [analyzing, setAnalyzing]           = useState(false);
@@ -567,6 +549,13 @@ export default function Upload({
   const [minimized, setMinimized]           = useState(false);
   const [expanded, setExpanded]             = useState(false);
 
+  // ── Cancel Analysis ─────────────────────────────────────────────────────────
+  // We store the AbortController so the user can cancel the in-flight request.
+  const analysisAbortRef = useRef(null);
+  // Tracks whether we're running a mobile-session analysis (vs. a local file analysis).
+  // 'local' | 'mobile'
+  const analysisModeRef = useRef('local');
+
   const [uiError, setUiError] = useState(null);
   const showError = useCallback((title, message, hint = '', type = ERROR_TYPES.SERVER) => {
     setUiError({ title, message, hint, type });
@@ -574,13 +563,13 @@ export default function Upload({
   const clearError = useCallback(() => setUiError(null), []);
 
   // Camera states
-  const [showCameraSelector, setShowCameraSelector] = useState(false); // NEW: show camera picker
-  const [selectedCamera, setSelectedCamera]         = useState(null);  // NEW: chosen camera device
+  const [showCameraSelector, setShowCameraSelector] = useState(false);
+  const [selectedCamera, setSelectedCamera]         = useState(null);
   const [showCamera, setShowCamera]                 = useState(false);
   const [cameraStream, setCameraStream]             = useState(null);
   const [cameraError, setCameraError]               = useState('');
   const [capturing, setCapturing]                   = useState(false);
-  const [facingMode, setFacingMode]                 = useState('environment');
+  const [facingMode, setFacingMode]                 = useState('environment'); // kept for possible future direct use
 
   const [captureSessionId, setCaptureSessionId]             = useState('');
   const [mobileCaptureStatus, setMobileCaptureStatus]       = useState('');
@@ -661,14 +650,10 @@ export default function Upload({
   }, [searchQuery]);
 
   useEffect(() => {
-    if (cameraStream && videoRef.current) {
-      videoRef.current.srcObject = cameraStream;
-    }
+    if (cameraStream && videoRef.current) videoRef.current.srcObject = cameraStream;
   }, [cameraStream, showCamera]);
 
-  useEffect(() => {
-    return () => { stopCamera(); };
-  }, [stopCamera]);
+  useEffect(() => { return () => { stopCamera(); }; }, [stopCamera]);
 
   useEffect(() => {
     if (!showQRModal || !mobileLink) return;
@@ -723,12 +708,17 @@ export default function Upload({
   };
 
   const handleReset = () => {
+    // Abort any in-flight analysis
+    if (analysisAbortRef.current) {
+      analysisAbortRef.current.abort();
+      analysisAbortRef.current = null;
+    }
     stopCamera();
     setPatientName(''); setPatientId(null); setPatientDOB(''); setPatientAddress('');
     setPatientAge(''); setPatientSex(''); setPatientContact('');
     setUploadedImage(null); setSearchQuery(''); setTab('new');
     setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
-    setAnalyzing(false); setAnalyzeStep(0); setResizing(false);
+    setAnalyzing(false); setAnalyzeStep(0); setResizing(false); setConverting(false);
     setShowCamera(false); setCameraError('');
     setShowCameraSelector(false); setSelectedCamera(null);
     setCaptureSessionId('');
@@ -741,17 +731,46 @@ export default function Upload({
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
+  // ── Cancel an ongoing analysis ────────────────────────────────────────────
+  const handleCancelAnalysis = () => {
+    if (analysisAbortRef.current) {
+      analysisAbortRef.current.abort();
+      analysisAbortRef.current = null;
+    }
+    setAnalyzing(false);
+    setAnalyzeStep(0);
+  };
+
   const openModal = () => { setShowAnalysisForm(true); setMinimized(false); setExpanded(false); };
 
+  // ── HEIC-aware file processing ────────────────────────────────────────────
   const applyImageFile = async (file) => {
     if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    let workFile = file;
+
+    // Step 1: Convert HEIC/HEIF to JPEG if needed
+    if (ext === 'heic' || ext === 'heif') {
+      setConverting(true);
+      try {
+        workFile = await convertHeicToJpeg(file);
+      } catch (err) {
+        console.error('HEIC conversion failed:', err);
+        showError('HEIC Conversion Failed', 'Could not convert the HEIC image. Please try a JPEG or PNG instead.', 'Install heic2any or convert the file manually before uploading.');
+        setConverting(false);
+        return;
+      }
+      setConverting(false);
+    }
+
+    // Step 2: Resize to 704×704
     setResizing(true);
     try {
-      const resized = await resizeTo704(file);
+      const resized = await resizeTo704(workFile);
       setUploadedImage(resized);
     } catch (err) {
-      console.error('Resize failed, using original:', err);
-      setUploadedImage(file);
+      console.error('Resize failed, using converted/original:', err);
+      setUploadedImage(workFile);
     } finally {
       setResizing(false);
     }
@@ -763,13 +782,8 @@ export default function Upload({
   const handleDragOver      = (e) => e.preventDefault();
   const handleRemoveImage   = () => { setUploadedImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; };
 
-  // NEW: open camera selector instead of directly opening camera
-  const openCameraSelector = () => {
-    if (!patientId) return;
-    setShowCameraSelector(true);
-  };
+  const openCameraSelector = () => { if (!patientId) return; setShowCameraSelector(true); };
 
-  // NEW: called when user confirms a camera in the selector
   const handleCameraSelected = async (camera) => {
     setShowCameraSelector(false);
     setSelectedCamera(camera);
@@ -786,24 +800,14 @@ export default function Upload({
       setCameraStream(stream);
     } catch (err) {
       console.error('Camera error:', err);
-      if (err.name === 'NotAllowedError') {
-        setCameraError('Camera permission denied. Please allow camera access in your browser settings.');
-      } else if (err.name === 'NotFoundError') {
-        setCameraError('No camera found on this device.');
-      } else {
-        setCameraError('Could not access camera: ' + err.message);
-      }
+      if (err.name === 'NotAllowedError') setCameraError('Camera permission denied. Please allow camera access in your browser settings.');
+      else if (err.name === 'NotFoundError') setCameraError('No camera found on this device.');
+      else setCameraError('Could not access camera: ' + err.message);
     }
   };
 
-  const closeCamera = () => { stopCamera(); setShowCamera(false); setCameraError(''); };
-
-  const switchCamera = () => {
-    // Re-open selector to switch cameras
-    stopCamera();
-    setShowCamera(false);
-    setShowCameraSelector(true);
-  };
+  const closeCamera  = () => { stopCamera(); setShowCamera(false); setCameraError(''); };
+  const switchCamera = () => { stopCamera(); setShowCamera(false); setShowCameraSelector(true); };
 
   const handleCapture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -815,8 +819,8 @@ export default function Upload({
       canvas.height = video.videoHeight || 1280;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename  = `capture_${timestamp}_704x704.jpg`;
+      const timestamp   = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename    = `capture_${timestamp}_704x704.jpg`;
       setResizing(true);
       const resizedFile = await resizeBlobTo704(blob, filename);
       setUploadedImage(resizedFile);
@@ -873,12 +877,12 @@ export default function Upload({
   const checkMobileCapture = async () => {
     if (!captureSessionId) return;
     try {
-      const res = await fetch(`http://16.59.206.79:5001/check-capture/${captureSessionId}`);
+      const res  = await fetch(`http://16.59.206.79:5001/check-capture/${captureSessionId}`);
       const data = await res.json();
       if (data.status === 'uploaded') {
         setMobileCaptureStatus('uploaded');
         setMobileCapturedImageUrl(data.imageUrl);
-        showError('Image Received', 'The image from your mobile device is ready. You can now click "Analyze Image".', '', ERROR_TYPES.WARNING);
+        showError('Image Received', 'The image from your mobile device is ready. Tap "Analyze Image" below to proceed.', '', ERROR_TYPES.WARNING);
       } else {
         showError('Still Waiting', 'No image has been uploaded from mobile yet. Please take a photo on your phone first.', '', ERROR_TYPES.WARNING);
       }
@@ -887,49 +891,69 @@ export default function Upload({
     }
   };
 
-  const analyzeMobileCapturedImage = async () => {
-    if (!captureSessionId) return;
-    setAnalyzing(true);
-    clearError();
-    try {
-      const res = await fetch(
-        `http://16.59.206.79:5001/analyze-captured/${captureSessionId}`,
-        { method: 'POST' }
-      );
-      const data = await res.json();
-      if (!data.success) {
-        const message = extractBackendMessage(data);
-        const isClassifier = data.errorType === 'INVALID_IMAGE_CLASSIFIER_REJECTED';
-        showError(
-          isClassifier ? 'Invalid Image' : 'Analysis Failed',
-          message,
-          isClassifier ? 'Please upload a valid urine sediment microscope image.' : 'Try again with a different image.',
-          isClassifier ? ERROR_TYPES.CLASSIFIER : ERROR_TYPES.SERVER
-        );
-        return;
-      }
-      goToResults({
-        patientId,
-        patientName,
-        sampleId: `SMPL-${Date.now()}`,
-        results: data.summary,
-        detections: data.detections,
-        annotatedImage: data.annotatedImage,
-        rawImage: data.rawImage,
-      });
-    } catch (err) {
-      console.error(err);
-      showError('Network Error', 'Could not reach the analysis server: ' + err.message, 'Make sure the Flask server is running on port 5001.');
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
+  // ── Single unified Analyze handler ──────────────────────────────────────────
+  // Decides mode based on analysisModeRef ('local' | 'mobile').
+  // Called by the single footer button in both cases.
   const handleAnalyze = async () => {
+    if (analyzing) return;
+
+    // Mobile path
+    if (analysisModeRef.current === 'mobile') {
+      if (!captureSessionId || mobileCaptureStatus !== 'uploaded') return;
+      setAnalyzing(true);
+      setAnalyzeStep(1);
+      clearError();
+      const ctrl = new AbortController();
+      analysisAbortRef.current = ctrl;
+      try {
+        const res = await fetch(
+          `http://16.59.206.79:5001/analyze-captured/${captureSessionId}`,
+          { method: 'POST', signal: ctrl.signal }
+        );
+        setAnalyzeStep(2);
+        const data = await res.json();
+        setAnalyzeStep(3);
+        if (!data.success) {
+          const message     = extractBackendMessage(data);
+          const isClassifier = data.errorType === 'INVALID_IMAGE_CLASSIFIER_REJECTED';
+          showError(
+            isClassifier ? 'Invalid Image' : 'Analysis Failed',
+            message,
+            isClassifier ? 'Please upload a valid urine sediment microscope image.' : 'Try again with a different image.',
+            isClassifier ? ERROR_TYPES.CLASSIFIER : ERROR_TYPES.SERVER
+          );
+          return;
+        }
+        goToResults({
+          patientId,
+          patientName,
+          sampleId:       `SMPL-${Date.now()}`,
+          results:        data.summary,
+          detections:     data.detections,
+          annotatedImage: data.annotatedImage,
+          rawImage:       data.rawImage,
+        });
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          // User cancelled — silently reset
+        } else {
+          showError('Network Error', 'Could not reach the analysis server: ' + err.message, 'Make sure the Flask server is running on port 5001.');
+        }
+      } finally {
+        setAnalyzing(false);
+        setAnalyzeStep(0);
+        analysisAbortRef.current = null;
+      }
+      return;
+    }
+
+    // Local file path
     if (!uploadedImage || !patientId) return;
     setAnalyzing(true);
     setAnalyzeStep(1);
     clearError();
+    const ctrl = new AbortController();
+    analysisAbortRef.current = ctrl;
     try {
       const sampleId = `SMPL-${Date.now()}`;
       const formData = new FormData();
@@ -938,10 +962,10 @@ export default function Upload({
       formData.append('sampleId', sampleId);
       await uploadImage(formData);
       setAnalyzeStep(2);
-      const analysisResult = await analyzeImage(uploadedImage);
+      const analysisResult = await analyzeImage(uploadedImage, ctrl.signal);
       setAnalyzeStep(3);
       if (!analysisResult.success) {
-        const message = extractBackendMessage(analysisResult);
+        const message      = extractBackendMessage(analysisResult);
         const isClassifier = analysisResult.errorType === 'INVALID_IMAGE_CLASSIFIER_REJECTED';
         showError(
           isClassifier ? 'Invalid Image' : 'Analysis Failed',
@@ -964,26 +988,43 @@ export default function Upload({
         rawImage:       URL.createObjectURL(uploadedImage),
       });
     } catch (err) {
-      showError('Server Error', 'Could not connect to the model server.', 'Make sure the Flask server is running on port 5001. ' + err.message);
+      if (err.name === 'AbortError') {
+        // User cancelled — silently reset
+      } else {
+        showError('Server Error', 'Could not connect to the model server.', 'Make sure the Flask server is running on port 5001. ' + err.message);
+      }
     } finally {
       setAnalyzing(false);
       setAnalyzeStep(0);
+      analysisAbortRef.current = null;
     }
   };
 
-  const getInitials = (name) => (name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-  const AVATAR_COLORS = ['#1F5330', '#306A33', '#4A7A50', '#2D6A4F'];
+  // ── Sync analyze mode whenever inputs change ──────────────────────────────
+  useEffect(() => {
+    if (mobileCaptureStatus === 'uploaded' && !uploadedImage) {
+      analysisModeRef.current = 'mobile';
+    } else {
+      analysisModeRef.current = 'local';
+    }
+  }, [mobileCaptureStatus, uploadedImage]);
+
+  const isReadyToAnalyze =
+    analysisModeRef.current === 'mobile'
+      ? !!captureSessionId && mobileCaptureStatus === 'uploaded'
+      : !!uploadedImage && !!patientId;
+
+  const getInitials    = (name) => (name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const AVATAR_COLORS  = ['#1F5330', '#306A33', '#4A7A50', '#2D6A4F'];
   const getAvatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
 
   const resolveRisk = (r) => {
-    if (typeof r.risk === 'string' && ['High', 'Moderate', 'Low', 'Unknown'].includes(r.risk)) {
-      return r.risk;
-    }
+    if (typeof r.risk === 'string' && ['High', 'Moderate', 'Low', 'Unknown'].includes(r.risk)) return r.risk;
     return getRiskLevel(r.particleType, r.count);
   };
 
-  const modalW = expanded ? 'min(92vw, 1100px)' : '660px';
-  const modalH = expanded ? '90vh' : '640px';
+  const modalW    = expanded ? 'min(92vw, 1100px)' : '660px';
+  const modalH    = expanded ? '90vh' : '640px';
   const STEP_LABELS = ['', 'Uploading image…', 'AI detecting particles…', 'Analysis complete!'];
   const STEP_PILLS  = [
     { label: 'Upload',   done: analyzeStep >= 2 },
@@ -991,10 +1032,12 @@ export default function Upload({
     { label: 'Complete', done: analyzeStep === 3 },
   ];
 
+  // Whether we're busy with file processing (conversion or resize)
+  const isProcessing = converting || resizing;
+
   return (
     <div style={s.app}>
       <ErrorToast error={uiError} onClose={clearError} />
-
       <Topbar goToLogin={goToLogin} />
       <div style={s.body}>
         <Sidebar currentPage="upload" goToUpload={() => {}} goToResults={goToResults} goToAnalysis={goToAnalysis} goToExport={goToExport} goToPatients={goToPatients} goToLibrary={goToLibrary} badges={badges} />
@@ -1149,6 +1192,7 @@ export default function Upload({
         <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget && !analyzing) setMinimized(true); }}>
           <div style={{ ...s.modal, width: modalW, maxHeight: modalH, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)' }}>
 
+            {/* ── Analyzing overlay with Cancel button ── */}
             {analyzing && (
               <div style={s.analyzingOverlay}>
                 {uploadedImage && (
@@ -1202,6 +1246,27 @@ export default function Upload({
                   <div style={{ fontSize: '11px', color: '#A4AAA4', marginTop: '2px' }}>
                     {analyzeStep === 3 ? 'Redirecting to results…' : 'Please wait while the AI processes the sample…'}
                   </div>
+                  {/* Cancel button — only shown while still processing (not on step 3) */}
+                  {analyzeStep < 3 && (
+                    <button
+                      onClick={handleCancelAnalysis}
+                      style={{
+                        marginTop: '6px', padding: '8px 22px', borderRadius: '8px',
+                        border: '1.5px solid #D8DAD0', background: '#fff',
+                        fontSize: '12px', fontWeight: 600, color: '#A32D2D',
+                        cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        transition: 'background 0.15s, border-color 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#D8DAD0'; }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                        <path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="#A32D2D" strokeWidth="1.8" strokeLinecap="round"/>
+                      </svg>
+                      Cancel Analysis
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1242,8 +1307,8 @@ export default function Upload({
             <div style={s.progressBar}>
               {[
                 { num: '1', label: 'Patient', done: !!patientId,     active: !patientId },
-                { num: '2', label: 'Image',   done: !!uploadedImage, active: !!patientId && !uploadedImage },
-                { num: '3', label: 'Analyze', done: false,           active: !!patientId && !!uploadedImage },
+                { num: '2', label: 'Image',   done: !!uploadedImage || mobileCaptureStatus === 'uploaded', active: !!patientId && !uploadedImage && mobileCaptureStatus !== 'uploaded' },
+                { num: '3', label: 'Analyze', done: false,           active: isReadyToAnalyze },
               ].map((step, i) => (
                 <React.Fragment key={step.label}>
                   {i > 0 && <div style={{ flex: 1, height: '2px', background: step.done || (i === 1 && patientId) ? '#1FB505' : '#E0E2D8', margin: '0 6px', marginBottom: '14px' }} />}
@@ -1321,10 +1386,24 @@ export default function Upload({
               {/* Image upload column */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 0 0 20px' : '0' }}>
                 <div style={s.sectionLabel}><span style={s.sectionNum}>02</span> Upload Image</div>
-                <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" style={{ display: 'none' }} onChange={handleFileChange} />
+                {/* Updated accept attr: includes .heic and .heif */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp,.heic,.heif"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-                {resizing ? (
+                {/* HEIC conversion progress */}
+                {converting ? (
+                  <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Converting HEIC to JPEG…</div>
+                    <div style={{ fontSize: '10px', color: '#A4AAA4' }}>This may take a moment for large iPhone photos</div>
+                  </div>
+                ) : resizing ? (
                   <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Resizing to 704 × 704…</div>
@@ -1338,7 +1417,7 @@ export default function Upload({
                     <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>
                       {patientId ? 'Drop image here or choose an option below' : 'Add patient first'}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG · Max 10 MB</div>
+                    <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG, TIFF, BMP, HEIC · Max 10 MB</div>
 
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                       {/* Browse File */}
@@ -1350,14 +1429,13 @@ export default function Upload({
                         Browse File
                       </button>
 
-                      {/* Use Camera — now opens selector */}
+                      {/* Use Camera */}
                       <button onClick={openCameraSelector} disabled={!patientId} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #1F5330', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId ? 1 : 0.5, transition: 'all 0.18s', position: 'relative' }}
                         onMouseEnter={e => { if (patientId) e.currentTarget.style.background = '#306A33'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = '#1F5330'; }}
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         Use Camera
-                        {/* Small indicator if a camera is already selected */}
                         {selectedCamera && (
                           <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', borderRadius: '50%', background: '#1FB505', border: '2px solid #fff' }} />
                         )}
@@ -1392,7 +1470,7 @@ export default function Upload({
                       </div>
                     )}
 
-                    {/* Mobile session panel */}
+                    {/* Mobile session panel — NO analyze button here, just status + check */}
                     {captureSessionId && (
                       <div style={{ marginTop: '10px', width: '100%', background: '#F0F4FF', border: '1.5px solid #B8CCE8', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1406,14 +1484,22 @@ export default function Upload({
                               QR
                             </button>
                             <div style={{ fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED', color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320', border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}` }}>
-                              {mobileCaptureStatus === 'uploaded' ? '✓ Uploaded' : '⏳ Waiting'}
+                              {mobileCaptureStatus === 'uploaded' ? '✓ Ready' : '⏳ Waiting'}
                             </div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={checkMobileCapture} style={{ flex: 1, padding: '7px', borderRadius: '7px', border: '1.5px solid #4A7A9B', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#4A7A9B', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>Check Upload</button>
-                          <button onClick={analyzeMobileCapturedImage} disabled={mobileCaptureStatus !== 'uploaded'} style={{ flex: 1, padding: '7px', borderRadius: '7px', border: 'none', background: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#D8DAD0', fontSize: '11px', fontWeight: 600, color: mobileCaptureStatus === 'uploaded' ? '#fff' : '#A4AAA4', cursor: mobileCaptureStatus === 'uploaded' ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif" }}>Analyze Image</button>
-                        </div>
+                        {/* Only "Check Upload" here — the single "Analyze Image" button is in the footer */}
+                        <button
+                          onClick={checkMobileCapture}
+                          style={{ padding: '7px', borderRadius: '7px', border: '1.5px solid #4A7A9B', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#4A7A9B', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}
+                        >
+                          Check Upload
+                        </button>
+                        {mobileCaptureStatus === 'uploaded' && (
+                          <div style={{ fontSize: '10px', color: '#1F5330', fontWeight: 500, textAlign: 'center' }}>
+                            ✓ Image received — tap <strong>Analyze Image</strong> below to proceed
+                          </div>
+                        )}
                         {mobileCapturedImageUrl && (
                           <img src={mobileCapturedImageUrl} alt="Mobile capture preview" style={{ width: '100%', borderRadius: '8px', border: '1px solid #D8DAD0', marginTop: '2px' }} />
                         )}
@@ -1421,7 +1507,7 @@ export default function Upload({
                     )}
 
                     <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
-                      {['JPEG','PNG','TIFF'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}
+                      {['JPEG','PNG','TIFF','BMP','HEIC'].map(t => <span key={t} style={s.dzTag}>{t}</span>)}
                     </div>
                   </div>
                 ) : (
@@ -1439,20 +1525,38 @@ export default function Upload({
               </div>
             </div>
 
-            {/* Footer */}
+            {/* Footer — single Analyze Image button for all modes */}
             <div style={s.modalFoot}>
               {!patientId && <span style={s.hint}>⚠ Add a patient first</span>}
-              {patientId && !uploadedImage && !resizing && <span style={s.hint}>⚠ Upload an image to continue</span>}
-              {resizing && <span style={{ ...s.hint, color: '#1F5330' }}> Resizing image…</span>}
+              {patientId && !isReadyToAnalyze && !isProcessing && (
+                <span style={s.hint}>⚠ Upload or capture an image to continue</span>
+              )}
+              {isProcessing && (
+                <span style={{ ...s.hint, color: '#1F5330' }}>
+                  {converting ? ' Converting HEIC…' : ' Resizing image…'}
+                </span>
+              )}
               <div style={{ flex: 1 }} />
-              <button onClick={handleReset} style={s.cancelBtn} disabled={analyzing || resizing} onMouseEnter={e => { e.currentTarget.style.background = '#F5F6F0'; }} onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}>
+              <button
+                onClick={handleReset}
+                style={s.cancelBtn}
+                disabled={analyzing || isProcessing}
+                onMouseEnter={e => { e.currentTarget.style.background = '#F5F6F0'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+              >
                 Cancel
               </button>
+              {/* Single unified Analyze button */}
               <button
                 onClick={handleAnalyze}
-                style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!uploadedImage || !patientId || analyzing || resizing) ? 0.55 : 1, cursor: (!uploadedImage || !patientId || analyzing || resizing) ? 'not-allowed' : 'pointer' }}
-                disabled={!uploadedImage || !patientId || analyzing || resizing}
-                onMouseEnter={e => { if (uploadedImage && patientId && !analyzing && !resizing) e.currentTarget.style.background = '#306A33'; }}
+                style={{
+                  ...s.analyzeBtn,
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  opacity: (!isReadyToAnalyze || analyzing || isProcessing) ? 0.55 : 1,
+                  cursor: (!isReadyToAnalyze || analyzing || isProcessing) ? 'not-allowed' : 'pointer',
+                }}
+                disabled={!isReadyToAnalyze || analyzing || isProcessing}
+                onMouseEnter={e => { if (isReadyToAnalyze && !analyzing && !isProcessing) e.currentTarget.style.background = '#306A33'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#1F5330'; }}
               >
                 {analyzing
@@ -1467,7 +1571,7 @@ export default function Upload({
         </div>
       )}
 
-      {/* ── Camera Selector Modal (NEW) ── */}
+      {/* ── Camera Selector Modal ── */}
       {showCameraSelector && (
         <CameraSelector
           onSelect={handleCameraSelected}
@@ -1492,7 +1596,6 @@ export default function Upload({
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {/* Switch camera = re-open selector */}
                 {cameraStream && (
                   <button onClick={switchCamera} title="Switch camera" style={s.camCtrlBtn}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><polyline points="17 4 20 7 17 10"/><polyline points="8 14 5 17 8 20"/></svg>
@@ -1531,7 +1634,11 @@ export default function Upload({
               <div style={{ fontSize: '11px', color: '#A4AAA4' }}>{cameraStream ? 'Position sample in frame, then capture' : ''}</div>
               <div style={{ flex: 1 }} />
               <button onClick={closeCamera} style={s.cancelBtn}>Cancel</button>
-              <button onClick={handleCapture} disabled={!cameraStream || capturing || !!cameraError} style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!cameraStream || capturing || !!cameraError) ? 0.55 : 1, cursor: (!cameraStream || capturing || !!cameraError) ? 'not-allowed' : 'pointer' }}>
+              <button
+                onClick={handleCapture}
+                disabled={!cameraStream || capturing || !!cameraError}
+                style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!cameraStream || capturing || !!cameraError) ? 0.55 : 1, cursor: (!cameraStream || capturing || !!cameraError) ? 'not-allowed' : 'pointer' }}
+              >
                 {capturing
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
@@ -1701,4 +1808,3 @@ const s = {
   cameraError:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '40px 24px' },
   cameraFoot:    { padding: '12px 18px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
 };
-

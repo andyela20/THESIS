@@ -1,12 +1,9 @@
 ﻿const mongoose = require("mongoose");
 
 const PatientSchema = new mongoose.Schema({
-  patientId: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true
-  },
+
+    
+  patientId: { type: String, unique: true, default: () => `P-${uuidv4().slice(0, 8).toUpperCase()}` },
 
   name: {
     type: String,
@@ -52,4 +49,5 @@ const PatientSchema = new mongoose.Schema({
   timestamps: true
 });
 
+mongoose.deleteModel(/Patient/);
 module.exports = mongoose.model("Patient", PatientSchema);

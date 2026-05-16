@@ -971,10 +971,18 @@ export default function Patients({
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>Contact Number</label>
                   <input
+                    type="tel"
                     style={styles.formInput}
                     value={addForm.contactNumber}
-                    onChange={(e) => setAddForm({ ...addForm, contactNumber: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      if (val.length <= 11) setAddForm({ ...addForm, contactNumber: val });
+                    }}
+                    onFocus={() => {
+                      if (!addForm.contactNumber) setAddForm({ ...addForm, contactNumber: '09' });
+                    }}
                     placeholder="09XXXXXXXXX"
+                    maxLength={11}
                   />
                 </div>
               </div>

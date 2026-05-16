@@ -1,17 +1,21 @@
-{
+﻿{
   "expo": {
-    "name": "mobile",
+    "name": "MagniTect Capture",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "magnitect",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.jaja.crystalscope",
+      "permissions": [
+        "CAMERA"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -19,8 +23,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.jaja.crystalscope"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -54,3 +57,4 @@
     }
   }
 }
+

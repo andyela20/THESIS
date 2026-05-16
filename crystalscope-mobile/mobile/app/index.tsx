@@ -1,4 +1,4 @@
-import * as Linking from 'expo-linking';
+﻿import * as Linking from 'expo-linking';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
@@ -30,7 +30,7 @@ import Svg, { Path, Circle, Rect, Line, Polyline, Polygon } from 'react-native-s
 
 const { width } = Dimensions.get('window');
 
-// ─── SVG Icons ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ SVG Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const IconUpload = ({ size = 20, color = '#fff' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -113,7 +113,7 @@ const IconZoomOut = ({ size = 18, color = '#fff' }) => (
   </Svg>
 );
 
-// ─── MagniTect Logo SVG ───────────────────────────────────────────────────────
+// â”€â”€â”€ MagniTect Logo SVG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MagniTectLogo = ({ size = 80, color = '#fff' }) => (
   <Svg width={size} height={size * 1.2} viewBox="0 0 100 120" fill="none">
     <Path d="M55 10 L70 10 L70 28 L55 28 Z" fill={color} />
@@ -136,7 +136,7 @@ const MagniTectLogo = ({ size = 80, color = '#fff' }) => (
   </Svg>
 );
 
-// ─── Splash Screen ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Splash Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   const logoScale     = useRef(new Animated.Value(0.3)).current;
   const logoOpacity   = useRef(new Animated.Value(0)).current;
@@ -222,7 +222,7 @@ const splashStyles = StyleSheet.create({
   dot:       { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.85)' },
 });
 
-// ─── Zoom Slider ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Zoom Slider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ZOOM_MIN  = 0;
 const ZOOM_MAX  = 1;
 const TRACK_H   = 180;
@@ -332,7 +332,7 @@ const zoomStyles = StyleSheet.create({
   badgeText: { color: '#fff', fontSize: 10, fontFamily: 'Poppins_500Medium' },
 });
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type AppMode = 'qr_scan' | 'capture';
 
 export default function HomeScreen() {
@@ -374,7 +374,7 @@ export default function HomeScreen() {
 
   const API_URL = 'http://16.59.206.79:5001/upload-capture';
 
-  // ── Pinch-to-zoom ─────────────────────────────────────────────────────────
+  // â”€â”€ Pinch-to-zoom â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pinchResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (e) => e.nativeEvent.touches.length === 2,
@@ -411,13 +411,13 @@ export default function HomeScreen() {
     })
   ).current;
 
-  // ── Camera ready handler ──────────────────────────────────────────────────
+  // â”€â”€ Camera ready handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleCameraReady = useCallback(() => {
     isCameraReadyRef.current = true;
     setIsCameraReady(true);
   }, []);
 
-  // ── Session helpers ───────────────────────────────────────────────────────
+  // â”€â”€ Session helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const connectSession = (id: string, name = '', pid = '', fromQr = false) => {
     setSessionId(id);
     setPatientName(name);
@@ -524,7 +524,7 @@ export default function HomeScreen() {
     ]);
   };
 
-  // ── Guards ────────────────────────────────────────────────────────────────
+  // â”€â”€ Guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (!fontsLoaded || !permission) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#1F5D3F" /></View>;
   }
@@ -552,7 +552,7 @@ export default function HomeScreen() {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // RENDER
   //
   // KEY FIX: Each mode renders its OWN CameraView directly inside the
@@ -563,13 +563,13 @@ export default function HomeScreen() {
   // - Capture mode: CameraView with zoom + ref, rendered in its card
   //
   // When mode switches, the old CameraView unmounts and the new one mounts.
-  // Expo Go handles this cleanly — there is never more than one active at a time.
-  // ══════════════════════════════════════════════════════════════════════════
+  // Expo Go handles this cleanly â€” there is never more than one active at a time.
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {/* ── QR SCAN SCREEN ─────────────────────────────────────────────── */}
+        {/* â”€â”€ QR SCAN SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {mode === 'qr_scan' && (
           <>
             <View style={styles.topbar}>
@@ -594,9 +594,9 @@ export default function HomeScreen() {
             </View>
 
             {/*
-              QR Camera Card — CameraView lives DIRECTLY inside cameraWrapper.
+              QR Camera Card â€” CameraView lives DIRECTLY inside cameraWrapper.
               This is what makes the preview visible. No absolute positioning
-              tricks, no zIndex games — the camera is a normal flex child.
+              tricks, no zIndex games â€” the camera is a normal flex child.
             */}
             <View style={styles.card}>
               <View style={styles.cameraWrapper}>
@@ -616,7 +616,7 @@ export default function HomeScreen() {
                   {qrScanned ? (
                     <View style={styles.scanningBadge}>
                       <ActivityIndicator size="small" color="#fff" />
-                      <Text style={styles.scanningText}>Connecting…</Text>
+                      <Text style={styles.scanningText}>Connectingâ€¦</Text>
                     </View>
                   ) : (
                     <View style={styles.scanPromptBadge}>
@@ -655,7 +655,7 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* ── CAPTURE SCREEN ─────────────────────────────────────────────── */}
+        {/* â”€â”€ CAPTURE SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {mode === 'capture' && (
           <>
             <View style={styles.topbar}>
@@ -731,7 +731,7 @@ export default function HomeScreen() {
                 </View>
 
                 {/*
-                  Capture Camera — CameraView lives DIRECTLY inside cameraWrapper.
+                  Capture Camera â€” CameraView lives DIRECTLY inside cameraWrapper.
                   The ref, zoom, and onCameraReady are all wired here.
                   pinchResponder wraps the whole cameraWrapper for 2-finger zoom.
                   The shutter button is inside cameraOverlay (absoluteFill sibling
@@ -771,7 +771,7 @@ export default function HomeScreen() {
                   {isCameraReady && (
                     <View style={styles.zoomPill}>
                       <Text style={styles.zoomPillText}>
-                        {zoom === 0 ? '1×' : `${(1 + zoom * 9).toFixed(1)}×`}
+                        {zoom === 0 ? '1Ã—' : `${(1 + zoom * 9).toFixed(1)}Ã—`}
                       </Text>
                     </View>
                   )}
@@ -779,8 +779,8 @@ export default function HomeScreen() {
 
                 <Text style={styles.cameraHint}>
                   {isCameraReady
-                    ? 'Pinch or use slider to zoom  ·  Tap button to capture'
-                    : 'Initializing camera…'}
+                    ? 'Pinch or use slider to zoom  Â·  Tap button to capture'
+                    : 'Initializing cameraâ€¦'}
                 </Text>
               </View>
             ) : (
@@ -846,7 +846,7 @@ export default function HomeScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const styles = StyleSheet.create({
   screen:        { flex: 1, backgroundColor: '#F1F3EC', paddingTop: 52, paddingHorizontal: 14 },
   scrollContent: { paddingBottom: 36 },
@@ -908,13 +908,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
   },
 
-  // cameraWrapper: explicit height, no backgroundColor — the CameraView fills it
+  // cameraWrapper: explicit height, no backgroundColor â€” the CameraView fills it
   cameraWrapper: {
     height: 340,
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    // NO backgroundColor here — letting the camera show through naturally
+    // NO backgroundColor here â€” letting the camera show through naturally
   },
 
   qrOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
@@ -985,3 +985,4 @@ const styles = StyleSheet.create({
   permissionTitle: { fontSize: 22, fontFamily: 'Poppins_700Bold', marginBottom: 8, color: '#1a1a1a' },
   permissionSub:   { marginVertical: 10, fontFamily: 'Poppins_400Regular', textAlign: 'center', color: '#555', lineHeight: 20 },
 });
+

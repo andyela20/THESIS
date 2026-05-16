@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, getAnalyses } from './api';
 import './index.css';
 
-// ── HEIC conversion (heic2any) ────────────────────────────────────────────────
+// â”€â”€ HEIC conversion (heic2any) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Install: npm install heic2any
 // Only loaded lazily when a .heic/.heif file is dropped/selected.
 async function convertHeicToJpeg(file) {
@@ -254,7 +254,7 @@ function ErrorToast({ error, onClose }) {
           </div>
           {error.hint && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: tokens.iconBg, border: `1px solid ${tokens.iconRing}`, borderRadius: '10px', padding: '10px 12px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '13px', lineHeight: 1, flexShrink: 0, marginTop: '1px' }}>💡</span>
+              <span style={{ fontSize: '13px', lineHeight: 1, flexShrink: 0, marginTop: '1px' }}>ðŸ’¡</span>
               <span style={{ fontSize: '12px', color: tokens.hintColor, fontWeight: 500, lineHeight: 1.5 }}>{error.hint}</span>
             </div>
           )}
@@ -286,7 +286,7 @@ function ErrorToast({ error, onClose }) {
   );
 }
 
-// ── Camera Selector Modal ──────────────────────────────────────────────────────
+// â”€â”€ Camera Selector Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CameraSelector({ onSelect, onClose }) {
   const [cameras, setCameras]           = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -387,7 +387,7 @@ function CameraSelector({ onSelect, onClose }) {
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px', gap: '12px' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Detecting available cameras…</div>
+              <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Detecting available camerasâ€¦</div>
             </div>
           )}
           {error && (
@@ -398,7 +398,7 @@ function CameraSelector({ onSelect, onClose }) {
           )}
           {!loading && !error && cameras.length === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: '36px' }}>📷</div>
+              <div style={{ fontSize: '36px' }}>ðŸ“·</div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#4A5240' }}>No cameras detected</div>
               <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Connect a camera or digital microscope and try again.</div>
             </div>
@@ -406,7 +406,7 @@ function CameraSelector({ onSelect, onClose }) {
           {!loading && !error && cameras.length > 0 && (
             <>
               <div style={{ fontSize: '11px', color: '#A4AAA4', marginBottom: '14px' }}>
-                {cameras.length} camera{cameras.length > 1 ? 's' : ''} found — select one to use for capture
+                {cameras.length} camera{cameras.length > 1 ? 's' : ''} found â€” select one to use for capture
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: cameras.length === 1 ? '1fr' : '1fr 1fr', gap: '12px' }}>
                 {cameras.map((cam, idx) => {
@@ -466,12 +466,12 @@ function CameraSelector({ onSelect, onClose }) {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
                           <div style={{ fontSize: '10px', color: '#A4AAA4', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                            {cam.deviceId.slice(0, 20)}…
+                            {cam.deviceId.slice(0, 20)}â€¦
                           </div>
                         </div>
                         {mightBeMicro && (
                           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '3px', background: '#E8F5E8', border: '1px solid #B8E0AF', borderRadius: '20px', padding: '2px 8px' }}>
-                            <span style={{ fontSize: '10px' }}>🔬</span>
+                            <span style={{ fontSize: '10px' }}>ðŸ”¬</span>
                             <span style={{ fontSize: '9px', fontWeight: 700, color: '#1F5330' }}>Microscope</span>
                           </div>
                         )}
@@ -506,7 +506,7 @@ function CameraSelector({ onSelect, onClose }) {
   );
 }
 
-// ── Main Upload Component ──────────────────────────────────────────────────────
+// â”€â”€ Main Upload Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Upload({
   goToResults, goToAnalysis, goToExport, goToPatients, goToLibrary, goToLogin,
   currentPatient, setCurrentPatient, clearCurrentPatient,
@@ -539,7 +539,7 @@ export default function Upload({
   const [searchLoading, setSearchLoading]   = useState(false);
   const [showDropdown, setShowDropdown]     = useState(false);
   const [uploadedImage, setUploadedImage]   = useState(null);
-  // Tracks whether a HEIC→JPEG conversion is in progress
+  // Tracks whether a HEICâ†’JPEG conversion is in progress
   const [converting, setConverting]         = useState(false);
   const [resizing, setResizing]             = useState(false);
   const [loading, setLoading]               = useState(false);
@@ -549,7 +549,7 @@ export default function Upload({
   const [minimized, setMinimized]           = useState(false);
   const [expanded, setExpanded]             = useState(false);
 
-  // ── Cancel Analysis ─────────────────────────────────────────────────────────
+  // â”€â”€ Cancel Analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // We store the AbortController so the user can cancel the in-flight request.
   const analysisAbortRef = useRef(null);
   // Tracks whether we're running a mobile-session analysis (vs. a local file analysis).
@@ -731,7 +731,7 @@ export default function Upload({
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
-  // ── Cancel an ongoing analysis ────────────────────────────────────────────
+  // â”€â”€ Cancel an ongoing analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleCancelAnalysis = () => {
     if (analysisAbortRef.current) {
       analysisAbortRef.current.abort();
@@ -743,7 +743,7 @@ export default function Upload({
 
   const openModal = () => { setShowAnalysisForm(true); setMinimized(false); setExpanded(false); };
 
-  // ── HEIC-aware file processing ────────────────────────────────────────────
+  // â”€â”€ HEIC-aware file processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const applyImageFile = async (file) => {
     if (!file) return;
     const ext = file.name.split('.').pop().toLowerCase();
@@ -763,7 +763,7 @@ export default function Upload({
       setConverting(false);
     }
 
-    // Step 2: Resize to 704×704
+    // Step 2: Resize to 704Ã—704
     setResizing(true);
     try {
       const resized = await resizeTo704(workFile);
@@ -860,7 +860,7 @@ export default function Upload({
       }
       const encodedName = encodeURIComponent(patientName);
       const encodedId   = encodeURIComponent(patientId);
-      const link = `exp://192.168.1.18:8081/--/?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
+      const link = `magnitect:///?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
       setCaptureSessionId(data.sessionId);
       setMobileCaptureStatus('waiting');
       setMobileCapturedImageUrl('');
@@ -868,7 +868,7 @@ export default function Upload({
       setShowQRModal(true);
     } catch (err) {
       console.error(err);
-      showError('Connection Failed', `Cannot reach server at 16.59.206.79:5001 — is it running?`, err.message);
+      showError('Connection Failed', `Cannot reach server at 16.59.206.79:5001 â€” is it running?`, err.message);
     } finally {
       setMobileCaptureLoading(false);
     }
@@ -891,7 +891,7 @@ export default function Upload({
     }
   };
 
-  // ── Single unified Analyze handler ──────────────────────────────────────────
+  // â”€â”€ Single unified Analyze handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Decides mode based on analysisModeRef ('local' | 'mobile').
   // Called by the single footer button in both cases.
   const handleAnalyze = async () => {
@@ -935,7 +935,7 @@ export default function Upload({
         });
       } catch (err) {
         if (err.name === 'AbortError') {
-          // User cancelled — silently reset
+          // User cancelled â€” silently reset
         } else {
           showError('Network Error', 'Could not reach the analysis server: ' + err.message, 'Make sure the Flask server is running on port 5001.');
         }
@@ -989,7 +989,7 @@ export default function Upload({
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-        // User cancelled — silently reset
+        // User cancelled â€” silently reset
       } else {
         showError('Server Error', 'Could not connect to the model server.', 'Make sure the Flask server is running on port 5001. ' + err.message);
       }
@@ -1000,7 +1000,7 @@ export default function Upload({
     }
   };
 
-  // ── Sync analyze mode whenever inputs change ──────────────────────────────
+  // â”€â”€ Sync analyze mode whenever inputs change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (mobileCaptureStatus === 'uploaded' && !uploadedImage) {
       analysisModeRef.current = 'mobile';
@@ -1025,7 +1025,7 @@ export default function Upload({
 
   const modalW    = expanded ? 'min(92vw, 1100px)' : '660px';
   const modalH    = expanded ? '90vh' : '640px';
-  const STEP_LABELS = ['', 'Uploading image…', 'AI detecting particles…', 'Analysis complete!'];
+  const STEP_LABELS = ['', 'Uploading imageâ€¦', 'AI detecting particlesâ€¦', 'Analysis complete!'];
   const STEP_PILLS  = [
     { label: 'Upload',   done: analyzeStep >= 2 },
     { label: 'Analyze',  done: analyzeStep >= 3 },
@@ -1067,10 +1067,10 @@ export default function Upload({
             {/* Stat cards */}
             <div style={s.statRow}>
               {[
-                { label: 'TOTAL PATIENTS', value: statsLoading ? '—' : totalPatients, sub: `${statsLoading ? '—' : totalPatients} active`, accent: '#1F5330' },
-                { label: 'TOTAL ANALYSES', value: statsLoading ? '—' : totalAnalyses, sub: 'crystal records saved', accent: '#4A7A9B' },
-                { label: 'TOP CRYSTAL', value: statsLoading ? '—' : (topCrystal || '—'), sub: topCrystal ? 'most detected type' : 'No data yet', accent: '#888', isText: true },
-                { label: 'LAST ANALYSIS', value: statsLoading ? '—' : (lastAnalysis ? new Date(lastAnalysis.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'), sub: lastAnalysis ? lastAnalysis.patientName : 'No analyses yet', accent: '#C07320', isText: true },
+                { label: 'TOTAL PATIENTS', value: statsLoading ? 'â€”' : totalPatients, sub: `${statsLoading ? 'â€”' : totalPatients} active`, accent: '#1F5330' },
+                { label: 'TOTAL ANALYSES', value: statsLoading ? 'â€”' : totalAnalyses, sub: 'crystal records saved', accent: '#4A7A9B' },
+                { label: 'TOP CRYSTAL', value: statsLoading ? 'â€”' : (topCrystal || 'â€”'), sub: topCrystal ? 'most detected type' : 'No data yet', accent: '#888', isText: true },
+                { label: 'LAST ANALYSIS', value: statsLoading ? 'â€”' : (lastAnalysis ? new Date(lastAnalysis.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'â€”'), sub: lastAnalysis ? lastAnalysis.patientName : 'No analyses yet', accent: '#C07320', isText: true },
               ].map((card, i) => (
                 <div
                   key={i}
@@ -1091,11 +1091,11 @@ export default function Upload({
               <div style={s.card}>
                 <div style={s.cardHead}>
                   <span style={s.cardTitle}>Recent Crystal Records</span>
-                  <button onClick={goToLibrary} style={s.viewAll} onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>View all →</button>
+                  <button onClick={goToLibrary} style={s.viewAll} onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>View all â†’</button>
                 </div>
                 {recentRecords.length === 0 ? (
                   <div style={s.emptyBlock}>
-                    <div style={{ fontSize: '36px', marginBottom: '8px' }}>🔬</div>
+                    <div style={{ fontSize: '36px', marginBottom: '8px' }}>ðŸ”¬</div>
                     <div style={s.emptyText}>No analyses yet</div>
                     <button onClick={openModal} style={s.emptyBtn}>Run first analysis</button>
                   </div>
@@ -1103,13 +1103,13 @@ export default function Upload({
                   <div style={s.recordList}>
                     {recentRecords.map((r, i) => {
                       const risk  = resolveRisk(r);
-                      const pType = r.particleType || r.crystalType || '—';
+                      const pType = r.particleType || r.crystalType || 'â€”';
                       return (
                         <div key={i} style={s.recordRow} onMouseEnter={e => e.currentTarget.style.background = '#F8F9F5'} onMouseLeave={e => e.currentTarget.style.background = ''}>
                           <div style={{ ...s.recordDot, background: CRYSTAL_COLORS[pType] || '#94A3B8' }} />
                           <div style={s.recordInfo}>
                             <div style={s.recordName}>{pType}</div>
-                            <div style={s.recordMeta}>{r.patientName} · {r.sampleId}</div>
+                            <div style={s.recordMeta}>{r.patientName} Â· {r.sampleId}</div>
                           </div>
                           <div style={{ ...s.riskTag, background: RISK_STYLE[risk]?.bg || RISK_STYLE.Unknown.bg, color: RISK_STYLE[risk]?.color || RISK_STYLE.Unknown.color }}>{risk}</div>
                           <div style={s.recordCount}>{r.count}</div>
@@ -1124,11 +1124,11 @@ export default function Upload({
                 <div style={s.card}>
                   <div style={s.cardHead}>
                     <span style={s.cardTitle}>Recent Patients</span>
-                    <button onClick={goToPatients} style={s.viewAll} onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>View all →</button>
+                    <button onClick={goToPatients} style={s.viewAll} onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>View all â†’</button>
                   </div>
                   {recentPatients.length === 0 ? (
                     <div style={s.emptyBlock}>
-                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>👤</div>
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>ðŸ‘¤</div>
                       <div style={s.emptyText}>No patients yet</div>
                       <button onClick={openModal} style={s.emptyBtn}>Add first patient</button>
                     </div>
@@ -1139,7 +1139,7 @@ export default function Upload({
                           <div style={{ ...s.avatar, background: getAvatarColor(p.name) }}>{getInitials(p.name)}</div>
                           <div style={s.recordInfo}>
                             <div style={s.recordName}>{p.name}</div>
-                            <div style={s.recordMeta}>{p.patientId} · {p.age ? `${p.age} yrs` : ''} · {p.sex || ''}</div>
+                            <div style={s.recordMeta}>{p.patientId} Â· {p.age ? `${p.age} yrs` : ''} Â· {p.sex || ''}</div>
                           </div>
                           <div style={{ ...s.riskTag, background: p.status === 'Active' ? '#E8F5E8' : '#F5F5F5', color: p.status === 'Active' ? '#1F5330' : '#A4AAA4' }}>{p.status}</div>
                         </div>
@@ -1181,18 +1181,18 @@ export default function Upload({
           </svg>
           <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>New Analysis</span>
           {patientId && <span style={s.pillBadge}>{patientName.split(' ')[0]}</span>}
-          {uploadedImage && <span style={s.pillBadge2}>📎 Image ready</span>}
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginLeft: '2px' }}>· Tap to restore</span>
-          <button style={s.pillClose} onClick={(e) => { e.stopPropagation(); handleReset(); }}>✕</button>
+          {uploadedImage && <span style={s.pillBadge2}>ðŸ“Ž Image ready</span>}
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginLeft: '2px' }}>Â· Tap to restore</span>
+          <button style={s.pillClose} onClick={(e) => { e.stopPropagation(); handleReset(); }}>âœ•</button>
         </div>
       )}
 
-      {/* ── Analysis Modal ── */}
+      {/* â”€â”€ Analysis Modal â”€â”€ */}
       {showAnalysisForm && !minimized && (
         <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget && !analyzing) setMinimized(true); }}>
           <div style={{ ...s.modal, width: modalW, maxHeight: modalH, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)' }}>
 
-            {/* ── Analyzing overlay with Cancel button ── */}
+            {/* â”€â”€ Analyzing overlay with Cancel button â”€â”€ */}
             {analyzing && (
               <div style={s.analyzingOverlay}>
                 {uploadedImage && (
@@ -1214,7 +1214,7 @@ export default function Upload({
                       }
                     </div>
                   </div>
-                  <div style={s.analyzingLabel}>{STEP_LABELS[analyzeStep] || 'Processing…'}</div>
+                  <div style={s.analyzingLabel}>{STEP_LABELS[analyzeStep] || 'Processingâ€¦'}</div>
                   {analyzeStep < 3 && (
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {[0, 1, 2].map(i => (
@@ -1238,15 +1238,15 @@ export default function Upload({
                   <div style={{ display: 'flex', gap: '7px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     {STEP_PILLS.map((st) => (
                       <div key={st.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 13px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: st.done ? '#1F5330' : 'rgba(31,83,48,0.07)', color: st.done ? '#fff' : '#8C9A8C', border: `1px solid ${st.done ? '#1F5330' : '#D8DAD0'}`, transition: 'all 0.35s ease' }}>
-                        {st.done && <span style={{ fontSize: '9px' }}>✓</span>}
+                        {st.done && <span style={{ fontSize: '9px' }}>âœ“</span>}
                         {st.label}
                       </div>
                     ))}
                   </div>
                   <div style={{ fontSize: '11px', color: '#A4AAA4', marginTop: '2px' }}>
-                    {analyzeStep === 3 ? 'Redirecting to results…' : 'Please wait while the AI processes the sample…'}
+                    {analyzeStep === 3 ? 'Redirecting to resultsâ€¦' : 'Please wait while the AI processes the sampleâ€¦'}
                   </div>
-                  {/* Cancel button — only shown while still processing (not on step 3) */}
+                  {/* Cancel button â€” only shown while still processing (not on step 3) */}
                   {analyzeStep < 3 && (
                     <button
                       onClick={handleCancelAnalysis}
@@ -1314,7 +1314,7 @@ export default function Upload({
                   {i > 0 && <div style={{ flex: 1, height: '2px', background: step.done || (i === 1 && patientId) ? '#1FB505' : '#E0E2D8', margin: '0 6px', marginBottom: '14px' }} />}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                     <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: step.done ? '#1FB505' : step.active ? '#1F5330' : '#E0E2D8', color: step.done || step.active ? '#fff' : '#A4AAA4', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {step.done ? '✓' : step.num}
+                      {step.done ? 'âœ“' : step.num}
                     </div>
                     <span style={{ fontSize: '10px', fontWeight: 600, color: step.done ? '#1FB505' : step.active ? '#1F5330' : '#A4AAA4' }}>{step.label}</span>
                   </div>
@@ -1333,9 +1333,9 @@ export default function Upload({
                     <div style={{ ...s.avatar, background: getAvatarColor(patientName), width: '36px', height: '36px', fontSize: '13px' }}>{getInitials(patientName)}</div>
                     <div style={{ flex: 1 }}>
                       <div style={s.recordName}>{patientName}</div>
-                      <div style={s.recordMeta}>{patientId} · {patientAge ? `${patientAge} yrs` : ''} · {patientSex}</div>
+                      <div style={s.recordMeta}>{patientId} Â· {patientAge ? `${patientAge} yrs` : ''} Â· {patientSex}</div>
                     </div>
-                    <span style={{ color: '#1FB505', fontSize: '15px' }}>✓</span>
+                    <span style={{ color: '#1FB505', fontSize: '15px' }}>âœ“</span>
                     <button onClick={() => { setTab('new'); setPatientId(null); }} style={s.editBtn}>Edit</button>
                   </div>
                 ) : (
@@ -1361,16 +1361,16 @@ export default function Upload({
                       <div ref={searchRef} style={{ position: 'relative' }}>
                         <div style={s.searchBox}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A4AAA4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name or Patient ID…" style={s.searchInput} autoFocus />
+                          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name or Patient IDâ€¦" style={s.searchInput} autoFocus />
                         </div>
                         {showDropdown && (
                           <div style={s.dropdown}>
-                            {searchLoading && <div style={s.dropItem}>Searching…</div>}
+                            {searchLoading && <div style={s.dropItem}>Searchingâ€¦</div>}
                             {!searchLoading && searchResults.length === 0 && <div style={s.dropItem}>No patients found</div>}
                             {!searchLoading && searchResults.map(p => (
                               <div key={p.patientId} style={s.dropResult} onClick={() => handleSelectSearchResult(p)} onMouseEnter={e => e.currentTarget.style.background = '#F5F6F0'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                                 <div style={s.recordName}>{p.name}</div>
-                                <div style={s.recordMeta}>{p.patientId} · {p.age ? `${p.age} yrs` : ''} · {p.sex || ''}</div>
+                                <div style={s.recordMeta}>{p.patientId} Â· {p.age ? `${p.age} yrs` : ''} Â· {p.sex || ''}</div>
                               </div>
                             ))}
                           </div>
@@ -1400,13 +1400,13 @@ export default function Upload({
                 {converting ? (
                   <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Converting HEIC to JPEG…</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Converting HEIC to JPEGâ€¦</div>
                     <div style={{ fontSize: '10px', color: '#A4AAA4' }}>This may take a moment for large iPhone photos</div>
                   </div>
                 ) : resizing ? (
                   <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Resizing to 704 × 704…</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F5330' }}>Resizing to 704 Ã— 704â€¦</div>
                     <div style={{ fontSize: '10px', color: '#A4AAA4' }}>Optimizing image for the detection model</div>
                   </div>
                 ) : !uploadedImage ? (
@@ -1417,7 +1417,7 @@ export default function Upload({
                     <div style={{ fontSize: '13px', fontWeight: 600, color: patientId ? '#141514' : '#C9CAC0' }}>
                       {patientId ? 'Drop image here or choose an option below' : 'Add patient first'}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG, TIFF, BMP, HEIC · Max 10 MB</div>
+                    <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 Ã— 704 Â· JPEG, PNG, TIFF, BMP, HEIC Â· Max 10 MB</div>
 
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                       {/* Browse File */}
@@ -1450,7 +1450,7 @@ export default function Upload({
                           ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                           : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                         }
-                        {mobileCaptureLoading ? 'Creating…' : 'Mobile Capture'}
+                        {mobileCaptureLoading ? 'Creatingâ€¦' : 'Mobile Capture'}
                       </button>
                     </div>
 
@@ -1470,7 +1470,7 @@ export default function Upload({
                       </div>
                     )}
 
-                    {/* Mobile session panel — NO analyze button here, just status + check */}
+                    {/* Mobile session panel â€” NO analyze button here, just status + check */}
                     {captureSessionId && (
                       <div style={{ marginTop: '10px', width: '100%', background: '#F0F4FF', border: '1.5px solid #B8CCE8', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1484,11 +1484,11 @@ export default function Upload({
                               QR
                             </button>
                             <div style={{ fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED', color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320', border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}` }}>
-                              {mobileCaptureStatus === 'uploaded' ? '✓ Ready' : '⏳ Waiting'}
+                              {mobileCaptureStatus === 'uploaded' ? 'âœ“ Ready' : 'â³ Waiting'}
                             </div>
                           </div>
                         </div>
-                        {/* Only "Check Upload" here — the single "Analyze Image" button is in the footer */}
+                        {/* Only "Check Upload" here â€” the single "Analyze Image" button is in the footer */}
                         <button
                           onClick={checkMobileCapture}
                           style={{ padding: '7px', borderRadius: '7px', border: '1.5px solid #4A7A9B', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#4A7A9B', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}
@@ -1497,7 +1497,7 @@ export default function Upload({
                         </button>
                         {mobileCaptureStatus === 'uploaded' && (
                           <div style={{ fontSize: '10px', color: '#1F5330', fontWeight: 500, textAlign: 'center' }}>
-                            ✓ Image received — tap <strong>Analyze Image</strong> below to proceed
+                            âœ“ Image received â€” tap <strong>Analyze Image</strong> below to proceed
                           </div>
                         )}
                         {mobileCapturedImageUrl && (
@@ -1517,23 +1517,23 @@ export default function Upload({
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#141514' }}>{uploadedImage.name}</div>
-                      <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>{(uploadedImage.size / 1024).toFixed(1)} KB · 704 × 704 · Ready to analyze</div>
+                      <div style={{ fontSize: '11px', color: '#1FB505', marginTop: '2px' }}>{(uploadedImage.size / 1024).toFixed(1)} KB Â· 704 Ã— 704 Â· Ready to analyze</div>
                     </div>
-                    <button onClick={handleRemoveImage} style={{ ...s.editBtn, color: '#E24B4A' }}>✕ Remove</button>
+                    <button onClick={handleRemoveImage} style={{ ...s.editBtn, color: '#E24B4A' }}>âœ• Remove</button>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Footer — single Analyze Image button for all modes */}
+            {/* Footer â€” single Analyze Image button for all modes */}
             <div style={s.modalFoot}>
-              {!patientId && <span style={s.hint}>⚠ Add a patient first</span>}
+              {!patientId && <span style={s.hint}>âš  Add a patient first</span>}
               {patientId && !isReadyToAnalyze && !isProcessing && (
-                <span style={s.hint}>⚠ Upload or capture an image to continue</span>
+                <span style={s.hint}>âš  Upload or capture an image to continue</span>
               )}
               {isProcessing && (
                 <span style={{ ...s.hint, color: '#1F5330' }}>
-                  {converting ? ' Converting HEIC…' : ' Resizing image…'}
+                  {converting ? ' Converting HEICâ€¦' : ' Resizing imageâ€¦'}
                 </span>
               )}
               <div style={{ flex: 1 }} />
@@ -1563,7 +1563,7 @@ export default function Upload({
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 }
-                {analyzing ? 'Analyzing…' : 'Analyze Image'}
+                {analyzing ? 'Analyzingâ€¦' : 'Analyze Image'}
               </button>
             </div>
 
@@ -1571,7 +1571,7 @@ export default function Upload({
         </div>
       )}
 
-      {/* ── Camera Selector Modal ── */}
+      {/* â”€â”€ Camera Selector Modal â”€â”€ */}
       {showCameraSelector && (
         <CameraSelector
           onSelect={handleCameraSelected}
@@ -1579,7 +1579,7 @@ export default function Upload({
         />
       )}
 
-      {/* ── Camera Capture Modal ── */}
+      {/* â”€â”€ Camera Capture Modal â”€â”€ */}
       {showCamera && (
         <div style={s.cameraOverlay}>
           <div style={s.cameraModal}>
@@ -1616,7 +1616,7 @@ export default function Upload({
               ) : !cameraStream ? (
                 <div style={s.cameraError}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Starting camera…</div>
+                  <div style={{ fontSize: '12px', color: '#A4AAA4' }}>Starting cameraâ€¦</div>
                 </div>
               ) : (
                 <video ref={videoRef} autoPlay playsInline muted style={s.cameraVideo} />
@@ -1643,14 +1643,14 @@ export default function Upload({
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
                 }
-                {capturing ? 'Capturing…' : 'Capture'}
+                {capturing ? 'Capturingâ€¦' : 'Capture'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── QR Modal ── */}
+      {/* â”€â”€ QR Modal â”€â”€ */}
       {showQRModal && (
         <div style={{ ...s.overlay, zIndex: 1200 }} onClick={(e) => { if (e.target === e.currentTarget) setShowQRModal(false); }}>
           <div style={{ background: '#fff', borderRadius: '18px', boxShadow: '0 28px 72px rgba(0,0,0,0.28), 0 4px 20px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '360px', maxWidth: '95vw', animation: 'fadeInScale 0.22s ease' }}>
@@ -1686,7 +1686,7 @@ export default function Upload({
                   <div style={{ fontSize: '11px', fontWeight: 600, color: '#141514', fontFamily: 'monospace', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{captureSessionId}</div>
                 </div>
                 <div style={{ fontSize: '10px', fontWeight: 600, padding: '3px 9px', borderRadius: '20px', background: mobileCaptureStatus === 'uploaded' ? '#E8F5E8' : '#FFF8ED', color: mobileCaptureStatus === 'uploaded' ? '#1F5330' : '#C07320', border: `1px solid ${mobileCaptureStatus === 'uploaded' ? '#B8E0AF' : '#F5D9A0'}`, flexShrink: 0 }}>
-                  {mobileCaptureStatus === 'uploaded' ? '✓ Done' : '⏳ Waiting'}
+                  {mobileCaptureStatus === 'uploaded' ? 'âœ“ Done' : 'â³ Waiting'}
                 </div>
               </div>
               <div style={{ width: '100%', background: '#F8F9F5', border: '1px solid #E0E2D8', borderRadius: '8px', padding: '8px 12px', boxSizing: 'border-box' }}>

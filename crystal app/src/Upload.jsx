@@ -5,8 +5,6 @@ import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, get
 import './index.css';
 
 // ── HEIC conversion (heic2any) ────────────────────────────────────────────────
-// Install: npm install heic2any
-// Only loaded lazily when a .heic/.heif file is dropped/selected.
 async function convertHeicToJpeg(file) {
   const heic2any = (await import('heic2any')).default;
   const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
@@ -156,6 +154,14 @@ function extractBackendMessage(data) {
   return data.message || data.error || data.detail || 'An unknown error occurred.';
 }
 
+// ── Helper: build full name from parts ───────────────────────────────────────
+function buildFullName({ surname, firstName, middleInitial }) {
+  const mi = middleInitial?.trim()
+    ? `${middleInitial.trim().replace('.', '')}.`
+    : '';
+  return [firstName?.trim(), mi, surname?.trim()].filter(Boolean).join(' ');
+}
+
 function ErrorToast({ error, onClose }) {
   useEffect(() => {
     if (!error) return;
@@ -288,13 +294,13 @@ function ErrorToast({ error, onClose }) {
 
 // ── Camera Selector Modal ──────────────────────────────────────────────────────
 function CameraSelector({ onSelect, onClose }) {
-  const [cameras, setCameras]           = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [previews, setPreviews]         = useState({});
-  const [selected, setSelected]         = useState(null);
-  const [error, setError]               = useState('');
-  const previewRefs                     = useRef({});
-  const streamsRef                      = useRef({});
+  const [cameras, setCameras]   = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [previews, setPreviews] = useState({});
+  const [selected, setSelected] = useState(null);
+  const [error, setError]       = useState('');
+  const previewRefs             = useRef({});
+  const streamsRef              = useRef({});
 
   useEffect(() => {
     let cancelled = false;
@@ -526,35 +532,35 @@ export default function Upload({
   const [recentPatients, setRecentPatients] = useState([]);
   const [statsLoading, setStatsLoading]     = useState(true);
 
-  const [tab, setTab]                       = useState(currentPatient ? 'confirmed' : 'new');
-  const [patientName, setPatientName]       = useState(currentPatient?.name      || '');
-  const [patientDOB, setPatientDOB]         = useState(currentPatient?.dob       || '');
-  const [patientAddress, setPatientAddress] = useState(currentPatient?.address   || '');
-  const [patientAge, setPatientAge]         = useState(currentPatient?.age       || '');
-  const [patientSex, setPatientSex]         = useState(currentPatient?.sex       || '');
-  const [patientContact, setPatientContact] = useState(currentPatient?.contact   || '');
-  const [patientId, setPatientId]           = useState(currentPatient?.patientId || null);
-  const [searchQuery, setSearchQuery]       = useState('');
-  const [searchResults, setSearchResults]   = useState([]);
-  const [searchLoading, setSearchLoading]   = useState(false);
-  const [showDropdown, setShowDropdown]     = useState(false);
-  const [uploadedImage, setUploadedImage]   = useState(null);
-  // Tracks whether a HEIC→JPEG conversion is in progress
-  const [converting, setConverting]         = useState(false);
-  const [resizing, setResizing]             = useState(false);
-  const [loading, setLoading]               = useState(false);
-  const [analyzing, setAnalyzing]           = useState(false);
-  const [analyzeStep, setAnalyzeStep]       = useState(0);
-  const [showAnalysisForm, setShowAnalysisForm] = useState(false);
-  const [minimized, setMinimized]           = useState(false);
-  const [expanded, setExpanded]             = useState(false);
+  const [tab, setTab]                               = useState(currentPatient ? 'confirmed' : 'new');
+  const [patientName, setPatientName]               = useState(currentPatient?.name          || '');
+  // ── Split name fields ──────────────────────────────────────────────────────
+  const [patientSurname, setPatientSurname]               = useState(currentPatient?.surname       || '');
+  const [patientFirstName, setPatientFirstName]           = useState(currentPatient?.firstName     || '');
+  const [patientMiddleInitial, setPatientMiddleInitial]   = useState(currentPatient?.middleInitial || '');
+  // ──────────────────────────────────────────────────────────────────────────
+  const [patientDOB, setPatientDOB]                 = useState(currentPatient?.dob           || '');
+  const [patientAddress, setPatientAddress]         = useState(currentPatient?.address        || '');
+  const [patientAge, setPatientAge]                 = useState(currentPatient?.age            || '');
+  const [patientSex, setPatientSex]                 = useState(currentPatient?.sex            || '');
+  const [patientContact, setPatientContact]         = useState(currentPatient?.contact        || '');
+  const [patientId, setPatientId]                   = useState(currentPatient?.patientId      || null);
+  const [searchQuery, setSearchQuery]               = useState('');
+  const [searchResults, setSearchResults]           = useState([]);
+  const [searchLoading, setSearchLoading]           = useState(false);
+  const [showDropdown, setShowDropdown]             = useState(false);
+  const [uploadedImage, setUploadedImage]           = useState(null);
+  const [converting, setConverting]                 = useState(false);
+  const [resizing, setResizing]                     = useState(false);
+  const [loading, setLoading]                       = useState(false);
+  const [analyzing, setAnalyzing]                   = useState(false);
+  const [analyzeStep, setAnalyzeStep]               = useState(0);
+  const [showAnalysisForm, setShowAnalysisForm]     = useState(false);
+  const [minimized, setMinimized]                   = useState(false);
+  const [expanded, setExpanded]                     = useState(false);
 
-  // ── Cancel Analysis ─────────────────────────────────────────────────────────
-  // We store the AbortController so the user can cancel the in-flight request.
-  const analysisAbortRef = useRef(null);
-  // Tracks whether we're running a mobile-session analysis (vs. a local file analysis).
-  // 'local' | 'mobile'
-  const analysisModeRef = useRef('local');
+  const analysisAbortRef  = useRef(null);
+  const analysisModeRef   = useRef('local');
 
   const [uiError, setUiError] = useState(null);
   const showError = useCallback((title, message, hint = '', type = ERROR_TYPES.SERVER) => {
@@ -562,14 +568,13 @@ export default function Upload({
   }, []);
   const clearError = useCallback(() => setUiError(null), []);
 
-  // Camera states
   const [showCameraSelector, setShowCameraSelector] = useState(false);
   const [selectedCamera, setSelectedCamera]         = useState(null);
   const [showCamera, setShowCamera]                 = useState(false);
   const [cameraStream, setCameraStream]             = useState(null);
   const [cameraError, setCameraError]               = useState('');
   const [capturing, setCapturing]                   = useState(false);
-  const [facingMode, setFacingMode]                 = useState('environment'); // kept for possible future direct use
+  const [facingMode, setFacingMode]                 = useState('environment');
 
   const [captureSessionId, setCaptureSessionId]             = useState('');
   const [mobileCaptureStatus, setMobileCaptureStatus]       = useState('');
@@ -617,15 +622,19 @@ export default function Upload({
     fetchStats();
   }, []);
 
+  // ── Sync currentPatient into all fields ────────────────────────────────────
   useEffect(() => {
     if (currentPatient) {
-      setPatientName(currentPatient.name      || '');
-      setPatientDOB(currentPatient.dob        || '');
-      setPatientAddress(currentPatient.address || '');
-      setPatientAge(currentPatient.age        || '');
-      setPatientSex(currentPatient.sex        || '');
-      setPatientContact(currentPatient.contact || '');
-      setPatientId(currentPatient.patientId   || null);
+      setPatientSurname(currentPatient.surname             || '');
+      setPatientFirstName(currentPatient.firstName         || '');
+      setPatientMiddleInitial(currentPatient.middleInitial || '');
+      setPatientName(currentPatient.name                   || '');
+      setPatientDOB(currentPatient.dob                     || '');
+      setPatientAddress(currentPatient.address             || '');
+      setPatientAge(currentPatient.age                     || '');
+      setPatientSex(currentPatient.sex                     || '');
+      setPatientContact(currentPatient.contact             || '');
+      setPatientId(currentPatient.patientId                || null);
       setTab('confirmed');
       setShowAnalysisForm(true);
       setMinimized(false);
@@ -678,49 +687,98 @@ export default function Upload({
   }, [showQRModal, mobileLink]);
 
   const handleSelectSearchResult = (patient) => {
-    setPatientName(patient.name || ''); setPatientDOB(patient.dob || '');
-    setPatientAddress(patient.address || ''); setPatientAge(patient.age || '');
-    setPatientSex(patient.sex || ''); setPatientContact(patient.contact || '');
-    setPatientId(patient.patientId); setCurrentPatient(patient);
-    setSearchQuery(''); setShowDropdown(false); setTab('confirmed');
+    setPatientSurname(patient.surname             || '');
+    setPatientFirstName(patient.firstName         || '');
+    setPatientMiddleInitial(patient.middleInitial || '');
+    setPatientName(patient.name                   || '');
+    setPatientDOB(patient.dob                     || '');
+    setPatientAddress(patient.address             || '');
+    setPatientAge(patient.age                     || '');
+    setPatientSex(patient.sex                     || '');
+    setPatientContact(patient.contact             || '');
+    setPatientId(patient.patientId);
+    setCurrentPatient(patient);
+    setSearchQuery('');
+    setShowDropdown(false);
+    setTab('confirmed');
   };
 
+  // ── Add Patient ────────────────────────────────────────────────────────────
   const handleAddPatient = async () => {
-    if (!patientName.trim())    { showError('Missing Field', 'Please enter the patient name.', '', ERROR_TYPES.WARNING); return; }
-    if (!patientDOB.trim())     { showError('Missing Field', 'Please enter the date of birth.', '', ERROR_TYPES.WARNING); return; }
-    if (!patientAge)            { showError('Missing Field', 'Please enter the patient age.', '', ERROR_TYPES.WARNING); return; }
-    if (!patientSex)            { showError('Missing Field', 'Please select the patient sex.', '', ERROR_TYPES.WARNING); return; }
-    if (!patientAddress.trim()) { showError('Missing Field', 'Please enter the patient address.', '', ERROR_TYPES.WARNING); return; }
-    if (!patientContact.trim()) { showError('Missing Field', 'Please enter the contact number.', '', ERROR_TYPES.WARNING); return; }
-    const yr = new Date().getFullYear();
-    const newPatientId = `PT-${yr}-${String(Math.floor(Math.random() * 900) + 100)}`;
+    if (!patientSurname.trim())    { showError('Missing Field', 'Please enter the surname.',        '', ERROR_TYPES.WARNING); return; }
+    if (!patientFirstName.trim())  { showError('Missing Field', 'Please enter the first name.',     '', ERROR_TYPES.WARNING); return; }
+    if (!patientDOB.trim())        { showError('Missing Field', 'Please enter the date of birth.',  '', ERROR_TYPES.WARNING); return; }
+    if (!patientAge)               { showError('Missing Field', 'Please enter the patient age.',    '', ERROR_TYPES.WARNING); return; }
+    if (!patientSex)               { showError('Missing Field', 'Please select the patient sex.',   '', ERROR_TYPES.WARNING); return; }
+    if (!patientAddress.trim())    { showError('Missing Field', 'Please enter the patient address.','', ERROR_TYPES.WARNING); return; }
+    if (!patientContact.trim())    { showError('Missing Field', 'Please enter the contact number.', '', ERROR_TYPES.WARNING); return; }
+
+    const fullName = buildFullName({
+      surname:       patientSurname,
+      firstName:     patientFirstName,
+      middleInitial: patientMiddleInitial,
+    });
+
     setLoading(true);
     try {
-      await addPatient({ patientId: newPatientId, name: patientName, age: patientAge, sex: patientSex, dob: patientDOB, address: patientAddress, contact: patientContact, status: 'Active' });
-      setPatientId(newPatientId);
-      setCurrentPatient({ patientId: newPatientId, name: patientName, age: patientAge, sex: patientSex, dob: patientDOB, address: patientAddress, contact: patientContact });
+      const saved = await addPatient({
+  patientId: `PT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+  surname:       patientSurname.trim(),
+  firstName:     patientFirstName.trim(),
+  middleInitial: patientMiddleInitial.trim(),
+  name:          fullName,
+  age:           patientAge,
+  sex:           patientSex,
+  dob:           patientDOB,
+  address:       patientAddress.trim(),
+  contact:       patientContact.trim(),
+  contactNumber: patientContact.trim(),
+  status:        'Active',
+});
+
+      const id = saved?.patientId || saved?._id;
+      setPatientId(id);
+      setPatientName(fullName);
+      setCurrentPatient({ ...saved, name: fullName });
       setTab('confirmed');
       setTotalPatients(p => p + 1);
     } catch {
       showError('Save Failed', 'Error saving patient. Make sure the backend is running.', 'Check that the server is online and try again.');
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   };
 
   const handleReset = () => {
-    // Abort any in-flight analysis
     if (analysisAbortRef.current) {
       analysisAbortRef.current.abort();
       analysisAbortRef.current = null;
     }
     stopCamera();
-    setPatientName(''); setPatientId(null); setPatientDOB(''); setPatientAddress('');
-    setPatientAge(''); setPatientSex(''); setPatientContact('');
-    setUploadedImage(null); setSearchQuery(''); setTab('new');
-    setShowAnalysisForm(false); setMinimized(false); setExpanded(false);
-    setAnalyzing(false); setAnalyzeStep(0); setResizing(false); setConverting(false);
-    setShowCamera(false); setCameraError('');
-    setShowCameraSelector(false); setSelectedCamera(null);
+    setPatientSurname('');
+    setPatientFirstName('');
+    setPatientMiddleInitial('');
+    setPatientName('');
+    setPatientId(null);
+    setPatientDOB('');
+    setPatientAddress('');
+    setPatientAge('');
+    setPatientSex('');
+    setPatientContact('');
+    setUploadedImage(null);
+    setSearchQuery('');
+    setTab('new');
+    setShowAnalysisForm(false);
+    setMinimized(false);
+    setExpanded(false);
+    setAnalyzing(false);
+    setAnalyzeStep(0);
+    setResizing(false);
+    setConverting(false);
+    setShowCamera(false);
+    setCameraError('');
+    setShowCameraSelector(false);
+    setSelectedCamera(null);
     setCaptureSessionId('');
     setMobileCaptureStatus('');
     setMobileCapturedImageUrl('');
@@ -731,7 +789,6 @@ export default function Upload({
     if (clearCurrentPatient) clearCurrentPatient();
   };
 
-  // ── Cancel an ongoing analysis ────────────────────────────────────────────
   const handleCancelAnalysis = () => {
     if (analysisAbortRef.current) {
       analysisAbortRef.current.abort();
@@ -743,13 +800,11 @@ export default function Upload({
 
   const openModal = () => { setShowAnalysisForm(true); setMinimized(false); setExpanded(false); };
 
-  // ── HEIC-aware file processing ────────────────────────────────────────────
   const applyImageFile = async (file) => {
     if (!file) return;
     const ext = file.name.split('.').pop().toLowerCase();
     let workFile = file;
 
-    // Step 1: Convert HEIC/HEIF to JPEG if needed
     if (ext === 'heic' || ext === 'heif') {
       setConverting(true);
       try {
@@ -763,7 +818,6 @@ export default function Upload({
       setConverting(false);
     }
 
-    // Step 2: Resize to 704×704
     setResizing(true);
     try {
       const resized = await resizeTo704(workFile);
@@ -891,9 +945,6 @@ export default function Upload({
     }
   };
 
-  // ── Single unified Analyze handler ──────────────────────────────────────────
-  // Decides mode based on analysisModeRef ('local' | 'mobile').
-  // Called by the single footer button in both cases.
   const handleAnalyze = async () => {
     if (analyzing) return;
 
@@ -914,7 +965,7 @@ export default function Upload({
         const data = await res.json();
         setAnalyzeStep(3);
         if (!data.success) {
-          const message     = extractBackendMessage(data);
+          const message      = extractBackendMessage(data);
           const isClassifier = data.errorType === 'INVALID_IMAGE_CLASSIFIER_REJECTED';
           showError(
             isClassifier ? 'Invalid Image' : 'Analysis Failed',
@@ -934,9 +985,7 @@ export default function Upload({
           rawImage:       data.rawImage,
         });
       } catch (err) {
-        if (err.name === 'AbortError') {
-          // User cancelled — silently reset
-        } else {
+        if (err.name !== 'AbortError') {
           showError('Network Error', 'Could not reach the analysis server: ' + err.message, 'Make sure the Flask server is running on port 5001.');
         }
       } finally {
@@ -988,9 +1037,7 @@ export default function Upload({
         rawImage:       URL.createObjectURL(uploadedImage),
       });
     } catch (err) {
-      if (err.name === 'AbortError') {
-        // User cancelled — silently reset
-      } else {
+      if (err.name !== 'AbortError') {
         showError('Server Error', 'Could not connect to the model server.', 'Make sure the Flask server is running on port 5001. ' + err.message);
       }
     } finally {
@@ -1000,7 +1047,6 @@ export default function Upload({
     }
   };
 
-  // ── Sync analyze mode whenever inputs change ──────────────────────────────
   useEffect(() => {
     if (mobileCaptureStatus === 'uploaded' && !uploadedImage) {
       analysisModeRef.current = 'mobile';
@@ -1032,7 +1078,6 @@ export default function Upload({
     { label: 'Complete', done: analyzeStep === 3 },
   ];
 
-  // Whether we're busy with file processing (conversion or resize)
   const isProcessing = converting || resizing;
 
   return (
@@ -1152,9 +1197,9 @@ export default function Upload({
                   <div style={s.quickGrid}>
                     {[
                       { label: 'New Analysis', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>), onClick: openModal },
-                      { label: 'Patients', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>), onClick: goToPatients },
-                      { label: 'Library', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="3"/><path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z"/><path d="M2 2l4 4"/><path d="M22 22l-4-4"/><line x1="8" y1="11" x2="2" y2="11"/><line x1="22" y1="11" x2="14" y2="11"/></svg>), onClick: goToLibrary },
-                      { label: 'Reports', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>), onClick: goToExport },
+                      { label: 'Patients',     icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>), onClick: goToPatients },
+                      { label: 'Library',      icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="3"/><path d="M11 2a9 9 0 1 0 0 18A9 9 0 0 0 11 2z"/><path d="M2 2l4 4"/><path d="M22 22l-4-4"/><line x1="8" y1="11" x2="2" y2="11"/><line x1="22" y1="11" x2="14" y2="11"/></svg>), onClick: goToLibrary },
+                      { label: 'Reports',      icon: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>), onClick: goToExport },
                     ].map((a, i) => (
                       <button key={i} onClick={a.onClick} style={s.quickBtn}
                         onMouseEnter={e => { e.currentTarget.style.background = '#E8EAE0'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }}
@@ -1192,7 +1237,7 @@ export default function Upload({
         <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget && !analyzing) setMinimized(true); }}>
           <div style={{ ...s.modal, width: modalW, maxHeight: modalH, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), max-height 0.25s cubic-bezier(.4,0,.2,1)' }}>
 
-            {/* ── Analyzing overlay with Cancel button ── */}
+            {/* Analyzing overlay */}
             {analyzing && (
               <div style={s.analyzingOverlay}>
                 {uploadedImage && (
@@ -1246,18 +1291,10 @@ export default function Upload({
                   <div style={{ fontSize: '11px', color: '#A4AAA4', marginTop: '2px' }}>
                     {analyzeStep === 3 ? 'Redirecting to results…' : 'Please wait while the AI processes the sample…'}
                   </div>
-                  {/* Cancel button — only shown while still processing (not on step 3) */}
                   {analyzeStep < 3 && (
                     <button
                       onClick={handleCancelAnalysis}
-                      style={{
-                        marginTop: '6px', padding: '8px 22px', borderRadius: '8px',
-                        border: '1.5px solid #D8DAD0', background: '#fff',
-                        fontSize: '12px', fontWeight: 600, color: '#A32D2D',
-                        cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        transition: 'background 0.15s, border-color 0.15s',
-                      }}
+                      style={{ marginTop: '6px', padding: '8px 22px', borderRadius: '8px', border: '1.5px solid #D8DAD0', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#A32D2D', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.15s, border-color 0.15s' }}
                       onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#D8DAD0'; }}
                     >
@@ -1344,19 +1381,113 @@ export default function Upload({
                       <button style={tab === 'new' ? s.tabActive : s.tab} onClick={() => setTab('new')}>New Patient</button>
                       <button style={tab === 'search' ? s.tabActive : s.tab} onClick={() => setTab('search')}>Search Existing</button>
                     </div>
+
                     {tab === 'new' && (
                       <>
-                        <div style={{ ...s.formGrid, gridTemplateColumns: expanded ? '1fr 1fr 1fr' : '1fr 1fr' }}>
-                          <div style={s.field}><label style={s.fieldLabel}>Full Name</label><input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Juan dela Cruz" style={s.fieldInput} /></div>
-                          <div style={s.field}><label style={s.fieldLabel}>Age</label><input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} placeholder="e.g. 45" style={s.fieldInput} /></div>
-                          <div style={s.field}><label style={s.fieldLabel}>Sex</label><select value={patientSex} onChange={e => setPatientSex(e.target.value)} style={s.fieldInput}><option value="">Select sex</option><option>Male</option><option>Female</option><option>Other</option></select></div>
-                          <div style={s.field}><label style={s.fieldLabel}>Date of Birth</label><input type="date" value={patientDOB} onChange={e => { const dob = e.target.value; setPatientDOB(dob); if (dob) { const t = new Date(); const b = new Date(dob); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; setPatientAge(a); } }} style={s.fieldInput} /></div>
-                          <div style={{ ...s.field, gridColumn: expanded ? 'auto' : '1 / -1' }}><label style={s.fieldLabel}>Address</label><input type="text" value={patientAddress} onChange={e => setPatientAddress(e.target.value)} placeholder="Street address" style={s.fieldInput} /></div>
-                          <div style={{ ...s.field, gridColumn: expanded ? 'auto' : '1 / -1' }}><label style={s.fieldLabel}>Contact Number</label><input type="tel" value={patientContact} onChange={e => setPatientContact(e.target.value)} placeholder="09XXXXXXXXX" style={s.fieldInput} /></div>
+                        {/* ── Surname / First Name / M.I. row ── */}
+                        <div style={{ ...s.formGrid, gridTemplateColumns: expanded ? '1fr 1fr 0.4fr' : '1fr 1fr 0.4fr' }}>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Surname</label>
+                            <input
+                              type="text"
+                              value={patientSurname}
+                              onChange={e => setPatientSurname(e.target.value)}
+                              placeholder="Dela Cruz"
+                              style={s.fieldInput}
+                            />
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>First Name</label>
+                            <input
+                              type="text"
+                              value={patientFirstName}
+                              onChange={e => setPatientFirstName(e.target.value)}
+                              placeholder="Juan"
+                              style={s.fieldInput}
+                            />
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>M.I.</label>
+                            <input
+                              type="text"
+                              value={patientMiddleInitial}
+                              onChange={e => setPatientMiddleInitial(e.target.value)}
+                              placeholder="S"
+                              maxLength={2}
+                              style={s.fieldInput}
+                            />
+                          </div>
                         </div>
-                        <button onClick={handleAddPatient} style={s.addBtn} disabled={loading}>{loading ? 'Saving...' : '+ Add Patient'}</button>
+
+                        {/* ── DOB / Age / Sex / Contact ── */}
+                        <div style={{ ...s.formGrid, gridTemplateColumns: expanded ? '1fr 1fr 1fr 1fr' : '1fr 1fr' }}>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Date of Birth</label>
+                            <input
+                              type="date"
+                              value={patientDOB}
+                              onChange={e => {
+                                const dob = e.target.value;
+                                setPatientDOB(dob);
+                                if (dob) {
+                                  const t = new Date(); const b = new Date(dob);
+                                  let a = t.getFullYear() - b.getFullYear();
+                                  if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--;
+                                  setPatientAge(a);
+                                }
+                              }}
+                              style={s.fieldInput}
+                            />
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Age</label>
+                            <input
+                              type="number"
+                              value={patientAge}
+                              onChange={e => setPatientAge(e.target.value)}
+                              placeholder="e.g. 45"
+                              style={s.fieldInput}
+                            />
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Sex</label>
+                            <select value={patientSex} onChange={e => setPatientSex(e.target.value)} style={s.fieldInput}>
+                              <option value="">Select sex</option>
+                              <option>Male</option>
+                              <option>Female</option>
+                              <option>Other</option>
+                            </select>
+                          </div>
+                          <div style={s.field}>
+                            <label style={s.fieldLabel}>Contact Number</label>
+                            <input
+                              type="tel"
+                              value={patientContact}
+                              onChange={e => setPatientContact(e.target.value)}
+                              placeholder="09XXXXXXXXX"
+                              style={s.fieldInput}
+                            />
+                          </div>
+                        </div>
+
+                        {/* ── Address ── */}
+                        <div style={{ ...s.field, gridColumn: '1 / -1' }}>
+                          <label style={s.fieldLabel}>Address</label>
+                          <input
+                            type="text"
+                            value={patientAddress}
+                            onChange={e => setPatientAddress(e.target.value)}
+                            placeholder="Street address"
+                            style={s.fieldInput}
+                          />
+                        </div>
+
+                        <button onClick={handleAddPatient} style={s.addBtn} disabled={loading}>
+                          {loading ? 'Saving...' : '+ Add Patient'}
+                        </button>
                       </>
                     )}
+
                     {tab === 'search' && (
                       <div ref={searchRef} style={{ position: 'relative' }}>
                         <div style={s.searchBox}>
@@ -1386,7 +1517,6 @@ export default function Upload({
               {/* Image upload column */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', padding: expanded ? '0 0 0 20px' : '0' }}>
                 <div style={s.sectionLabel}><span style={s.sectionNum}>02</span> Upload Image</div>
-                {/* Updated accept attr: includes .heic and .heif */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1396,7 +1526,6 @@ export default function Upload({
                 />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-                {/* HEIC conversion progress */}
                 {converting ? (
                   <div style={{ ...s.dropzone, flex: expanded ? 1 : 'unset', cursor: 'default', gap: '12px' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F5330" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -1420,7 +1549,6 @@ export default function Upload({
                     <div style={{ fontSize: '11px', color: '#A4AAA4' }}>Auto-resized to 704 × 704 · JPEG, PNG, TIFF, BMP, HEIC · Max 10 MB</div>
 
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                      {/* Browse File */}
                       <button onClick={handleDropzoneClick} disabled={!patientId} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #D8DAD0', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#1F5330', cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId ? 1 : 0.5, transition: 'all 0.18s' }}
                         onMouseEnter={e => { if (patientId) { e.currentTarget.style.background = '#F5F6F0'; e.currentTarget.style.borderColor = '#1F5330'; }}}
                         onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#D8DAD0'; }}
@@ -1428,8 +1556,6 @@ export default function Upload({
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         Browse File
                       </button>
-
-                      {/* Use Camera */}
                       <button onClick={openCameraSelector} disabled={!patientId} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #1F5330', background: '#1F5330', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: patientId ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId ? 1 : 0.5, transition: 'all 0.18s', position: 'relative' }}
                         onMouseEnter={e => { if (patientId) e.currentTarget.style.background = '#306A33'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = '#1F5330'; }}
@@ -1440,8 +1566,6 @@ export default function Upload({
                           <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', borderRadius: '50%', background: '#1FB505', border: '2px solid #fff' }} />
                         )}
                       </button>
-
-                      {/* Mobile Capture */}
                       <button onClick={startMobileCapture} disabled={!patientId || mobileCaptureLoading} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #4A7A9B', background: '#4A7A9B', fontSize: '12px', fontWeight: 600, color: '#fff', cursor: patientId && !mobileCaptureLoading ? 'pointer' : 'not-allowed', fontFamily: "'Poppins', sans-serif", opacity: patientId && !mobileCaptureLoading ? 1 : 0.5, transition: 'all 0.18s' }}
                         onMouseEnter={e => { if (patientId) e.currentTarget.style.background = '#3A6A8B'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = '#4A7A9B'; }}
@@ -1454,23 +1578,18 @@ export default function Upload({
                       </button>
                     </div>
 
-                    {/* Selected camera indicator */}
                     {selectedCamera && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F0F6FF', border: '1px solid #C4D8EE', borderRadius: '8px', padding: '6px 12px', marginTop: '4px' }}>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4A7A9B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         <span style={{ fontSize: '11px', color: '#4A7A9B', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {selectedCamera.label || 'Selected camera'}
                         </span>
-                        <button
-                          onClick={() => setShowCameraSelector(true)}
-                          style={{ fontSize: '10px', fontWeight: 600, color: '#4A7A9B', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Poppins', sans-serif", flexShrink: 0 }}
-                        >
+                        <button onClick={() => setShowCameraSelector(true)} style={{ fontSize: '10px', fontWeight: 600, color: '#4A7A9B', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Poppins', sans-serif", flexShrink: 0 }}>
                           Change
                         </button>
                       </div>
                     )}
 
-                    {/* Mobile session panel — NO analyze button here, just status + check */}
                     {captureSessionId && (
                       <div style={{ marginTop: '10px', width: '100%', background: '#F0F4FF', border: '1.5px solid #B8CCE8', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1488,11 +1607,7 @@ export default function Upload({
                             </div>
                           </div>
                         </div>
-                        {/* Only "Check Upload" here — the single "Analyze Image" button is in the footer */}
-                        <button
-                          onClick={checkMobileCapture}
-                          style={{ padding: '7px', borderRadius: '7px', border: '1.5px solid #4A7A9B', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#4A7A9B', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}
-                        >
+                        <button onClick={checkMobileCapture} style={{ padding: '7px', borderRadius: '7px', border: '1.5px solid #4A7A9B', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#4A7A9B', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
                           Check Upload
                         </button>
                         {mobileCaptureStatus === 'uploaded' && (
@@ -1525,7 +1640,7 @@ export default function Upload({
               </div>
             </div>
 
-            {/* Footer — single Analyze Image button for all modes */}
+            {/* Footer */}
             <div style={s.modalFoot}>
               {!patientId && <span style={s.hint}>⚠ Add a patient first</span>}
               {patientId && !isReadyToAnalyze && !isProcessing && (
@@ -1537,24 +1652,15 @@ export default function Upload({
                 </span>
               )}
               <div style={{ flex: 1 }} />
-              <button
-                onClick={handleReset}
-                style={s.cancelBtn}
-                disabled={analyzing || isProcessing}
+              <button onClick={handleReset} style={s.cancelBtn} disabled={analyzing || isProcessing}
                 onMouseEnter={e => { e.currentTarget.style.background = '#F5F6F0'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
               >
                 Cancel
               </button>
-              {/* Single unified Analyze button */}
               <button
                 onClick={handleAnalyze}
-                style={{
-                  ...s.analyzeBtn,
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  opacity: (!isReadyToAnalyze || analyzing || isProcessing) ? 0.55 : 1,
-                  cursor: (!isReadyToAnalyze || analyzing || isProcessing) ? 'not-allowed' : 'pointer',
-                }}
+                style={{ ...s.analyzeBtn, display: 'flex', alignItems: 'center', gap: '7px', opacity: (!isReadyToAnalyze || analyzing || isProcessing) ? 0.55 : 1, cursor: (!isReadyToAnalyze || analyzing || isProcessing) ? 'not-allowed' : 'pointer' }}
                 disabled={!isReadyToAnalyze || analyzing || isProcessing}
                 onMouseEnter={e => { if (isReadyToAnalyze && !analyzing && !isProcessing) e.currentTarget.style.background = '#306A33'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#1F5330'; }}
@@ -1571,15 +1677,12 @@ export default function Upload({
         </div>
       )}
 
-      {/* ── Camera Selector Modal ── */}
+      {/* Camera Selector Modal */}
       {showCameraSelector && (
-        <CameraSelector
-          onSelect={handleCameraSelected}
-          onClose={() => setShowCameraSelector(false)}
-        />
+        <CameraSelector onSelect={handleCameraSelected} onClose={() => setShowCameraSelector(false)} />
       )}
 
-      {/* ── Camera Capture Modal ── */}
+      {/* Camera Capture Modal */}
       {showCamera && (
         <div style={s.cameraOverlay}>
           <div style={s.cameraModal}>
@@ -1650,7 +1753,7 @@ export default function Upload({
         </div>
       )}
 
-      {/* ── QR Modal ── */}
+      {/* QR Modal */}
       {showQRModal && (
         <div style={{ ...s.overlay, zIndex: 1200 }} onClick={(e) => { if (e.target === e.currentTarget) setShowQRModal(false); }}>
           <div style={{ background: '#fff', borderRadius: '18px', boxShadow: '0 28px 72px rgba(0,0,0,0.28), 0 4px 20px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '360px', maxWidth: '95vw', animation: 'fadeInScale 0.22s ease' }}>

@@ -1,117 +1,23 @@
-﻿import React, { useMemo, useState } from 'react';
+﻿import React, { useState } from 'react';
 import logo from './assets/logo.png';
 import logoBg from './assets/LOGOGRAPHIC.png';
 
 const API_BASE = 'http://16.59.206.79:5000';
-
-const getPasswordStrength = (password) => {
-  const value = String(password || '');
-
-  if (!value) {
-    return {
-      label: '',
-      hint: '',
-      color: '#A4AAA4',
-      width: '0%',
-      level: 0,
-    };
-  }
-
-  let score = 0;
-
-  if (value.length >= 6) score += 1;
-  if (value.length >= 8) score += 1;
-  if (/[A-Z]/.test(value)) score += 1;
-  if (/[0-9]/.test(value)) score += 1;
-  if (/[^A-Za-z0-9]/.test(value)) score += 1;
-
-  if (value.length < 6) {
-    return {
-      label: 'Weak',
-      hint: 'Password is too short. Use at least 6 characters.',
-      color: '#E24B4A',
-      width: '25%',
-      level: 1,
-    };
-  }
-
-  if (score <= 2) {
-    return {
-      label: 'Weak',
-      hint: 'Add uppercase letters, numbers, or symbols to make it stronger.',
-      color: '#E24B4A',
-      width: '35%',
-      level: 1,
-    };
-  }
-
-  if (score === 3 || score === 4) {
-    return {
-      label: 'Medium',
-      hint: 'Password is acceptable, but can still be improved.',
-      color: '#C07320',
-      width: '70%',
-      level: 2,
-    };
-  }
-
-  return {
-    label: 'Strong',
-    hint: 'Password strength is good.',
-    color: '#1F5330',
-    width: '100%',
-    level: 3,
-  };
-};
-
-const EyeIcon = ({ hidden = false }) => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    {hidden ? (
-      <>
-        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.89 1 12a18.45 18.45 0 0 1 5.06-6.94" />
-        <path d="M9.9 4.24A10.7 10.7 0 0 1 12 4c5 0 9.27 3.11 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-        <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
-        <path d="M1 1l22 22" />
-      </>
-    ) : (
-      <>
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
-        <circle cx="12" cy="12" r="3" />
-      </>
-    )}
-  </svg>
-);
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState('login');
   const [username, setUsername] = useState(() => localStorage.getItem('rememberedUsername') || '');
   const [password, setPassword] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('rememberMe') === 'true');
 
-  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
-
   const resetForm = () => {
     setUsername(localStorage.getItem('rememberedUsername') || '');
     setPassword('');
     setConfirmPass('');
-    setShowPassword(false);
-    setShowConfirmPass(false);
     setError('');
     setSuccess('');
   };
@@ -179,7 +85,7 @@ export default function Login({ onLogin }) {
     }
 
     if (password.length < 6) {
-      setError('Password is too weak. Use at least 6 characters.');
+      setError('Password must be at least 6 characters.');
       return;
     }
 
@@ -267,84 +173,27 @@ export default function Login({ onLogin }) {
 
           <div style={styles.lgGroup}>
             <label style={styles.label}>Password</label>
-
-            <div style={styles.passwordField}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Enter your password"
-                style={{ ...styles.input, paddingRight: '42px' }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword(prev => !prev)}
-                onMouseDown={(e) => e.preventDefault()}
-                style={styles.eyeBtn}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                title={showPassword ? 'Hide password' : 'Show password'}
-              >
-                <EyeIcon hidden={showPassword} />
-              </button>
-            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Enter your password"
+              style={styles.input}
+            />
           </div>
-
-          {mode === 'register' && password && (
-            <div style={styles.passwordFeedback}>
-              <div style={styles.strengthTop}>
-                <span style={{ ...styles.strengthLabel, color: passwordStrength.color }}>
-                  {passwordStrength.label}
-                </span>
-                <span style={styles.strengthHint}>{passwordStrength.hint}</span>
-              </div>
-
-              <div style={styles.strengthTrack}>
-                <div
-                  style={{
-                    ...styles.strengthFill,
-                    width: passwordStrength.width,
-                    background: passwordStrength.color,
-                  }}
-                />
-              </div>
-            </div>
-          )}
 
           {mode === 'register' && (
             <div style={styles.lgGroup}>
               <label style={styles.label}>Confirm Password</label>
-
-              <div style={styles.passwordField}>
-                <input
-                  type={showConfirmPass ? 'text' : 'password'}
-                  value={confirmPass}
-                  onChange={(e) => setConfirmPass(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Confirm your password"
-                  style={{ ...styles.input, paddingRight: '42px' }}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPass(prev => !prev)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={styles.eyeBtn}
-                  aria-label={showConfirmPass ? 'Hide password' : 'Show password'}
-                  title={showConfirmPass ? 'Hide password' : 'Show password'}
-                >
-                  <EyeIcon hidden={showConfirmPass} />
-                </button>
-              </div>
-
-              {confirmPass && password !== confirmPass && (
-                <div style={styles.confirmHint}>Passwords do not match.</div>
-              )}
-
-              {confirmPass && password === confirmPass && (
-                <div style={styles.confirmMatch}>Passwords match.</div>
-              )}
+              <input
+                type="password"
+                value={confirmPass}
+                onChange={(e) => setConfirmPass(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Confirm your password"
+                style={styles.input}
+              />
             </div>
           )}
 
@@ -542,82 +391,6 @@ const styles = {
     boxSizing: 'border-box',
   },
 
-  passwordField: {
-    position: 'relative',
-    width: '100%',
-  },
-
-  eyeBtn: {
-    position: 'absolute',
-    right: 0,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    width: '30px',
-    height: '30px',
-    border: 'none',
-    background: 'transparent',
-    color: '#4a6645',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-  },
-
-  passwordFeedback: {
-    marginTop: '-6px',
-    marginBottom: '14px',
-  },
-
-  strengthTop: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '3px',
-    marginBottom: '6px',
-  },
-
-  strengthLabel: {
-    fontSize: '12px',
-    fontWeight: 800,
-    fontFamily: "'Poppins', sans-serif",
-  },
-
-  strengthHint: {
-    fontSize: '11px',
-    color: '#6B7168',
-    lineHeight: 1.4,
-    fontFamily: "'Poppins', sans-serif",
-  },
-
-  strengthTrack: {
-    width: '100%',
-    height: '5px',
-    borderRadius: '999px',
-    background: '#E5E8DF',
-    overflow: 'hidden',
-  },
-
-  strengthFill: {
-    height: '100%',
-    borderRadius: '999px',
-    transition: 'width 0.2s ease, background 0.2s ease',
-  },
-
-  confirmHint: {
-    marginTop: '6px',
-    fontSize: '11px',
-    color: '#E24B4A',
-    fontFamily: "'Poppins', sans-serif",
-  },
-
-  confirmMatch: {
-    marginTop: '6px',
-    fontSize: '11px',
-    color: '#1F5330',
-    fontWeight: 700,
-    fontFamily: "'Poppins', sans-serif",
-  },
-
   lgOpts: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -766,3 +539,4 @@ const styles = {
     lineHeight: 1.5,
   },
 };
+

@@ -1,66 +1,19 @@
-const { app, BrowserWindow } = require("electron");
+﻿const { app, BrowserWindow, shell } = require("electron");
 const path = require("path");
-const fs = require("fs");
-const { spawn } = require("child_process");
 
 app.commandLine.appendSwitch("disable-gpu");
 app.disableHardwareAcceleration();
 
 let mainWindow;
-let modelProcess;
 
-function getIconPath() {
-  const possiblePaths = [
-    path.join(__dirname, "LOGOGRAPHIC.ico"),
-    path.join(__dirname, "public", "LOGOGRAPHIC.ico"),
-    path.join(__dirname, "src", "assets", "LOGOGRAPHIC.ico")
-  ];
-
-  return possiblePaths.find((iconPath) => fs.existsSync(iconPath));
-}
-
-function getModelApiPath() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, "model-api", "model-api.exe");
-  }
-
-  return path.join(
-    __dirname,
-    "..",
-    "crystalscope-model",
-    "dist",
-    "model-api",
-    "model-api.exe"
+function isExternalUrl(url) {
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://")
   );
 }
 
-function startModelApi() {
-  const modelApiPath = getModelApiPath();
-
-  if (!fs.existsSync(modelApiPath)) {
-    console.error("Model API executable not found:", modelApiPath);
-    return;
-  }
-
-  modelProcess = spawn(modelApiPath, [], {
-  detached: false,
-  stdio: "ignore",
-  windowsHide: true,
-  env: {
-    ...process.env,
-    PYTHONUTF8: "1",
-    PYTHONIOENCODING: "utf-8"
-  }
-});
-
-  modelProcess.on("error", (err) => {
-    console.error("Failed to start model API:", err);
-  });
-}
-
 function createWindow() {
-  const iconPath = getIconPath();
-
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -69,11 +22,45 @@ function createWindow() {
     show: true,
     center: true,
     title: "MagniTect",
-    icon: iconPath,
+    icon: path.join(__dirname, "public", "favicon.ico"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true
+      webSecurity: true,
+      nativeWindowOpen: false
+    }
+  });
+
+  // Force all new browser windows, including Google OAuth, to open externally.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isExternalUrl(url)) {
+      shell.openExternal(url);
+      return { action: "deny" };
+    }
+
+    return { action: "deny" };
+  });
+
+  // Backup catcher: if Electron still creates a child window, close it and open URL in browser.
+  mainWindow.webContents.on("did-create-window", (childWindow, details) => {
+    if (details && details.url && isExternalUrl(details.url)) {
+      shell.openExternal(details.url);
+    }
+
+    try {
+      childWindow.close();
+    } catch {}
+  });
+
+  // Prevent the main app window from being redirected to Google/browser pages.
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const isAppUrl =
+      url.startsWith("http://localhost:3000") ||
+      url.startsWith("file://");
+
+    if (!isAppUrl && isExternalUrl(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
     }
   });
 
@@ -88,32 +75,10 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  if (process.platform === "win32") {
-    app.setAppUserModelId("com.magnitect.desktop");
-  }
-
-  startModelApi();
-
-  setTimeout(() => {
-    createWindow();
-  }, 3000);
-});
+app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
-  if (modelProcess) {
-    modelProcess.kill();
-    modelProcess = null;
-  }
-
   if (process.platform !== "darwin") app.quit();
-});
-
-app.on("before-quit", () => {
-  if (modelProcess) {
-    modelProcess.kill();
-    modelProcess = null;
-  }
 });
 
 app.on("activate", () => {

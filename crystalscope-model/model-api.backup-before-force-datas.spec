@@ -1,8 +1,8 @@
-﻿# -*- mode: python ; coding: utf-8 -*-
+# -*- mode: python ; coding: utf-8 -*-
 
 from PyInstaller.utils.hooks import collect_all
 
-datas=[('model-final', 'model-final')]
+datas = []
 binaries = []
 hiddenimports = []
 
@@ -59,4 +59,3 @@ coll = COLLECT(
     upx_exclude=[],
     name="model-api",
 )
-

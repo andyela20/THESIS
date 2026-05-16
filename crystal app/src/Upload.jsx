@@ -931,7 +931,7 @@ export default function Upload({
       }
       const encodedName = encodeURIComponent(patientName);
       const encodedId   = encodeURIComponent(patientId);
-      const link = `exp://192.168.1.18:8081/--/?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
+      const link = `magnitect:///?sessionId=${data.sessionId}&name=${encodedName}&patientId=${encodedId}`;
       setCaptureSessionId(data.sessionId);
       setMobileCaptureStatus('waiting');
       setMobileCapturedImageUrl('');

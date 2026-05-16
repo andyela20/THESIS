@@ -477,8 +477,25 @@ function CameraSelector({ onSelect, onClose }) {
                         </div>
                         {mightBeMicro && (
                           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '3px', background: '#E8F5E8', border: '1px solid #B8E0AF', borderRadius: '20px', padding: '2px 8px' }}>
-                            <span style={{ fontSize: '10px' }}>🔬</span>
-                            <span style={{ fontSize: '9px', fontWeight: 700, color: '#1F5330' }}>Microscope</span>
+                            <svg
+                            style={{ width: '10px', height: '10px' }}
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M6 18h8" />
+                            <path d="M3 22h18" />
+                            <path d="M14 22a7 7 0 0 0-7-7" />
+                            <path d="M9 14l6-6" />
+                            <path d="M15 8l3 3" />
+                            <path d="M17 2l5 5" />
+                            <path d="M12 7l5-5" />
+                          </svg>
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#1F5330' }}>Microscope</span>
                           </div>
                         )}
                       </div>

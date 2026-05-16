@@ -41,6 +41,19 @@ export default function App() {
   // ──────────────────────────────────────────────────────────────────────────
 
 
+// ── Reload/close protection ────────────────────────────────────────────────
+useEffect(() => {
+  if (currentPage === 'login') return;
+
+  const handleBeforeUnload = (e) => {
+    e.preventDefault();
+    e.returnValue = '';
+  };
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+}, [currentPage]);
+
   const goToLogin  = () => setCurrentPage('login');
   const goToUpload = () => setCurrentPage('upload');
 

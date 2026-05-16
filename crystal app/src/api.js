@@ -129,3 +129,18 @@ export const deleteAnalysis = async (id) => {
   });
   return res.json();
 };
+
+export const createPatient = async (patientData) => {
+  const response = await fetch(`${BASE_URL}/patients`, {
+    method: 'POST',
+    headers: headers(), // ← was missing, now includes Authorization + Content-Type
+    body: JSON.stringify(patientData),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => ({}));
+    throw new Error(errBody.message || `Server error: ${response.status}`);
+  }
+
+  return response.json();
+};

@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system/legacy';
+import axios from 'axios';
 import {
   useFonts,
   Poppins_400Regular,
@@ -372,8 +372,7 @@ export default function HomeScreen() {
     Poppins_800ExtraBold,
   });
 
-  const MODEL_BASE_URL = 'http://16.59.206.79:5001';
-  const API_URL = `${MODEL_BASE_URL}/upload-capture`;
+  const API_URL = 'http://192.168.1.18:5001/upload-capture';
 
   // ── Pinch-to-zoom ─────────────────────────────────────────────────────────
   const pinchResponder = useRef(
@@ -486,92 +485,24 @@ export default function HomeScreen() {
   };
 
   const uploadPhoto = async () => {
-    if (!photo) return;
-
-    if (!sessionId) {
-      Alert.alert('No Session', 'Scan QR first.');
-      return;
-    }
-
+    if (!photo)     return;
+    if (!sessionId) { Alert.alert('No Session', 'Scan QR first.'); return; }
     setLoading(true);
-
-    let uploadStep = 'starting';
-
     try {
-      uploadStep = 'checking server health';
-
-      const healthResponse = await fetch(`${MODEL_BASE_URL}/health`, {
-        method: 'GET',
-      });
-
-      const healthText = await healthResponse.text();
-
-      if (!healthResponse.ok) {
-        throw new Error(`Health failed (${healthResponse.status}): ${healthText}`);
-      }
-
-      uploadStep = 'resizing image';
-
       const resized = await ImageManipulator.manipulateAsync(
         photo.uri,
         [{ resize: { width: 704, height: 704 } }],
-        {
-          compress: 0.9,
-          format: ImageManipulator.SaveFormat.JPEG,
-        }
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
       );
-
-      uploadStep = 'uploading image';
-
-      const uploadResult = await FileSystem.uploadAsync(API_URL, resized.uri, {
-        httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        fieldName: 'image',
-        mimeType: 'image/jpeg',
-        parameters: {
-          sessionId: sessionId,
-          patientName: patientName || '',
-          patientId: patientId || '',
-        },
-        headers: {
-          Accept: 'application/json',
-        },
-      });
-
-      const status = uploadResult.status;
-      const body = uploadResult.body || '';
-
-      let data: any = {};
-      try {
-        data = JSON.parse(body);
-      } catch {
-        data = { raw: body };
-      }
-
-      if (status < 200 || status >= 300 || data?.success === false) {
-        throw new Error(
-          data?.error ||
-          data?.message ||
-          data?.raw ||
-          `Server returned status ${status}`
-        );
-      }
-
-      setResult({
-        success: true,
-        message: data?.message || 'Image uploaded successfully to desktop.',
-      });
-    } catch (e: any) {
-      console.log('[MOBILE UPLOAD ERROR]', {
-        step: uploadStep,
-        message: e?.message,
-        error: e,
-      });
-
-      setResult({
-        success: false,
-        message: `Upload failed at ${uploadStep}: ${e?.message || 'Unknown error'}`,
-      });
+      const formData = new FormData();
+      formData.append('sessionId',   sessionId);
+      formData.append('patientName', patientName);
+      formData.append('patientId',   patientId);
+      formData.append('image', { uri: resized.uri, name: 'capture.jpg', type: 'image/jpeg' } as any);
+      await axios.post(API_URL, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setResult({ success: true,  message: 'Image uploaded successfully to desktop.' });
+    } catch {
+      setResult({ success: false, message: 'Upload failed. Check server or IP.' });
     } finally {
       setLoading(false);
     }

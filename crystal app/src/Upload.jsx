@@ -1808,3 +1808,5 @@ const s = {
   cameraError:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '40px 24px' },
   cameraFoot:    { padding: '12px 18px', borderTop: '1px solid #ECEEE6', display: 'flex', alignItems: 'center', gap: '10px', background: '#F8F9F5', flexShrink: 0 },
 };
+
+

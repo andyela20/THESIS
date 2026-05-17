@@ -1,19 +1,134 @@
 ﻿const { app, BrowserWindow, shell } = require("electron");
 const path = require("path");
+const fs = require("fs");
+const http = require("http");
+const { spawn } = require("child_process");
 
 app.commandLine.appendSwitch("disable-gpu");
 app.disableHardwareAcceleration();
 
 let mainWindow;
+let modelProcess = null;
 let isQuitting = false;
 
+const MODEL_PORT = 5001;
+const MODEL_HEALTH_URL = `http://127.0.0.1:${MODEL_PORT}/health`;
+
+function getAppIconPath() {
+  const devIcon = path.join(__dirname, "public", "LOGOGRAPHIC.ico");
+  const packagedIcon = path.join(__dirname, "LOGOGRAPHIC.ico");
+
+  if (fs.existsSync(devIcon)) return devIcon;
+  if (fs.existsSync(packagedIcon)) return packagedIcon;
+
+  return undefined;
+}
 function isExternalUrl(url) {
   return url.startsWith("http://") || url.startsWith("https://");
+}
+
+function checkLocalModelHealth(timeoutMs = 1200) {
+  return new Promise((resolve) => {
+    const req = http.get(MODEL_HEALTH_URL, (res) => {
+      res.resume();
+      resolve(res.statusCode >= 200 && res.statusCode < 300);
+    });
+
+    req.on("error", () => resolve(false));
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+function getModelApiExePath() {
+  // Installed app:
+  // ...\MagniTect\resources\model-api\model-api.exe
+  const packagedPath = path.join(process.resourcesPath, "model-api", "model-api.exe");
+
+  // Dev mode:
+  // THESIS\crystalscope-model\dist\model-api\model-api.exe
+  const devPath = path.join(
+    __dirname,
+    "..",
+    "crystalscope-model",
+    "dist",
+    "model-api",
+    "model-api.exe"
+  );
+
+  if (app.isPackaged) return packagedPath;
+  return devPath;
+}
+
+async function startModelApi() {
+  const alreadyRunning = await checkLocalModelHealth();
+
+  if (alreadyRunning) {
+    console.log("[MODEL API] Local model server already running on port 5001.");
+    return;
+  }
+
+  const exePath = getModelApiExePath();
+  const exeDir = path.dirname(exePath);
+
+  if (!fs.existsSync(exePath)) {
+    console.error("[MODEL API] model-api.exe not found:", exePath);
+    return;
+  }
+
+  console.log("[MODEL API] Starting:", exePath);
+
+  modelProcess = spawn(exePath, [], {
+    cwd: exeDir,
+    windowsHide: true,
+    stdio: "ignore",
+  });
+
+  modelProcess.on("error", (err) => {
+    console.error("[MODEL API] Failed to start:", err);
+  });
+
+  modelProcess.on("exit", (code, signal) => {
+    console.log(`[MODEL API] Exited. code=${code}, signal=${signal}`);
+    modelProcess = null;
+  });
+
+  // Give Flask/PyInstaller time to load the model.
+  // First launch can be slow because RF-DETR and DINOv2 weights are loading.
+  for (let i = 1; i <= 60; i += 1) {
+    const ok = await checkLocalModelHealth(1000);
+
+    if (ok) {
+      console.log("[MODEL API] Local model server is ready.");
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  console.warn("[MODEL API] Started, but health check did not respond within 60 seconds.");
+}
+
+function stopModelApi() {
+  if (!modelProcess) return;
+
+  try {
+    console.log("[MODEL API] Stopping local model server...");
+    modelProcess.kill();
+  } catch (err) {
+    console.error("[MODEL API] Could not stop model server:", err);
+  }
+
+  modelProcess = null;
 }
 
 function forceQuitApp() {
   if (isQuitting) return;
   isQuitting = true;
+
+  stopModelApi();
 
   try {
     BrowserWindow.getAllWindows().forEach((win) => {
@@ -26,6 +141,7 @@ function forceQuitApp() {
   app.quit();
 
   setTimeout(() => {
+    stopModelApi();
     app.exit(0);
   }, 500);
 }
@@ -39,7 +155,7 @@ function createWindow() {
     show: true,
     center: true,
     title: "MagniTect",
-    icon: path.join(__dirname, "public", "favicon.ico"),
+    icon: getAppIconPath(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -77,7 +193,6 @@ function createWindow() {
     }
   });
 
-  // IMPORTANT: force close even if React/session/page tries to block it.
   mainWindow.on("close", (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -96,10 +211,14 @@ function createWindow() {
   mainWindow.loadURL(startUrl);
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await startModelApi();
+  createWindow();
+});
 
 app.on("before-quit", () => {
   isQuitting = true;
+  stopModelApi();
 });
 
 app.on("window-all-closed", () => {
@@ -111,3 +230,4 @@ app.on("activate", () => {
     createWindow();
   }
 });
+

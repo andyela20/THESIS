@@ -95,7 +95,7 @@ const EyeIcon = ({ hidden = false }) => (
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState('login');
   const [username, setUsername] = useState(() => localStorage.getItem('rememberedUsername') || '');
-  const [password, setPassword] = useState(() => localStorage.getItem('rememberMe') === 'true' ? (localStorage.getItem('rememberedPassword') || '') : '');
+  const [password, setPassword] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -108,7 +108,7 @@ export default function Login({ onLogin }) {
 
   const resetForm = () => {
     setUsername(localStorage.getItem('rememberedUsername') || '');
-    setPassword(localStorage.getItem('rememberMe') === 'true' ? (localStorage.getItem('rememberedPassword') || '') : '');
+    setPassword('');
     setConfirmPass('');
     setShowPassword(false);
     setShowConfirmPass(false);
@@ -127,11 +127,9 @@ export default function Login({ onLogin }) {
     if (rememberMe) {
       localStorage.setItem('rememberMe', 'true');
       localStorage.setItem('rememberedUsername', username.trim());
-      localStorage.setItem('rememberedPassword', password);
     } else {
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('rememberedUsername');
-      localStorage.removeItem('rememberedPassword');
     }
 
     onLogin();
@@ -362,7 +360,7 @@ export default function Login({ onLogin }) {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   style={{ marginRight: '7px' }}
                 />
-                Remember login details
+                Remember me
               </label>
               <span style={styles.lgForgot}>Forgot Password?</span>
             </div>

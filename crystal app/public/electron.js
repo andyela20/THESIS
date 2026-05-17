@@ -5,12 +5,29 @@ app.commandLine.appendSwitch("disable-gpu");
 app.disableHardwareAcceleration();
 
 let mainWindow;
+let isQuitting = false;
 
 function isExternalUrl(url) {
-  return (
-    url.startsWith("http://") ||
-    url.startsWith("https://")
-  );
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
+function forceQuitApp() {
+  if (isQuitting) return;
+  isQuitting = true;
+
+  try {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      if (!win.isDestroyed()) {
+        win.destroy();
+      }
+    });
+  } catch {}
+
+  app.quit();
+
+  setTimeout(() => {
+    app.exit(0);
+  }, 500);
 }
 
 function createWindow() {
@@ -27,23 +44,20 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
-      nativeWindowOpen: false
-    }
+      nativeWindowOpen: false,
+    },
   });
 
-  // Force all new browser windows, including Google OAuth, to open externally.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isExternalUrl(url)) {
       shell.openExternal(url);
-      return { action: "deny" };
     }
 
     return { action: "deny" };
   });
 
-  // Backup catcher: if Electron still creates a child window, close it and open URL in browser.
   mainWindow.webContents.on("did-create-window", (childWindow, details) => {
-    if (details && details.url && isExternalUrl(details.url)) {
+    if (details?.url && isExternalUrl(details.url)) {
       shell.openExternal(details.url);
     }
 
@@ -52,7 +66,6 @@ function createWindow() {
     } catch {}
   });
 
-  // Prevent the main app window from being redirected to Google/browser pages.
   mainWindow.webContents.on("will-navigate", (event, url) => {
     const isAppUrl =
       url.startsWith("http://localhost:3000") ||
@@ -64,23 +77,37 @@ function createWindow() {
     }
   });
 
+  // IMPORTANT: force close even if React/session/page tries to block it.
+  mainWindow.on("close", (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      forceQuitApp();
+    }
+  });
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+
   const startUrl =
     process.env.ELECTRON_START_URL ||
     `file://${path.join(__dirname, "index.html")}`;
 
   mainWindow.loadURL(startUrl);
-
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
 }
 
 app.whenReady().then(createWindow);
 
+app.on("before-quit", () => {
+  isQuitting = true;
+});
+
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  forceQuitApp();
 });
 
 app.on("activate", () => {
-  if (mainWindow === null) createWindow();
+  if (mainWindow === null && !isQuitting) {
+    createWindow();
+  }
 });

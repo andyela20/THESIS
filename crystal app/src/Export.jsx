@@ -652,28 +652,77 @@ export default function Export({
   };
 
   const handleExportPDF = async () => {
-    const reportImage = canDrawFrontendAnnotations
-      ? await createAnnotatedImageDataUrl(analysisData.rawImage, detections)
-      : baseReportImage;
+    try {
+      const reportImage = canDrawFrontendAnnotations
+        ? await createAnnotatedImageDataUrl(analysisData.rawImage, detections)
+        : baseReportImage;
 
-    const html = buildReportHtml({
-      analysisData,
-      particles,
-      totalCount,
-      highestRiskParticle,
-      interpretation,
-      reportImage,
-    });
+      const html = buildReportHtml({
+        analysisData,
+        particles,
+        totalCount,
+        highestRiskParticle,
+        interpretation,
+        reportImage,
+      });
 
-    const win = window.open('', '_blank');
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+      const printFrame = document.createElement('iframe');
+      printFrame.setAttribute('title', 'MagniTect PDF Export');
+      printFrame.style.position = 'fixed';
+      printFrame.style.right = '0';
+      printFrame.style.bottom = '0';
+      printFrame.style.width = '1px';
+      printFrame.style.height = '1px';
+      printFrame.style.border = '0';
+      printFrame.style.opacity = '0';
+      printFrame.style.pointerEvents = 'none';
 
-    setTimeout(() => {
-      win.print();
-      win.close();
-    }, 700);
+      document.body.appendChild(printFrame);
+
+      const frameWindow = printFrame.contentWindow;
+      const frameDocument = printFrame.contentDocument || frameWindow?.document;
+
+      if (!frameWindow || !frameDocument) {
+        throw new Error('Unable to create print frame.');
+      }
+
+      frameDocument.open();
+      frameDocument.write(html);
+      frameDocument.close();
+
+      const waitForImages = () => {
+        const images = Array.from(frameDocument.images || []);
+
+        if (!images.length) return Promise.resolve();
+
+        return Promise.all(
+          images.map(img => {
+            if (img.complete) return Promise.resolve();
+
+            return new Promise(resolve => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+      };
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await waitForImages();
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      frameWindow.focus();
+      frameWindow.print();
+
+      setTimeout(() => {
+        if (printFrame.parentNode) {
+          printFrame.parentNode.removeChild(printFrame);
+        }
+      }, 10000);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('PDF export failed. Please try again.');
+    }
   };
 
   return (

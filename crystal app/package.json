@@ -1,89 +1,98 @@
 {
-    "name":  "crystal-app",
-    "version":  "0.1.0",
-    "private":  true,
-    "main":  "build/electron.js",
-    "homepage":  "./",
-    "dependencies":  {
-                         "@testing-library/dom":  "^10.4.1",
-                         "@testing-library/jest-dom":  "^6.9.1",
-                         "@testing-library/react":  "^16.3.2",
-                         "@testing-library/user-event":  "^13.5.0",
-                         "express-session":  "^1.19.0",
-                         "heic2any":  "^0.0.4",
-                         "react":  "^19.2.4",
-                         "react-dom":  "^19.2.4",
-                         "react-scripts":  "5.0.1",
-                         "web-vitals":  "^2.1.4"
-                     },
-    "scripts":  {
-                    "start":  "react-scripts start",
-                    "build":  "react-scripts build",
-                    "test":  "react-scripts test",
-                    "eject":  "react-scripts eject",
-                    "dev":  "concurrently \"npm start\" \"cd ../crystalscope-backend \u0026\u0026 npm run dev\"",
-                    "electron":  "set ELECTRON_START_URL=http://localhost:3000 \u0026\u0026 electron Electron.js",
-                    "electron:dev":  "concurrently \"npm start\" \"cd ../crystalscope-backend \u0026\u0026 npm run dev\" \"wait-on http://localhost:3000 \u0026\u0026 set ELECTRON_START_URL=http://localhost:3000 \u0026\u0026 electron .\"",
-                    "electron:build":  "npm run build \u0026\u0026 electron-builder --win nsis --x64"
-                },
-    "eslintConfig":  {
-                         "extends":  [
-                                         "react-app",
-                                         "react-app/jest"
-                                     ]
-                     },
-    "browserslist":  {
-                         "production":  [
-                                            "\u003e0.2%",
-                                            "not dead",
-                                            "not op_mini all"
-                                        ],
-                         "development":  [
-                                             "last 1 chrome version",
-                                             "last 1 firefox version",
-                                             "last 1 safari version"
-                                         ]
-                     },
-    "devDependencies":  {
-                            "concurrently":  "^9.2.1",
-                            "electron":  "^31.7.7",
-                            "electron-builder":  "^26.8.1",
-                            "wait-on":  "^8.0.5"
-                        },
-    "build":  {
-                  "appId":  "com.magnitect.desktop",
-                  "productName":  "MagniTect",
-                  "asar":  true,
-                  "files":  [
-                                "build/**/*",
-                                "package.json"
-                            ],
-                  "directories":  {
-                                      "output":  "dist"
-                                  },
-                  "win":  {
-                              "target":  [
-                                             "nsis"
-                                         ],
-                              "icon":  "src/assets/LOGOGRAPHIC.ico"
-                          },
-                  "nsis":  {
-                               "oneClick":  false,
-                               "perMachine":  false,
-                               "allowToChangeInstallationDirectory":  true,
-                               "createDesktopShortcut":  true,
-                               "createStartMenuShortcut":  true,
-                               "shortcutName":  "MagniTect",
-                               "installerIcon":  "src/assets/LOGOGRAPHIC.ico",
-                               "uninstallerIcon":  "src/assets/LOGOGRAPHIC.ico"
-                           },
-                  "extraResources":  [
-                                         {
-                                             "from":  "../crystalscope-model/dist/model-api",
-                                             "to":  "model-api"
-                                         }
-                                     ]
-              },
-    "description":  "MagniTect desktop application",
-    "author":  "MagniTect"
+  "name": "crystal-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "build/electron.js",
+  "homepage": "./",
+  "description": "MagniTect desktop application",
+  "author": "MagniTect",
+  "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^13.5.0",
+    "express-session": "^1.19.0",
+    "heic2any": "^0.0.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dev": "concurrently \"npm start\" \"cd ../crystalscope-backend && npm run dev\"",
+    "electron": "set \"ELECTRON_START_URL=http://localhost:3000\" && electron Electron.js",
+    "electron:dev": "concurrently \"npm start\" \"cd ../crystalscope-backend && npm run dev\" \"wait-on http://localhost:3000 && set \\\"ELECTRON_START_URL=http://localhost:3000\\\" && electron Electron.js\"",
+    "electron:build": "npm run build && copy /Y Electron.js build\\electron.js && electron-builder --win --x64"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^31.7.7",
+    "electron-builder": "^26.8.1",
+    "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.magnitect.desktop",
+    "productName": "MagniTect",
+    "asar": true,
+    "files": [
+      "build/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "src/assets/LOGOGRAPHIC.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MagniTect",
+      "installerIcon": "src/assets/LOGOGRAPHIC.ico",
+      "uninstallerIcon": "src/assets/LOGOGRAPHIC.ico"
+    },
+    "extraResources": [
+      {
+        "from": "src/assets/LOGOGRAPHIC.ico",
+        "to": "LOGOGRAPHIC.ico"
+      },
+      {
+        "from": "../crystalscope-model/dist/model-api",
+        "to": "model-api"
+      }
+    ]
+  }
 }

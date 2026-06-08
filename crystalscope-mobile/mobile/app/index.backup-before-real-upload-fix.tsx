@@ -1,4 +1,4 @@
-﻿import * as Linking from 'expo-linking';
+import * as Linking from 'expo-linking';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
@@ -372,7 +372,7 @@ export default function HomeScreen() {
     Poppins_800ExtraBold,
   });
 
-  const MODEL_BASE_URL = 'http://16.59.206.79:5001';
+  const MODEL_BASE_URL = 'http://18.116.200.163:5001';
   const API_URL = `${MODEL_BASE_URL}/upload-capture`;
 
   // â”€â”€ Pinch-to-zoom â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

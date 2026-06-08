@@ -1,4 +1,4 @@
-﻿import * as Linking from 'expo-linking';
+import * as Linking from 'expo-linking';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
@@ -371,8 +371,7 @@ export default function HomeScreen() {
     Poppins_700Bold,
     Poppins_800ExtraBold,
   });
-
-  const MODEL_BASE_URL = 'http://16.59.206.79:5001';
+  const MODEL_BASE_URL = 'http://18.116.200.163:5000';
   const API_URL = `${MODEL_BASE_URL}/upload-capture`;
 
   // ── Pinch-to-zoom ─────────────────────────────────────────────────────────
@@ -494,7 +493,6 @@ export default function HomeScreen() {
     }
 
     setLoading(true);
-
     let uploadStep = 'starting';
 
     try {
@@ -614,11 +612,13 @@ export default function HomeScreen() {
             Camera access is required to scan QR codes and capture urine microscopy images.
           </Text>
           <TouchableOpacity
-            style={styles.permissionButton}
+            style={[styles.primaryBtn, styles.permissionButtonFix]}
             onPress={requestPermission}
             activeOpacity={0.85}
           >
-            <Text style={styles.permissionButtonText}>Allow Camera</Text>
+            <Text style={[styles.primaryText, styles.permissionButtonTextFix]}>
+              Allow Camera
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1057,31 +1057,18 @@ const styles = StyleSheet.create({
   permissionCard:  { padding: 28, alignItems: 'center' },
   permissionTitle: { fontSize: 22, fontFamily: 'Poppins_700Bold', marginBottom: 8, color: '#1a1a1a' },
   permissionSub:   { marginVertical: 10, fontFamily: 'Poppins_400Regular', textAlign: 'center', color: '#555', lineHeight: 20 },
+  permissionButtonFix: {
+  marginTop: 18,
+  borderRadius: 14,
+  paddingVertical: 14,
+  paddingHorizontal: 24,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
 
-  permissionButton: {
-    marginTop: 18,
-    width: 220,
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: '#1F5D3F',
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 0,
-    paddingHorizontal: 18,
-    shadowColor: '#1F5D3F',
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
-  },
-
-  permissionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Poppins_700Bold',
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-  },
+permissionButtonTextFix: {
+  fontSize: 15,
+  fontWeight: '700',
+  letterSpacing: 0.3,
+},
 });

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { addPatient, uploadImage, analyzeImage, searchPatients, getPatients, getAnalyses } from './api';
@@ -912,7 +912,7 @@ export default function Upload({
     }
     setMobileCaptureLoading(true);
     try {
-      const res = await fetch('http://16.59.206.79:5001/create-capture-session', {
+      const res = await fetch('http://18.116.200.163:5001/create-capture-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId, patientName }),
@@ -939,7 +939,7 @@ export default function Upload({
       setShowQRModal(true);
     } catch (err) {
       console.error(err);
-      showError('Connection Failed', `Cannot reach server at 16.59.206.79:5001 — is it running?`, err.message);
+      showError('Connection Failed', `Cannot reach server at 18.116.200.163:5001 — is it running?`, err.message);
     } finally {
       setMobileCaptureLoading(false);
     }
@@ -948,7 +948,7 @@ export default function Upload({
   const checkMobileCapture = async () => {
     if (!captureSessionId) return;
     try {
-      const res  = await fetch(`http://16.59.206.79:5001/check-capture/${captureSessionId}`);
+      const res  = await fetch(`http://18.116.200.163:5001/check-capture/${captureSessionId}`);
       const data = await res.json();
       if (data.status === 'uploaded') {
         setMobileCaptureStatus('uploaded');
@@ -975,7 +975,7 @@ export default function Upload({
       analysisAbortRef.current = ctrl;
       try {
         const res = await fetch(
-          `http://16.59.206.79:5001/analyze-captured/${captureSessionId}`,
+          `http://18.116.200.163:5001/analyze-captured/${captureSessionId}`,
           { method: 'POST', signal: ctrl.signal }
         );
         setAnalyzeStep(2);

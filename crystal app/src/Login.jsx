@@ -1,8 +1,8 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import logo from './assets/logo.png';
 import logoBg from './assets/LOGOGRAPHIC.png';
 
-const API_BASE = 'http://16.59.206.79:5000';
+const API_BASE = 'http://18.116.200.163:5000';
 
 const getPasswordStrength = (password) => {
   const value = String(password || '');
